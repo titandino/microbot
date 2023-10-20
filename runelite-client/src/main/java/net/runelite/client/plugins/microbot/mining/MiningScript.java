@@ -11,14 +11,13 @@ import java.util.concurrent.TimeUnit;
 
 public class MiningScript extends Script {
 
-    public static String version = "1.0";
+
+    public static String version = "2.0";
 
     public boolean run(int objectId) {
         mainScheduledFuture = scheduledExecutorService.scheduleWithFixedDelay(() -> {
             if (!super.run()) return;
             try {
-
-
                 if (Microbot.isAnimating()) return;
 
                 if (Inventory.isFull()) {

@@ -14,6 +14,6 @@ public interface MotherloadMineConfig extends Config {
             position = 0
     )
     default String GUIDE() {
-        return "1. Have a hammer in your inventory \n2. Start near the bank chest in motherload mine";
+        return "Whywhy1. Have a hammer in your inventory \n2. Start near the bank chest in motherload mine. Test one23";
     }
 }

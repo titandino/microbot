@@ -11,7 +11,7 @@ import java.awt.*;
 
 @PluginDescriptor(
         name = PluginDescriptor.Mocrosoft + "MotherloadMine",
-        description = "A bot that mines paydirt in the motherload mine",
+        description = "A bot that mines paydirt in the motherload mine. Test change update",
         tags = {"paydirt", "mine", "motherload"},
         enabledByDefault = false
 )

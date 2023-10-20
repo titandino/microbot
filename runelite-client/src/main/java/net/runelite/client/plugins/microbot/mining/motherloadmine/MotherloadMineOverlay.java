@@ -13,7 +13,7 @@ import net.runelite.client.ui.overlay.components.TitleComponent;
 import javax.inject.Inject;
 import java.awt.*;
 
-import static net.runelite.client.plugins.microbot.mining.motherloadmine.MotherloadMineScript.status;
+import static net.runelite.client.plugins.microbot.mining.motherloadmine.MotherloadMineScript.*;
 import static net.runelite.client.plugins.natepainthelper.Info.*;
 import static net.runelite.client.plugins.natepainthelper.Info.xpTillNextLevel;
 
@@ -39,20 +39,20 @@ public class MotherloadMineOverlay extends OverlayPanel {
             panelComponent.setPreferredLocation(new Point(80, 8));
             panelComponent.setPreferredSize(new Dimension(275, 700));
             panelComponent.getChildren().add(TitleComponent.builder()
-                    .text("Pay-dirt mining v" + MiningScript.version)
+                    .text("Duck walking version 2.1 || " + MiningScript.version)
                     .color(Color.GREEN)
                     .build());
             panelComponent.getChildren().add(LineComponent.builder()
                     .left("Mining Exp Gained (hr): " + (xpGained)  + " ("+xpPerHour+")")
                     .build());
             panelComponent.getChildren().add(LineComponent.builder()
-                    .left("Mining Levels Gained: " + ( Microbot.getClient().getRealSkillLevel(Skill.MINING) - startinglevel))
+                    .left("Status: " + status.toString())
                     .build());
             panelComponent.getChildren().add(LineComponent.builder()
-                    .left("Time till next level: " + PaintFormat.ft(timeTNL))
+                    .left("Debug old: " + debugOld)
                     .build());
             panelComponent.getChildren().add(LineComponent.builder()
-                    .left(status.toString())
+                    .left("Debug new: " + debugNew)
                     .build());
         } catch(Exception ex) {
             System.out.println(ex.getMessage());
