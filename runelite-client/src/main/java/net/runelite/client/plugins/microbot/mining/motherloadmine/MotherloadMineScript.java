@@ -16,6 +16,7 @@ import net.runelite.client.plugins.microbot.util.inventory.Inventory;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static net.runelite.client.plugins.microbot.util.math.Random.random;
@@ -97,6 +98,7 @@ public class MotherloadMineScript extends Script {
                         break;
                     case GO_DOWN:
                         Rs2GameObject.interact(DOWN_LADDER);
+                        sleepUntil(() -> !isOnUpperFloor(), 10000);
                         break;
                     case EMPTY_SACK:
                         while (Microbot.getVarbitValue(Varbits.SACK_NUMBER) > 10) {
@@ -193,50 +195,87 @@ public class MotherloadMineScript extends Script {
     }
 
     public static boolean isOnUpperFloor() {
-        return Microbot.getWalker().canInteract(Rs2GameObject.findObjectById(DOWN_LADDER).getWorldLocation());
+        return !Microbot.getWalker().canInteract(Rs2GameObject.findObjectById(ObjectID.HOPPER_26674).getWorldLocation());
     }
 
     // returns true if we had to walk
     private boolean walkToMiningSpot() {
         if (isOnUpperFloor()) return false;
 
-        GameObject ladder = Rs2GameObject.getGameObjects()
-                .stream()
-                .filter(x -> x.getId() == UP_LADDER)
-                .filter(x -> Microbot.getWalker().canInteract(x.getWorldLocation()))
-                .findFirst().orElse(null);
-        if (ladder == null) {
-            debug("Couldn't find a reachable ladder to upper motherload mine");
-            return false;
-        }
+        Rs2GameObject.interact(UP_LADDER);
         debug("Walking to mining spot");
-        Rs2GameObject.interact(ladder);
         sleepUntil(MotherloadMineScript::isOnUpperFloor, 8000);
         return true;
     }
 
-    private static final Set<String> MINEABLE_WALL_LOCS = ImmutableSet.of(
-            "3762,5670", "3762,5671", "3762,5672", "3762,5673",
-            "3761,5674", "3760,5674", "3759,5674",
-            "3758,5675",
-            "3755,5677",
-            "3754,5676",
-            "3754,5678",
-            "3753,5680"
+    private static final List<WorldPoint> MINEABLE_WALL_LOCS = List.of(
+            //"3762,5670", "3762,5671", "3762,5672", "3762,5673",
+            new WorldPoint(3762, 5670, 0), new WorldPoint(3762, 5671, 0), new WorldPoint(3762,3672, 0), new WorldPoint(3762, 5673, 0),
+            //"3761,5674", "3760,5674", "3759,5674",
+            new WorldPoint(3760, 5674, 0), new WorldPoint(3760, 5674, 0), new WorldPoint(3759, 5674, 0),
+            //"3758,5675",
+            new WorldPoint(3758, 5675, 0),
+            //"3755,5677",
+            new WorldPoint(3755, 5677, 0),
+            //"3754,5676",
+            new WorldPoint(3754, 5676, 0),
+            //"3754,5678",
+            new WorldPoint(3754, 5678, 0),
+            //"3753,5680"
+            new WorldPoint(3753, 5680, 0)
             );
 
+    private static final Set<Integer> MINEABLE_WALL_IDS = ImmutableSet.of(26661, 26662, 26663, 26664);
+
     private WallObject getVein() {
-        Stream<WallObject> orderedVeins = Rs2GameObject.getWallObjects()
-                .stream()
-                .filter(x -> MINEABLE_WALL_LOCS.contains(x.getWorldLocation().getX() + "," + x.getWorldLocation().getY()))
+        // Retrieve all wall objects
+        List<WallObject> wallObjects = Rs2GameObject.getWallObjects();
+        System.out.println("Total WallObjects: " + wallObjects.size());  // Log total wall objects
+
+        // Filter based on distance
+        List<WallObject> nearbyVeins = wallObjects.stream()
+                .filter(x -> x.getWorldLocation().distanceTo(Microbot.getClient().getLocalPlayer().getWorldLocation()) < 10)
+                .collect(Collectors.toList());
+        System.out.println("Veins nearby: " + nearbyVeins.size());  // Log veins within distance
+
+        // Filter based on ID
+        List<WallObject> idFilteredVeins = nearbyVeins.stream()
+                .filter(x -> MINEABLE_WALL_IDS.contains(x.getId()))
+                .collect(Collectors.toList());
+        System.out.println("ID filtered veins: " + idFilteredVeins.size());  // Log ID filtered veins
+
+        // Filter based on location
+        List<WallObject> locationFilteredVeins = idFilteredVeins.stream()
+                .filter(x -> {
+                    for (var wallLoc : MINEABLE_WALL_LOCS) {
+                        if (x.getWorldLocation().equals(wallLoc)) {
+                            return true;
+                        } else {
+                            // System.out.println(wallLoc + "!=" + x.getWorldLocation());  // Log non-matching locations
+                        }
+                    }
+                    return false;
+                })
+                .collect(Collectors.toList());
+        System.out.println("Location filtered veins: " + locationFilteredVeins.size());  // Log location filtered veins
+
+        // Sort the veins
+        List<WallObject> orderedVeins = locationFilteredVeins.stream()
                 .sorted(Comparator.comparingInt(x -> Microbot.getClient().getLocalPlayer().getWorldLocation().distanceTo(x.getWorldLocation())))
-                .filter(x -> Microbot.getWalker().canInteract(x.getWorldLocation()));
+                .collect(Collectors.toList());
 
-        return random(0, 2) == 0 ? orderedVeins.skip(1).findFirst().orElse(null) : orderedVeins.findFirst().orElse(null);
+        // Retrieve either the first or second vein
+        if (orderedVeins.isEmpty()) {
+            return null;
+        } else if (random(0, 2) == 0 && orderedVeins.size() > 1) {
+            return orderedVeins.get(1);
+        } else {
+            return orderedVeins.get(0);
+        }
     }
-
     private void mineVein() {
         WallObject vein = getVein();
+        debug("picked vein at " + vein.getWorldLocation());
 
         if (vein == null) {
             debug("Found no vein!");
@@ -247,8 +286,8 @@ public class MotherloadMineScript extends Script {
         debug("Started mining. Sleeping until the selected vein is gone/inv full, or 60 seconds, whichever happens first.");
         sleepUntil(() -> Inventory.isFull() || Rs2GameObject.getWallObjects()
                 .stream()
-                .filter(x -> x.getWorldLocation().equals(vein.getWorldLocation())
-                        && Microbot.getWalker().canInteract(x.getWorldLocation()))
+                .filter(x -> x.getWorldLocation().equals(vein.getWorldLocation()))
+                .filter(x -> MINEABLE_WALL_IDS.contains(x.getId()))
                 .findFirst().orElse(null) == null, 60000);
 
         debug("Sleeping another 2-15s (33% chance)");
