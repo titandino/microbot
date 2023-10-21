@@ -14,7 +14,6 @@ import net.runelite.client.plugins.microbot.util.bank.Rs2Bank;
 import net.runelite.client.plugins.microbot.util.camera.Rs2Camera;
 import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject;
 import net.runelite.client.plugins.microbot.util.inventory.Inventory;
-import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -44,6 +43,7 @@ public class MotherloadMineScript extends Script {
     public static String debugNew = "New Placeholder";
 
     public void debug(String msg) {
+        log.info(msg);
         debugOld = debugNew;
         debugNew = msg;
     }
@@ -93,7 +93,8 @@ public class MotherloadMineScript extends Script {
                         status = MLMStatus.BANKING;
                     }
                 }
-                if (random(1, 100) == 0) {
+
+                if (random(0, 100) == 0) {
                     int sleepTime = random(50_000, 100_000);
                     debug("Antiban: Sleeping " + sleepTime + " ms");
                     sleep(sleepTime);
@@ -110,26 +111,52 @@ public class MotherloadMineScript extends Script {
                         break;
                     case EMPTY_SACK:
                         while (Microbot.getVarbitValue(Varbits.SACK_NUMBER) > 10) {
-                            if (Inventory.count() <= 1) {
+                            if (Inventory.count() <= 5) {
+                                long beforeInvCount = Inventory.count();
                                 Rs2GameObject.interact(SACKID);
                                 debug("Grabbed stuff from sack");
-                                sleepUntil(() -> Inventory.count() > 1, 10000);
+                                sleepUntil(() -> Inventory.count() > beforeInvCount, 10000);
                             }
                             bank();
                         }
                         emptySack = false;
                         break;
                     case FIXING_WATERWHEEL:
-                        // todo - same logic as vein for better detection
-                            Rs2GameObject.interact(ObjectID.BROKEN_STRUT);
-                            debug("Started fixing waterwheel - sleeping until my smithing exp goes up, or for 10sec");
-                            int smithingExp = Microbot.getClient().getSkillExperience(Skill.SMITHING);
-                            sleepUntil(() -> Microbot.getClient().getSkillExperience(Skill.SMITHING) > smithingExp, 10000);
+                        Stream<GameObject> brokenStruts = Rs2GameObject.getGameObjects()
+                                .stream()
+                                .filter(x -> x.getId() == ObjectID.BROKEN_STRUT)
+                                .filter(x -> Microbot.getWalker().canInteract(x.getWorldLocation()));
+
+                        GameObject brokenStrut = brokenStruts.findFirst().orElse(null);
+
+                        if (brokenStrut != null) {
+                            if (Microbot.getClient().getLocalPlayer().getWorldLocation().distanceTo(brokenStrut.getWorldLocation()) > 10) {
+                                Microbot.getWalker().walkFastLocal(LocalPoint.fromWorld(Microbot.getClient(), fuzz(brokenStrut.getWorldLocation(), 2)));
+                                debug("Walked closer to strut");
+                                sleepUntil(() -> Microbot.getClient().getLocalPlayer().getWorldLocation().distanceTo2D(brokenStrut.getWorldLocation()) < 5, 8000);
+                                return;
+                            }
+                            Rs2GameObject.interact(brokenStrut);
+                            debug("Started fixing waterwheel - sleeping until the broken strut is fixed, or for 10sec");
+                            sleepUntil(() -> Rs2GameObject.getGameObjects()
+                                    .stream()
+                                    .filter(x -> x.getWorldLocation().equals(brokenStrut.getWorldLocation())
+                                            && x.getId() == ObjectID.BROKEN_STRUT
+                                            && Microbot.getWalker().canInteract(x.getWorldLocation()))
+                                    .findFirst().orElse(null) == null, 10000);
+                        } else {
+                            debug("No broken strut found to fix");
+                        }
                         break;
                     case DEPOSIT_HOPPER:
                         if (Rs2GameObject.interact(ObjectID.HOPPER_26674)) {
+                            debug("Deposited hopper");
                             sleepUntil(() -> !Inventory.isFull());
                             if (Microbot.getVarbitValue(Varbits.SACK_NUMBER) > 50) {
+                                emptySack = true;
+                            }
+                            if (random(0, 2) == 0) {
+                                debug("Antiban - emptying sack early..");
                                 emptySack = true;
                             }
                         }
@@ -146,13 +173,23 @@ public class MotherloadMineScript extends Script {
         return true;
     }
 
+    private WorldPoint fuzz(WorldPoint worldLocation, int fuzzamount) {
+        return new WorldPoint(worldLocation.getX() + random(-fuzzamount, fuzzamount), worldLocation.getY() + random(-fuzzamount, fuzzamount), worldLocation.getPlane());
+    }
+
     private void bank() {
+        debug("Opening bank if it's not open..");
         if (!Rs2Bank.isOpen() && !Rs2Bank.useBank())
             return;
         sleepUntil(Rs2Bank::isOpen);
         Set<Integer> deposited = new HashSet<Integer>();
         deposited.add(ItemID.HAMMER); // Because we don't want to deposit the hammer
-        for (Widget item : Inventory.getInventoryItems()) {
+
+        // Get all inventory items and shuffle the list
+        List<Widget> inventoryItems = new ArrayList<>(Arrays.asList(Inventory.getInventoryItems()));
+        Collections.shuffle(inventoryItems);
+
+        for (Widget item : inventoryItems) {
             if (deposited.contains(item.getItemId())) continue;
             Rs2Bank.depositAll(item.getItemId());
             deposited.add(item.getItemId());
@@ -172,12 +209,16 @@ public class MotherloadMineScript extends Script {
         }
     }
 
+    // returns true if we had to walk
     private boolean walkToMiningSpot() {
+        if (Microbot.getClient().getLocalPlayer().getWorldLocation().distanceTo(getVein().getWorldLocation()) < 5) {
+            return false; // We're already at a mining spot
+        }
         WorldPoint miningWorldPoint = miningSpot.getWorldPoint().get(0);
         if (Microbot.getClient().getLocalPlayer().getWorldLocation().distanceTo2D(miningWorldPoint) > 8) {
             Microbot.getWalker().walkFastLocal(LocalPoint.fromWorld(Microbot.getClient(), miningWorldPoint));
             debug("Walked to mining spot");
-            sleepUntil(() -> Microbot.getClient().getLocalPlayer().getWorldLocation().distanceTo2D(miningWorldPoint) < 5, 3000);
+            sleepUntil(() -> Microbot.getClient().getLocalPlayer().getWorldLocation().distanceTo2D(miningWorldPoint) < 3, 3000);
             return true;
         }
         return false;
@@ -186,24 +227,25 @@ public class MotherloadMineScript extends Script {
     private static final Set<Integer> MINEABLE_WALL_IDS = ImmutableSet.of(
             26661, 26662, 26663, 26664
             );
-    private boolean mineVein() {
+    private WallObject getVein() {
         Stream<WallObject> orderedVeins = Rs2GameObject.getWallObjects()
                 .stream()
                 .filter(x -> MINEABLE_WALL_IDS.contains(x.getId()))
+                .filter(x -> x.getWorldLocation().getX() < 3761 && x.getWorldLocation().getX() > 3728 && x.getWorldLocation().getY() > 5646 && x.getWorldLocation().getY() < 5662)
                 .sorted(Comparator.comparingInt(x -> Microbot.getClient().getLocalPlayer().getWorldLocation().distanceTo(x.getWorldLocation())))
                 .filter(x -> Microbot.getWalker().canInteract(x.getWorldLocation()));
 
-        WallObject vein = random(0, 2) == 0 ? orderedVeins.skip(1).findFirst().orElse(null) : orderedVeins.findFirst().orElse(null);
+        return random(0, 2) == 0 ? orderedVeins.skip(1).findFirst().orElse(null) : orderedVeins.findFirst().orElse(null);
+    }
 
-        if (vein == null) return true;
+    private boolean mineVein() {
+        WallObject vein = getVein();
 
-        if (!Rs2Camera.isTileOnScreen(vein) && random(0, 1) == 0) {
-            debug("Looking at vein..");
-            Rs2Camera.turnTo(vein);
-            sleepUntil(() -> Rs2Camera.isTileOnScreen(vein));
-            sleep(200);
-            debug("Done looking at vein");
+        if (vein == null) {
+            debug("Found no vein!");
+            return true;
         }
+
         Rs2GameObject.interact(vein);
         debug("Started mining. Sleeping until the selected vein is gone/inv full, or 60 seconds, whichever happens first.");
         sleepUntil(() -> Inventory.isFull() || Rs2GameObject.getWallObjects()
@@ -215,6 +257,7 @@ public class MotherloadMineScript extends Script {
 
         debug("Sleeping another 2-15s (33% chance)");
         if (random(0, 2) != 0) sleep(random(2000, 15000));
+        else sleep(random(200, 1500));
         return false;
     }
 }

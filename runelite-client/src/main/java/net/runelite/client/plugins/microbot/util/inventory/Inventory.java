@@ -22,6 +22,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static net.runelite.client.plugins.microbot.util.Global.*;
@@ -261,19 +262,26 @@ public class Inventory {
         return Microbot.getClientThread().runOnClientThread(() -> inventoryWidget.getChild(index));
     }
 
-    public static Widget findItem(int itemId) {
+   public static Widget findItem(int itemId) {
         Microbot.status = "Searching inventory item with id " + itemId;
         Widget inventoryWidget = getInventory();
         if (inventoryWidget == null) return null;
+        Random rnd = new Random();
         return Microbot.getClientThread().runOnClientThread(() -> {
+            List<Widget> matchingItems = new ArrayList<>();
             for (Widget item : inventoryWidget.getDynamicChildren()) {
                 if (item.getItemId() == itemId) {
-                    return item;
+                    matchingItems.add(item);
                 }
             }
-            return null;
+            if (matchingItems.isEmpty()) {
+                return null;
+            }
+            int randomIndex = rnd.nextInt(matchingItems.size());
+            return matchingItems.get(randomIndex);
         });
     }
+
     public static Widget findLastItem(int itemId) {
         Microbot.status = "Searching inventory for last item with id " + itemId;
         Widget inventoryWidget = getInventory();

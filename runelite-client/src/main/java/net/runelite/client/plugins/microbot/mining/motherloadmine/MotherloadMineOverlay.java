@@ -43,9 +43,6 @@ public class MotherloadMineOverlay extends OverlayPanel {
                     .color(Color.GREEN)
                     .build());
             panelComponent.getChildren().add(LineComponent.builder()
-                    .left("Mining Exp Gained (hr): " + (xpGained)  + " ("+xpPerHour+")")
-                    .build());
-            panelComponent.getChildren().add(LineComponent.builder()
                     .left("Status: " + status.toString())
                     .build());
             panelComponent.getChildren().add(LineComponent.builder()
