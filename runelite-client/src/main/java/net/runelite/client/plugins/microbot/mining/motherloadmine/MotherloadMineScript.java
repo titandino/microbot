@@ -71,7 +71,7 @@ public class MotherloadMineScript extends Script {
                         status = MLMStatus.GO_DOWN;
                     }
                     else if (Inventory.hasItem(ItemID.PAYDIRT)) {
-                        if (Rs2GameObject.findObjectById(ObjectID.BROKEN_STRUT) != null && Inventory.hasItem("hammer")) {
+                        if (Rs2GameObject.getGameObjects().stream().filter(x -> x.getId() == ObjectID.STRUT).toArray().length <= 2 && Inventory.hasItem("hammer")) {
                             status = MLMStatus.FIXING_WATERWHEEL;
                         } else {
                             status = MLMStatus.DEPOSIT_HOPPER;
@@ -141,12 +141,7 @@ public class MotherloadMineScript extends Script {
     }
 
     private void fixWaterWheel() {
-        Stream<GameObject> brokenStruts = Rs2GameObject.getGameObjects()
-                .stream()
-                .filter(x -> x.getId() == ObjectID.BROKEN_STRUT)
-                .filter(x -> Microbot.getWalker().canInteract(x.getWorldLocation()));
-
-        GameObject brokenStrut = brokenStruts.findFirst().orElse(null);
+        TileObject brokenStrut = Rs2GameObject.findObjectById(ObjectID.BROKEN_STRUT);
 
         if (brokenStrut != null) {
             if (Microbot.getClient().getLocalPlayer().getWorldLocation().distanceTo(brokenStrut.getWorldLocation()) > 10) {
@@ -160,8 +155,7 @@ public class MotherloadMineScript extends Script {
             sleepUntil(() -> Rs2GameObject.getGameObjects()
                     .stream()
                     .filter(x -> x.getWorldLocation().equals(brokenStrut.getWorldLocation())
-                            && x.getId() == ObjectID.BROKEN_STRUT
-                            && Microbot.getWalker().canInteract(x.getWorldLocation()))
+                            && x.getId() == ObjectID.BROKEN_STRUT)
                     .findFirst().orElse(null) == null, 10000);
         } else {
             debug("No broken strut found to fix");

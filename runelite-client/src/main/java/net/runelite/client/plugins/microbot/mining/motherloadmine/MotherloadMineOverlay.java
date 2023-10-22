@@ -1,9 +1,11 @@
 package net.runelite.client.plugins.microbot.mining.motherloadmine;
 
+import net.runelite.api.ObjectID;
 import net.runelite.api.Skill;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.example.ExampleScript;
 import net.runelite.client.plugins.microbot.mining.MiningScript;
+import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject;
 import net.runelite.client.plugins.natepainthelper.PaintFormat;
 import net.runelite.client.ui.overlay.OverlayPanel;
 import net.runelite.client.ui.overlay.OverlayPosition;
@@ -28,10 +30,9 @@ public class MotherloadMineOverlay extends OverlayPanel {
     @Override
     public Dimension render(Graphics2D graphics) {
         try {
-            panelComponent.setPreferredLocation(new Point(80, 8));
             panelComponent.setPreferredSize(new Dimension(275, 700));
             panelComponent.getChildren().add(TitleComponent.builder()
-                    .text("Duck walking version 2.1 || " + MiningScript.version)
+                    .text("Red Bracket Top Motherload version 2.1")
                     .color(Color.GREEN)
                     .build());
             panelComponent.getChildren().add(LineComponent.builder()
