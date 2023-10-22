@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.microbot.mining.motherloadmine;
+package net.runelite.client.plugins.microbot.mining.uppermotherload;
 
 import com.google.common.collect.ImmutableSet;
 import lombok.extern.slf4j.Slf4j;
@@ -8,8 +8,8 @@ import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.Script;
-import net.runelite.client.plugins.microbot.mining.motherloadmine.enums.MLMMiningSpot;
-import net.runelite.client.plugins.microbot.mining.motherloadmine.enums.MLMStatus;
+import net.runelite.client.plugins.microbot.mining.uppermotherload.enums.UpperMLMSpot;
+import net.runelite.client.plugins.microbot.mining.uppermotherload.enums.UpperMLMStatus;
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank;
 import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject;
 import net.runelite.client.plugins.microbot.util.inventory.Inventory;
@@ -17,35 +17,31 @@ import net.runelite.client.plugins.microbot.util.inventory.Inventory;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static net.runelite.client.plugins.microbot.util.math.Random.random;
 
 @Slf4j
-public class MotherloadMineScript extends Script {
-
-    public static double version = 1.0;
+public class UpperMotherloadScript extends Script {
 
     final static int SACKID = 26688;
     final static int DOWN_LADDER = 19045;
     final static int UP_LADDER = 19044;
 
-    public static MLMStatus status = MLMStatus.MINING;
-    public static String debugOld = "Old Placeholder";
-    public static String debugNew = "New Placeholder";
+    public static UpperMLMStatus status = UpperMLMStatus.MINING;
+    public static final ArrayList<String> debugMessages = new ArrayList<>();
 
     public void debug(String msg) {
         log.info(msg);
-        debugOld = debugNew;
-        debugNew = msg;
+        if (debugMessages.size() >= 5) debugMessages.remove(0);
+        debugMessages.add(msg);
     }
 
-    MLMMiningSpot miningSpot = MLMMiningSpot.IDLE;
+    UpperMLMSpot miningSpot = UpperMLMSpot.IDLE;
     boolean emptySack = false;
     public boolean run() {
         Microbot.enableAutoRunOn = true;
-        miningSpot = MLMMiningSpot.IDLE;
-        status = MLMStatus.MINING;
+        miningSpot = UpperMLMSpot.IDLE;
+        status = UpperMLMStatus.MINING;
         emptySack = false;
 
         mainScheduledFuture = scheduledExecutorService.scheduleWithFixedDelay(() -> {
@@ -54,44 +50,37 @@ public class MotherloadMineScript extends Script {
             try {
                 debug("We looping");
 
-                if (!Inventory.hasItem("hammer"))
-                {
-                    bank();
-                    debug("Opening bank because we have no hammer");
-                    return;
-                }
-
-                if (Microbot.getVarbitValue(Varbits.SACK_NUMBER) > 80 || (emptySack && !Inventory.contains("pay-dirt"))) {
-                    status = MLMStatus.EMPTY_SACK;
-                } else if (!Inventory.isFull()) {
-                    status = MLMStatus.MINING;
-                } else if (Inventory.isFull()) {
-                    miningSpot = MLMMiningSpot.IDLE;
-                    if (isOnUpperFloor()) {
-                        status = MLMStatus.GO_DOWN;
-                    }
-                    else if (Inventory.hasItem(ItemID.PAYDIRT)) {
-                        if (Rs2GameObject.getGameObjects().stream().filter(x -> x.getId() == ObjectID.STRUT).toArray().length <= 2 && Inventory.hasItem("hammer")) {
-                            status = MLMStatus.FIXING_WATERWHEEL;
-                        } else {
-                            status = MLMStatus.DEPOSIT_HOPPER;
-                        }
-                    } else {
-                        status = MLMStatus.BANKING;
-                    }
-                }
-
                 if (random(0, 100) == 0) {
                     int sleepTime = random(50_000, 100_000);
                     debug("Antiban: Sleeping " + sleepTime + " ms");
                     sleep(sleepTime);
-                    debug("Antiban: Done sleeping" + sleepTime + " ms");
+                    debug("Antiban: Done sleeping " + sleepTime + "ms");
+                }
+
+                if (Microbot.getVarbitValue(Varbits.SACK_NUMBER) > 80 || (emptySack && !Inventory.contains("pay-dirt"))) {
+                    status = UpperMLMStatus.EMPTY_SACK;
+                } else if (!Inventory.isFull()) {
+                    status = UpperMLMStatus.MINING;
+                } else if (Inventory.isFull()) {
+                    miningSpot = UpperMLMSpot.IDLE;
+                    if (isOnUpperFloor()) {
+                        status = UpperMLMStatus.GO_DOWN;
+                    }
+                    else if (Inventory.hasItem(ItemID.PAYDIRT)) {
+                        if (Rs2GameObject.getGameObjects().stream().filter(x -> x.getId() == ObjectID.STRUT).toArray().length <= 2) {
+                            status = UpperMLMStatus.FIXING_WATERWHEEL;
+                        } else {
+                            status = UpperMLMStatus.DEPOSIT_HOPPER;
+                        }
+                    } else {
+                        status = UpperMLMStatus.BANKING;
+                    }
                 }
 
                 switch (status) {
                     case MINING:
-                        if (miningSpot == MLMMiningSpot.IDLE) {
-                            miningSpot = MLMMiningSpot.NORTH_UPPER;
+                        if (miningSpot == UpperMLMSpot.IDLE) {
+                            miningSpot = UpperMLMSpot.NORTH_UPPER;
                         }
                         if (walkToMiningSpot()) return; // had to walk
                         mineVein();
@@ -140,7 +129,28 @@ public class MotherloadMineScript extends Script {
         return true;
     }
 
+    private void getHammer() {
+        debug("Getting a hammer...");
+        if (Inventory.isFull()) {
+            debug("Dropping pay-dirt to make room for a hammer..");
+            Inventory.drop("Pay-dirt");
+        }
+        GameObject crate = Rs2GameObject.getGameObjects().stream()
+                .filter(x -> x.getId() == ObjectID.CRATE_357)
+                .filter(x -> Microbot.getWalker().canInteract(x.getWorldLocation()))
+                .sorted(Comparator.comparingInt(x -> Microbot.getClient().getLocalPlayer().getWorldLocation().distanceTo(x.getWorldLocation())))
+                .collect(Collectors.toList())
+                .get(random(0, 1));
+        Rs2GameObject.interact(crate);
+        sleepUntil(() -> Inventory.hasItem("hammer"), 10000);
+        debug("Got my hammer (or timed out)");
+    }
+
     private void fixWaterWheel() {
+        if (!Inventory.contains("hammer")) {
+            getHammer();
+            return;
+        }
         TileObject brokenStrut = Rs2GameObject.findObjectById(ObjectID.BROKEN_STRUT);
 
         if (brokenStrut != null) {
@@ -167,25 +177,29 @@ public class MotherloadMineScript extends Script {
     }
 
     private void bank() {
-        debug("Opening bank if it's not open..");
+        int bankMethod = random(0, 3);
+        debug("Opening bank if it's not open - Using bank method " + bankMethod);
         if (!Rs2Bank.isOpen() && !Rs2Bank.useBank())
             return;
         sleepUntil(Rs2Bank::isOpen);
-        Set<Integer> deposited = new HashSet<>();
-        deposited.add(ItemID.HAMMER); // Because we don't want to deposit the hammer
+        if (bankMethod != 0) {
+            Rs2Bank.depositAll();
+        } else {
+            Set<Integer> deposited = new HashSet<>();
+            deposited.add(ItemID.HAMMER); // Because we don't want to deposit the hammer
 
-        // Get all inventory items and shuffle the list
-        List<Widget> inventoryItems = new ArrayList<>(Arrays.asList(Inventory.getInventoryItems()));
-        Collections.shuffle(inventoryItems);
+            // Get all inventory items and shuffle the list
+            List<Widget> inventoryItems = new ArrayList<>(Arrays.asList(Inventory.getInventoryItems()));
+            Collections.shuffle(inventoryItems);
 
-        for (Widget item : inventoryItems) {
-            if (deposited.contains(item.getItemId())) continue;
-            Rs2Bank.depositAll(item.getItemId());
-            deposited.add(item.getItemId());
-            sleep(100, 300);
+            for (Widget item : inventoryItems) {
+                if (deposited.contains(item.getItemId())) continue;
+                Rs2Bank.depositAll(item.getItemId());
+                deposited.add(item.getItemId());
+                sleep(100, 300);
+            }
         }
-        if (!Inventory.hasItem("hammer")) Rs2Bank.withdrawOne("hammer", true);
-        debug("We done banking");
+        debug("We done banking via method " + bankMethod);
     }
 
     public static boolean isOnUpperFloor() {
@@ -198,7 +212,7 @@ public class MotherloadMineScript extends Script {
 
         Rs2GameObject.interact(UP_LADDER);
         debug("Walking to mining spot");
-        sleepUntil(MotherloadMineScript::isOnUpperFloor, 8000);
+        sleepUntil(UpperMotherloadScript::isOnUpperFloor, 8000);
         return true;
     }
 
@@ -224,34 +238,21 @@ public class MotherloadMineScript extends Script {
     private WallObject getVein() {
         // Retrieve all wall objects
         List<WallObject> wallObjects = Rs2GameObject.getWallObjects();
-        System.out.println("Total WallObjects: " + wallObjects.size());  // Log total wall objects
 
         // Filter based on distance
         List<WallObject> nearbyVeins = wallObjects.stream()
                 .filter(x -> x.getWorldLocation().distanceTo(Microbot.getClient().getLocalPlayer().getWorldLocation()) < 10)
                 .collect(Collectors.toList());
-        System.out.println("Veins nearby: " + nearbyVeins.size());  // Log veins within distance
 
         // Filter based on ID
         List<WallObject> idFilteredVeins = nearbyVeins.stream()
                 .filter(x -> MINEABLE_WALL_IDS.contains(x.getId()))
                 .collect(Collectors.toList());
-        System.out.println("ID filtered veins: " + idFilteredVeins.size());  // Log ID filtered veins
 
         // Filter based on location
         List<WallObject> locationFilteredVeins = idFilteredVeins.stream()
-                .filter(x -> {
-                    for (var wallLoc : MINEABLE_WALL_LOCS) {
-                        if (x.getWorldLocation().equals(wallLoc)) {
-                            return true;
-                        } else {
-                            // System.out.println(wallLoc + "!=" + x.getWorldLocation());  // Log non-matching locations
-                        }
-                    }
-                    return false;
-                })
+                .filter(x -> MINEABLE_WALL_LOCS.stream().anyMatch(wallLoc -> x.getWorldLocation().equals(wallLoc)))
                 .collect(Collectors.toList());
-        System.out.println("Location filtered veins: " + locationFilteredVeins.size());  // Log location filtered veins
 
         // Sort the veins
         List<WallObject> orderedVeins = locationFilteredVeins.stream()

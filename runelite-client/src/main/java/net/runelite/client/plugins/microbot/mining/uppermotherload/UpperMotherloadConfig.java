@@ -1,11 +1,11 @@
-package net.runelite.client.plugins.microbot.mining.motherloadmine;
+package net.runelite.client.plugins.microbot.mining.uppermotherload;
 
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 
-@ConfigGroup("MotherloadMine")
-public interface MotherloadMineConfig extends Config {
+@ConfigGroup("UpperMotherload")
+public interface UpperMotherloadConfig extends Config {
 
     @ConfigItem(
             keyName = "guide",
@@ -14,6 +14,6 @@ public interface MotherloadMineConfig extends Config {
             position = 0
     )
     default String GUIDE() {
-        return "Whywhy1. Have a hammer in your inventory \n2. Start near the bank chest in motherload mine. Test one23";
+        return "Start near the bank chest in Motherload mine, with a pickaxe equipt. The top floor must be unlocked. Code shamelessly stolen from Chsami.";
     }
 }
