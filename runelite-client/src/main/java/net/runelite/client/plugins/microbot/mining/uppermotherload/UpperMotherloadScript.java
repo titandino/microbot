@@ -11,8 +11,11 @@ import net.runelite.client.plugins.microbot.Script;
 import net.runelite.client.plugins.microbot.mining.uppermotherload.enums.UpperMLMSpot;
 import net.runelite.client.plugins.microbot.mining.uppermotherload.enums.UpperMLMStatus;
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank;
+import net.runelite.client.plugins.microbot.util.bank.Rs2DepositBox;
 import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject;
 import net.runelite.client.plugins.microbot.util.inventory.Inventory;
+import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
+import net.runelite.client.plugins.microbot.util.widget.Rs2Widget;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -48,17 +51,20 @@ public class UpperMotherloadScript extends Script {
             if (!super.run()) return;
             if (!Microbot.isLoggedIn()) return;
             try {
-                debug("We looping");
-
                 if (random(0, 100) == 0) {
                     int sleepTime = random(50_000, 100_000);
-                    debug("Antiban: Sleeping " + sleepTime + " ms");
+                    debug("Anti-ban: Sleeping " + sleepTime + " ms");
                     sleep(sleepTime);
-                    debug("Antiban: Done sleeping " + sleepTime + "ms");
+                    debug("Anti-ban: Done sleeping " + sleepTime + "ms");
                 }
 
-                if (Microbot.getVarbitValue(Varbits.SACK_NUMBER) > 80 || (emptySack && !Inventory.contains("pay-dirt"))) {
-                    status = UpperMLMStatus.EMPTY_SACK;
+                if (false && getMyGenie() != null) {
+                    status = UpperMLMStatus.INTERACT_GENIE;
+                } else if (false && Inventory.hasItem("lamp")) {
+                    status = UpperMLMStatus.USE_LAMP;
+                } else if (Microbot.getVarbitValue(Varbits.SACK_NUMBER) > 80 || (emptySack && !Inventory.contains("pay-dirt"))) {
+                    if (isOnUpperFloor()) status = UpperMLMStatus.GO_DOWN;
+                    else status = UpperMLMStatus.EMPTY_SACK;
                 } else if (!Inventory.isFull()) {
                     status = UpperMLMStatus.MINING;
                 } else if (Inventory.isFull()) {
@@ -73,11 +79,28 @@ public class UpperMotherloadScript extends Script {
                             status = UpperMLMStatus.DEPOSIT_HOPPER;
                         }
                     } else {
-                        status = UpperMLMStatus.BANKING;
+                        status = UpperMLMStatus.EMPTY_SACK;
                     }
+                } else {
+                    debug("Don't know what to do, so I'll empty sack");
+                    status = UpperMLMStatus.EMPTY_SACK;
                 }
 
+                debug("We looping - " + status);
+
                 switch (status) {
+                    case INTERACT_GENIE:
+                        debug("We got a genie!");
+                        makeInventorySpace();
+                        Rs2Npc.interact(getMyGenie(), "talk-to"); // todo - verify
+                        sleepUntil(() -> Inventory.hasItem("lamp")); // todo - verify
+                        break;
+                    case USE_LAMP:
+                        debug("We got a lamp!");
+                        Inventory.useItemAction("lamp", "rub"); // todo - verify
+                        Rs2Widget.clickChildWidget(786434, 11); // todo - I made this up
+                        Rs2Widget.clickChildWidget(786434, 11); // todo - I made this up
+                        break;
                     case MINING:
                         if (miningSpot == UpperMLMSpot.IDLE) {
                             miningSpot = UpperMLMSpot.NORTH_UPPER;
@@ -86,18 +109,27 @@ public class UpperMotherloadScript extends Script {
                         mineVein();
                         break;
                     case GO_DOWN:
+                        debug("Downclimbing");
                         Rs2GameObject.interact(DOWN_LADDER);
                         sleepUntil(() -> !isOnUpperFloor(), 10000);
                         break;
                     case EMPTY_SACK:
+                        boolean itemsWereBanked = false;
                         while (Microbot.getVarbitValue(Varbits.SACK_NUMBER) > 10) {
-                            if (Inventory.count() <= 5) {
-                                long beforeInvCount = Inventory.count();
+                            if (Inventory.hasItem("hammer") && random(0, 3) == 0) {
+                                debug("Anti-ban: Dropping hammer");
+                                Inventory.drop("Hammer");
+                            }
+                            if (itemsWereBanked || Inventory.count() <= 5) {
                                 Rs2GameObject.interact(SACKID);
+                                sleepUntil(() -> !Rs2Bank.isOpen(), 10000);
+                                long beforeInvCount = Inventory.count();
                                 debug("Grabbed stuff from sack");
                                 sleepUntil(() -> Inventory.count() > beforeInvCount, 10000);
                             }
+                            debug("Starting bank from EMPTY_SACK");
                             bank();
+                            itemsWereBanked = true; // Because Inventory.count() hasn't updated yet
                         }
                         emptySack = false;
                         break;
@@ -111,17 +143,16 @@ public class UpperMotherloadScript extends Script {
                             if (Microbot.getVarbitValue(Varbits.SACK_NUMBER) > 50) {
                                 emptySack = true;
                             }
-                            if (random(0, 2) == 0) {
-                                debug("Antiban - emptying sack early..");
+                            if (random(0, 2) == 0 && Microbot.getVarbitValue(Varbits.SACK_NUMBER) > 0) {
+                                debug("Anti-ban - emptying sack early..");
                                 emptySack = true;
                             }
                         }
                         break;
-                    case BANKING:
-                        bank();
-                        break;
                 }
 
+
+            sleep(random(100, 300));
             } catch (Exception ex) {
                 System.out.println(ex.getMessage());
             }
@@ -129,12 +160,27 @@ public class UpperMotherloadScript extends Script {
         return true;
     }
 
-    private void getHammer() {
-        debug("Getting a hammer...");
+    private NPC getMyGenie() {
+        return Rs2Npc.getNpcs("Genie").stream()
+                .filter(n -> n.getInteracting() == Microbot.getClient().getLocalPlayer())
+                .filter(n -> Microbot.getWalker().canInteract(n.getWorldLocation()))
+                .findFirst().orElse(null);
+    }
+
+    private void makeInventorySpace() {
         if (Inventory.isFull()) {
             debug("Dropping pay-dirt to make room for a hammer..");
+            if (!Inventory.hasItem("pay-dirt")) {
+                debug("Need to make inventory space, but we don't have paydirt, so dropping slot 27. Good luck!");
+                Inventory.dropAllStartingFrom(27);
+            }
             Inventory.drop("Pay-dirt");
         }
+    }
+
+    private void getHammer() {
+        debug("Getting a hammer...");
+        makeInventorySpace();
         GameObject crate = Rs2GameObject.getGameObjects().stream()
                 .filter(x -> x.getId() == ObjectID.CRATE_357)
                 .filter(x -> Microbot.getWalker().canInteract(x.getWorldLocation()))
@@ -177,12 +223,24 @@ public class UpperMotherloadScript extends Script {
     }
 
     private void bank() {
-        int bankMethod = random(0, 3);
+        int bankMethod = random(0, 4);
         debug("Opening bank if it's not open - Using bank method " + bankMethod);
-        if (!Rs2Bank.isOpen() && !Rs2Bank.useBank())
+        if (bankMethod == 0) {
+            if (!Rs2DepositBox.isOpen() && !Rs2DepositBox.openDepositBox()) {
+                debug("Failed to open deposit box");
+                return;
+            }
+            Rs2DepositBox.depositAll();
             return;
+        }
+
+        // use bank
+        if (!Rs2Bank.isOpen() && !Rs2Bank.openBank()) {
+            debug("Failed to open bank");
+            return;
+        }
         sleepUntil(Rs2Bank::isOpen);
-        if (bankMethod != 0) {
+        if (bankMethod != 1) {
             Rs2Bank.depositAll();
         } else {
             Set<Integer> deposited = new HashSet<>();
@@ -270,7 +328,6 @@ public class UpperMotherloadScript extends Script {
     }
     private void mineVein() {
         WallObject vein = getVein();
-        debug("picked vein at " + vein.getWorldLocation());
 
         if (vein == null) {
             debug("Found no vein!");
@@ -278,15 +335,17 @@ public class UpperMotherloadScript extends Script {
         }
 
         Rs2GameObject.interact(vein);
-        debug("Started mining. Sleeping until the selected vein is gone/inv full, or 60 seconds, whichever happens first.");
+        debug("Clicked mine. Sleep time zzz..");
         sleepUntil(() -> Inventory.isFull() || Rs2GameObject.getWallObjects()
                 .stream()
                 .filter(x -> x.getWorldLocation().equals(vein.getWorldLocation()))
                 .filter(x -> MINEABLE_WALL_IDS.contains(x.getId()))
                 .findFirst().orElse(null) == null, 60000);
 
-        debug("Sleeping another 2-15s (33% chance)");
-        if (random(0, 2) != 0) sleep(random(2000, 15000));
+        if (random(0, 2) != 0) {
+            debug("Anti-ban: Sleeping another 2-15s (66% chance)");
+            sleep(random(2000, 15000));
+        }
         else sleep(random(200, 1500));
     }
 }
