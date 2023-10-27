@@ -13,9 +13,10 @@ import net.runelite.client.plugins.microbot.Script;
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank;
 import net.runelite.client.plugins.microbot.util.bank.Rs2DepositBox;
 import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject;
+import net.runelite.client.plugins.microbot.util.grounditem.Rs2GroundItem;
 import net.runelite.client.plugins.microbot.util.inventory.Inventory;
+import net.runelite.client.plugins.microbot.util.models.RS2Item;
 import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
-import net.runelite.client.plugins.microbot.util.player.Rs2Player;
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget;
 import net.runelite.client.plugins.microbot.woodcutting.guildmagics.enums.GuildMagicsStatus;
 
@@ -30,6 +31,8 @@ public class GuildMagicsScript extends Script {
 
     public static GuildMagicsStatus status = GuildMagicsStatus.BANKING;
     public static final ArrayList<String> debugMessages = new ArrayList<>();
+
+    private static final Set<Integer> BIRD_NEST_IDS = ImmutableSet.of(5);
 
     public void debug(String msg) {
         log.info(msg);
@@ -57,6 +60,8 @@ public class GuildMagicsScript extends Script {
                     status = GuildMagicsStatus.INTERACT_GENIE;
                 } else if (false && Inventory.hasItem("lamp")) {
                     status = GuildMagicsStatus.USE_LAMP;
+                } else if (getNest() != null) {
+                    status = GuildMagicsStatus.PICK_UP_NEST;
                 } else if (!Inventory.isFull()) {
                     status = GuildMagicsStatus.WOODCUTTING;
                 } else if (Inventory.isFull()) {
@@ -81,6 +86,9 @@ public class GuildMagicsScript extends Script {
                         Rs2Widget.clickChildWidget(786434, 11); // todo - I made this up
                         Rs2Widget.clickChildWidget(786434, 11); // todo - I made this up
                         break;
+                    case PICK_UP_NEST:
+                        debug("Picking up a nest..");
+                        Rs2GroundItem.interact(getNest());
                     case WOODCUTTING:
                         cutTree();
                         break;
@@ -96,6 +104,10 @@ public class GuildMagicsScript extends Script {
             }
         }, 0, 100, TimeUnit.MILLISECONDS);
         return true;
+    }
+
+    private RS2Item getNest() {
+        return Arrays.stream(Rs2GroundItem.getAll(5)).filter(x -> BIRD_NEST_IDS.contains(x.getItem().getId())).findFirst().orElse(null);
     }
 
     private NPC getMyGenie() {
@@ -191,9 +203,14 @@ public class GuildMagicsScript extends Script {
         // Filter out trees that are beside another player
         List<GameObject> playerFilteredTrees = locationFilteredTrees.stream()
                 .filter(x -> {
-                    for (var p : players) if (p.getWorldLocation().distanceTo(x.getWorldLocation()) > 1) return true;
+                    for (var p : players) if (p.getWorldLocation().distanceTo(x.getWorldLocation()) > 2) return true;
                     return true;
                 }).collect(Collectors.toList());
+
+        if (playerFilteredTrees.size() == 0) {
+            debug("Couldn't find a tree that had no players chopping it, so picking a random tree");
+            playerFilteredTrees = locationFilteredTrees;
+        }
 
         // Sort the trees
         List<GameObject> orderedTrees = playerFilteredTrees.stream()
