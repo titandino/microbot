@@ -145,7 +145,7 @@ public class ClientUI {
         this.clientThreadProvider = clientThreadProvider;
         this.eventBus = eventBus;
         this.safeMode = safeMode;
-        this.title = "Microbot " + ClientUI.proxyMessage;
+        this.title = title;
     }
 
     @Subscribe

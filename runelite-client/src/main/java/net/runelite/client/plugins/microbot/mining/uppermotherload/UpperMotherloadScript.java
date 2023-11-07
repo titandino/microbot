@@ -131,6 +131,7 @@ public class UpperMotherloadScript extends Script {
                             bank();
                             itemsWereBanked = true; // Because Inventory.count() hasn't updated yet
                         }
+                        if (Inventory.count() > 0) bank();
                         emptySack = false;
                         break;
                     case FIXING_WATERWHEEL:
