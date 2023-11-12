@@ -1,11 +1,11 @@
-package net.runelite.client.plugins.microbot.crafting.catherbybowstrings;
+package net.runelite.client.plugins.microbot.crafting.seersbowstrings;
 
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 
-@ConfigGroup("GuildMagics")
-public interface GuildMagicsConfig extends Config {
+@ConfigGroup("CatherbyBowstringsConfig")
+public interface SeersBowstringsConfig extends Config {
 
     @ConfigItem(
             keyName = "guide",
@@ -14,6 +14,6 @@ public interface GuildMagicsConfig extends Config {
             position = 0
     )
     default String GUIDE() {
-        return "Start in the Woodcutting Guild with an axe equipt";
+        return "Start in Seers bank";
     }
 }
