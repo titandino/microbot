@@ -10,6 +10,8 @@ import net.runelite.client.plugins.microbot.util.math.Random;
 
 import java.util.concurrent.TimeUnit;
 
+import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debug;
+
 public class PrayerPotionScript extends Script {
     public boolean run(PlayerAssistConfig config) {
         mainScheduledFuture = scheduledExecutorService.scheduleWithFixedDelay(() -> {
@@ -23,7 +25,8 @@ public class PrayerPotionScript extends Script {
                     return;
                 }
                 for (Widget potion: potions) {
-                    if (potion.getName().toLowerCase().contains("prayer")) {
+                    if (potion.getName().toLowerCase().contains("prayer") || potion.getName().toLowerCase().contains("super restore")) {
+                        debug("Drinking " + potion.getName());
                         Microbot.getMouse().click(potion.getBounds());
                         sleep(1200, 2000);
                         break;
@@ -32,7 +35,7 @@ public class PrayerPotionScript extends Script {
             } catch(Exception ex) {
                 System.out.println(ex.getMessage());
             }
-        }, 0, 600, TimeUnit.MILLISECONDS);
+        }, 0, 6000, TimeUnit.MILLISECONDS);
         return true;
     }
 }

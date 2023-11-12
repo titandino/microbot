@@ -36,9 +36,6 @@ public class PlayerAssistPlugin extends Plugin {
 
     @Inject
     private OverlayManager overlayManager;
-    @Inject
-    private PlayerAssistOverlay playerAssistOverlay;
-
     private CannonScript cannonScript = new CannonScript();
     private AttackNpcScript attackNpc = new AttackNpcScript();
     private CombatPotionScript combatPotion = new CombatPotionScript();
@@ -51,9 +48,6 @@ public class PlayerAssistPlugin extends Plugin {
     @Override
     protected void startUp() throws AWTException {
         Microbot.pauseAllScripts = false;
-        if (overlayManager != null) {
-            overlayManager.add(playerAssistOverlay);
-        }
         lootScript.run(config);
         cannonScript.run(config);
         attackNpc.run(config);
@@ -73,14 +67,10 @@ public class PlayerAssistPlugin extends Plugin {
         prayerPotionScript.shutdown();
         safeSpotScript.shutdown();
         flickerScript.shutdown();
-        overlayManager.remove(playerAssistOverlay);
     }
 
     @Subscribe
     public void onChatMessage(ChatMessage event) {
-        if (event.getMessage().contains("reach that")) {
-            AttackNpcScript.skipNpc();
-        }
     }
 
     @Subscribe

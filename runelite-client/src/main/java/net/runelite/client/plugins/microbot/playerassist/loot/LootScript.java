@@ -17,6 +17,8 @@ import java.awt.*;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
+import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debug;
+
 public class LootScript extends Script {
 
     private String[] lootItems;
@@ -37,6 +39,7 @@ public class LootScript extends Script {
                     LocalPoint groundPoint = LocalPoint.fromWorld(Microbot.getClient(), itemSpawned.getTile().getWorldLocation());
                     Polygon poly = Perspective.getCanvasTilePoly(Microbot.getClient(), groundPoint, itemSpawned.getTile().getItemLayer().getHeight());
                     if (Rs2Camera.isTileOnScreen(itemLocation)) {
+                        debug("Looting " + item);
                         if (Rs2Menu.doAction("Take", poly, new String[]{item.toLowerCase()})) {
                             Microbot.pauseAllScripts = true;
                             sleepUntilOnClientThread(() -> Microbot.getClient().getLocalPlayer().getWorldLocation() == itemSpawned.getTile().getWorldLocation(), 5000);
@@ -51,7 +54,7 @@ public class LootScript extends Script {
     }
 
     public boolean run(PlayerAssistConfig config) {
-        lootItems = Arrays.stream(config.itemsToLoot().split(",")).map(x -> x.trim()).toArray(String[]::new);
+       lootItems = Arrays.stream(config.itemsToLoot().split(",")).map(x -> x.trim()).toArray(String[]::new);
         mainScheduledFuture = scheduledExecutorService.scheduleWithFixedDelay((() -> {
             if (!super.run()) return;
             if (config.toggleLootArrows()) {
@@ -62,8 +65,10 @@ public class LootScript extends Script {
             }
             if (!config.toggleLootItems()) return;
             for (String lootItem : lootItems) {
-                if (Rs2GroundItem.loot(lootItem, 14))
+                if (Rs2GroundItem.loot(lootItem, 14)) {
+                    debug("Looting item " + lootItem);
                     break;
+                }
             }
             Global.sleep(2000, 4000);
             Microbot.pauseAllScripts = false;
