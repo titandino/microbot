@@ -219,7 +219,7 @@ public class UpperMotherloadScript extends Script {
         }
     }
 
-    private WorldPoint fuzz(WorldPoint worldLocation) {
+    public static WorldPoint fuzz(WorldPoint worldLocation) {
         return new WorldPoint(worldLocation.getX() + random(-2, 2), worldLocation.getY() + random(-2, 2), worldLocation.getPlane());
     }
 
