@@ -1,14 +1,20 @@
 package net.runelite.client.plugins.microbot.util.paintlogs;
 
 import com.google.inject.Provides;
+import net.runelite.api.events.ChatMessage;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
+import net.runelite.client.plugins.microbot.Microbot;
 
 import javax.inject.Inject;
 import java.awt.*;
 import java.util.ArrayList;
+
+import static net.runelite.api.ChatMessageType.*;
+import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debug;
 
 @PluginDescriptor(
         name = PluginDescriptor.RedBracket + "Log Paint",
@@ -38,9 +44,23 @@ public class PaintLogsPlugin extends Plugin {
         paintLogsScript.run();
     }
 
+    @Override
     protected void shutDown() {
         paintLogsScript.shutdown();
         overlayManager.remove(logPaintOverlay);
         PaintLogsScript.debugMessages = new ArrayList<>();
+    }
+
+    @Subscribe
+    public void onChatMessage(ChatMessage chatMessage) {
+        if (chatMessage.getMessage().toLowerCase().contains("bot")) {
+            Microbot.getNotifier().notify("Message contains bot");
+        }
+        switch (chatMessage.getType()) {
+            case PRIVATECHAT:
+                Microbot.getNotifier().notify("Bot got DM: " + chatMessage.getMessage());
+            default:
+                debug("Got chat message " + chatMessage.getMessage());
+        }
     }
 }

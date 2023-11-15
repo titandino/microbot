@@ -22,8 +22,6 @@ public class UpperMotherloadPlugin extends Plugin {
     private OverlayManager overlayManager;
 
     @Inject
-    private UpperMotherloadOverlay upperMotherloadOverlay;
-    @Inject
     private UpperMotherloadScript upperMotherloadScript;
 
     @Provides
@@ -33,12 +31,10 @@ public class UpperMotherloadPlugin extends Plugin {
 
     @Override
     protected void startUp() throws AWTException {
-        overlayManager.add(upperMotherloadOverlay);
         upperMotherloadScript.run();
     }
 
     protected void shutDown() {
         upperMotherloadScript.shutdown();
-        overlayManager.remove(upperMotherloadOverlay);
     }
 }

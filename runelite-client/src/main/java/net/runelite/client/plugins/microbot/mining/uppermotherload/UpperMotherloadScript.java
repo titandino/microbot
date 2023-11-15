@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static net.runelite.client.plugins.microbot.util.math.Random.random;
+import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debug;
 
 @Slf4j
 public class UpperMotherloadScript extends Script {
@@ -31,14 +32,6 @@ public class UpperMotherloadScript extends Script {
     final static int UP_LADDER = 19044;
 
     public static UpperMLMStatus status = UpperMLMStatus.MINING;
-    public static final ArrayList<String> debugMessages = new ArrayList<>();
-
-    public void debug(String msg) {
-        log.info(msg);
-        if (debugMessages.size() >= 5) debugMessages.remove(0);
-        debugMessages.add(msg);
-    }
-
     UpperMLMSpot miningSpot = UpperMLMSpot.IDLE;
     boolean emptySack = false;
     public boolean run() {
