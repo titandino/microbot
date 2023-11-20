@@ -138,6 +138,7 @@ public class GuildMagicsScript extends Script {
             sleepUntil(() -> Microbot.getClient().getLocalPlayer().getWorldLocation().distanceTo(new WorldPoint(1591, 3478, 0)) < 8);
         }
         int bankMethod = random(0, 4);
+        bankMethod = 0;
         debug("Opening bank if it's not open - Using bank method " + bankMethod);
         if (bankMethod == 0) {
             if (!Rs2DepositBox.isOpen() && !Rs2DepositBox.openDepositBox()) {
@@ -174,11 +175,14 @@ public class GuildMagicsScript extends Script {
     }
 
     private static final List<WorldPoint> CUTTABLE_TREE_LOCS = List.of(
-            new WorldPoint(1577, 3492, 0), new WorldPoint(1580, 3492, 0), new WorldPoint(1577, 3489, 0), new WorldPoint(1580, 3489, 0),
-            new WorldPoint(1577, 3485, 0), new WorldPoint(1580, 3485, 0), new WorldPoint(1577, 3482, 0), new WorldPoint(1580, 3482, 0)
+            // new WorldPoint(1577, 3492, 0), new WorldPoint(1580, 3492, 0), new WorldPoint(1577, 3489, 0), new WorldPoint(1580, 3489, 0),
+            // new WorldPoint(1577, 3485, 0), new WorldPoint(1580, 3485, 0), new WorldPoint(1577, 3482, 0), new WorldPoint(1580, 3482, 0)
+            new WorldPoint(1596, 3495, 0), new WorldPoint(1596, 3490, 0), new WorldPoint(1596, 3485, 0),
+            new WorldPoint(1591, 3493, 0), new WorldPoint(1591, 3487, 0)
             );
 
-    private static final Set<Integer> CUTTABLE_TREE_IDS = ImmutableSet.of(10834);
+    // private static final Set<Integer> CUTTABLE_TREE_IDS = ImmutableSet.of(10834);
+    private static final Set<Integer> CUTTABLE_TREE_IDS = ImmutableSet.of(10822);
 
     private GameObject getTree() {
         // Retrieve all wall objects

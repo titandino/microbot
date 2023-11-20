@@ -522,9 +522,9 @@ public class Inventory {
         Widget item2 = findItem(itemName2);
         if (item1 == null || item2 == null) return false;
         Microbot.getMouse().click(item1.getBounds().getCenterX(), item1.getBounds().getCenterY());
-        sleep(600, 1200);
+        sleep(60, 200);
         Microbot.getMouse().click(item2.getBounds().getCenterX(), item2.getBounds().getCenterY());
-        sleep(600, 1200);
+        sleep(100, 250);
         return true;
     }
     public static boolean useItemOnObject(int item, int objectID) {

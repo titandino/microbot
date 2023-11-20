@@ -14,7 +14,6 @@ import java.awt.*;
 import java.util.ArrayList;
 
 import static net.runelite.api.ChatMessageType.*;
-import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debug;
 
 @PluginDescriptor(
         name = PluginDescriptor.RedBracket + "Log Paint",
@@ -57,10 +56,15 @@ public class PaintLogsPlugin extends Plugin {
             Microbot.getNotifier().notify("Message contains bot");
         }
         switch (chatMessage.getType()) {
+            case MODPRIVATECHAT:
             case PRIVATECHAT:
                 Microbot.getNotifier().notify("Bot got DM: " + chatMessage.getMessage());
+                break;
+            case MODCHAT:
+                Microbot.getNotifier().notify("Bot got DM: " + chatMessage.getMessage());
+                break;
             default:
-                debug("Got chat message " + chatMessage.getMessage());
+                System.out.println("Got " + chatMessage.getType() + " message: " + chatMessage.getMessage());
         }
     }
 }

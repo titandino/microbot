@@ -243,7 +243,7 @@ public class Rs2Bank {
         } else {
             execMenuSwapper(container, HANDLE_X_UNSET, w);
 
-            sleep(600, 1000);
+            sleep(900, 1200);
             VirtualKeyboard.typeString(String.valueOf(amount));
             VirtualKeyboard.enter();
             sleep(50, 100);

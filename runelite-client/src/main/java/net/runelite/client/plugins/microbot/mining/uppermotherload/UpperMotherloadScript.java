@@ -116,9 +116,8 @@ public class UpperMotherloadScript extends Script {
                             if (itemsWereBanked || Inventory.count() <= 5) {
                                 Rs2GameObject.interact(SACKID);
                                 sleepUntil(() -> !Rs2Bank.isOpen(), 10000);
-                                long beforeInvCount = Inventory.count();
                                 debug("Grabbed stuff from sack");
-                                sleepUntil(() -> Inventory.count() > beforeInvCount, 10000);
+                                sleepUntil(() -> Inventory.count() > 0, 10000);
                             }
                             debug("Starting bank from EMPTY_SACK");
                             bank();
@@ -218,6 +217,7 @@ public class UpperMotherloadScript extends Script {
 
     private void bank() {
         int bankMethod = random(0, 4);
+        bankMethod = 0; // the main bank is broken lately, so ya
         debug("Opening bank if it's not open - Using bank method " + bankMethod);
         if (bankMethod == 0) {
             if (!Rs2DepositBox.isOpen() && !Rs2DepositBox.openDepositBox()) {
