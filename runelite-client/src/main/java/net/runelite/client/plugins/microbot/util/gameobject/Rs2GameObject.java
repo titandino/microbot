@@ -300,30 +300,29 @@ public class Rs2GameObject {
             return null;
         }
 
-        for (GameObject gameObject : gameObjects) {
-            ObjectComposition objComp = convertGameObjectToObjectComposition(gameObject);
+        return Microbot.getClientThread().runOnClientThread(() -> {
+            for (GameObject gameObject : gameObjects) {
+                ObjectComposition objComp = convertGameObjectToObjectCompositionOnClientThread(gameObject);
 
-            if (objComp == null) {
-                continue;
-            }
-            String compName = null;
+                if (objComp == null) {
+                    continue;
+                }
+                String compName = null;
 
-            try {
-                compName = !objComp.getName().equals("null") ? objComp.getName() : (objComp.getImpostor() != null ? objComp.getImpostor().getName() : null);
-            } catch (Exception e) {
-                continue;
-            }
+                try {
+                    compName = !objComp.getName().equals("null") ? objComp.getName() : (objComp.getImpostor() != null ? objComp.getImpostor().getName() : null);
+                } catch (Exception e) {
+                    continue;
+                }
 
-            if (compName != null && Microbot.getWalker().canInteract(gameObject.getWorldLocation())) {
                 if (!exact && compName.toLowerCase().contains(objectName.toLowerCase())) {
-                    return gameObject;
+                    return Microbot.getWalker().canInteract(gameObject.getWorldLocation()) ? gameObject : null;
                 } else if (exact && compName.equalsIgnoreCase(objectName)) {
-                    return gameObject;
+                    return Microbot.getWalker().canInteract(gameObject.getWorldLocation()) ? gameObject : null;
                 }
             }
-        }
-
-        return null;
+            return null;
+        });
     }
 
     public static GameObject findObject(String objectName, boolean exact, int distance) {
@@ -561,6 +560,12 @@ public class Rs2GameObject {
         return Microbot.getClientThread().runOnClientThread(() -> Microbot.getClient().getObjectDefinition(tileObject.getId()));
     }
 
+    public static ObjectComposition convertGameObjectToObjectCompositionOnClientThread(TileObject tileObject) {
+        Player player = Microbot.getClient().getLocalPlayer();
+        if (player.getLocalLocation().distanceTo(tileObject.getLocalLocation()) > 2400) return null;
+        return Microbot.getClient().getObjectDefinition(tileObject.getId());
+    }
+
     public static WallObject findDoor(int id) {
         Scene scene = Microbot.getClient().getScene();
         Tile[][][] tiles = scene.getTiles();
@@ -643,10 +648,10 @@ public class Rs2GameObject {
                 }
             }
         }
-
+        WorldPoint playerLoc = Microbot.getClient().getLocalPlayer().getWorldLocation();
         return tileObjects.stream()
                 .filter(Objects::nonNull)
-                .sorted(Comparator.comparingInt(tile -> tile.getWorldLocation().distanceTo(Microbot.getClient().getLocalPlayer().getWorldLocation())))
+                .sorted(Comparator.comparingInt(tile -> tile.getWorldLocation().distanceTo(playerLoc)))
                 .collect(Collectors.toList());
     }
 

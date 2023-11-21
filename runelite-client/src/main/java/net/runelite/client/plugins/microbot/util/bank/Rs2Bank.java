@@ -630,20 +630,20 @@ public class Rs2Bank {
             if (Microbot.getClient().isWidgetSelected())
                 Microbot.getMouse().click();
             if (isOpen()) return true;
-            NPC npc = Rs2Npc.getNpc("banker");
-            if (npc == null) {
-                GameObject bank = Rs2GameObject.findBank();
-                if (bank == null) {
+            GameObject bank = Rs2GameObject.findBank();
+            if (bank == null) {
+                NPC npc = Rs2Npc.getNpc("banker");
+                if (npc == null) {
                     GameObject chest = Rs2GameObject.findChest();
                     if (chest == null) return false;
                     Rs2GameObject.interact(chest, "use");
                 } else {
-                    Rs2GameObject.interact(bank, "bank");
+                    Rs2Npc.interact(npc, "bank");
                 }
                 sleepUntil(Rs2Bank::isOpen);
                 return Rs2Bank.isOpen();
             }
-            boolean action = Rs2Npc.interact(npc, "bank");
+            boolean action = Rs2GameObject.interact(bank, "bank");
             if (action) {
                 sleepUntil(() -> isOpen() || Rs2Widget.hasWidget("Please enter your PIN"), 5000);
                 sleep(600, 1000);

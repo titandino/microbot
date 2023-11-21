@@ -47,6 +47,7 @@ public @interface PluginDescriptor
 	public String Envision = "<html>[<font color=#c0c0c0>E</font>] ";
 	public String Spaghetti = "<html>[<font color=#DAD420>S</font>] ";
 	public String RedBracket = "<html>[<font color=#f22727>R</font>] ";
+	public String Trent = "<html>[<font color=#00ff00>T</font>] ";
 	String name();
 
 	/**

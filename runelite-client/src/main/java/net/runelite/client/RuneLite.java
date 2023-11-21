@@ -161,6 +161,8 @@ public class RuneLite {
     public static void main(String[] args) throws Exception {
         Locale.setDefault(Locale.ENGLISH);
 
+        args = new String[] { "--developer-mode", "--insecure-write-credentials" };
+
         final OptionParser parser = new OptionParser(false);
         parser.accepts("developer-mode", "Enable developer tools");
         parser.accepts("debug", "Show extra debugging output");
@@ -285,14 +287,14 @@ public class RuneLite {
             if (developerMode) {
                 boolean assertions = false;
                 assert assertions = true;
-                if (!assertions) {
-                    SwingUtilities.invokeLater(() ->
-                            new FatalErrorDialog("Developers should enable assertions; Add `-ea` to your JVM arguments`")
-                                    .addHelpButtons()
-                                    .addBuildingGuide()
-                                    .open());
-                    return;
-                }
+//                if (!assertions) {
+//                    SwingUtilities.invokeLater(() ->
+//                            new FatalErrorDialog("Developers should enable assertions; Add `-ea` to your JVM arguments`")
+//                                    .addHelpButtons()
+//                                    .addBuildingGuide()
+//                                    .open());
+//                    return;
+//                }
             }
 
             log.info("RuneLite {} (launcher version {}) starting up, args: {}",
