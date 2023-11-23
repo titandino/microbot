@@ -39,16 +39,6 @@ public class FletchingOverlay extends OverlayPanel {
                     .build());
 
             panelComponent.getChildren().add(LineComponent.builder()
-                    .left("Fletching Exp Gained (hr): " + (xpGained)  + " ("+xpPerHour+")")
-                    .build());
-            panelComponent.getChildren().add(LineComponent.builder()
-                    .left("Fletching Levels Gained: " + ( Microbot.getClient().getRealSkillLevel(Skill.FLETCHING) - startinglevel))
-                    .build());
-            panelComponent.getChildren().add(LineComponent.builder()
-                    .left("Time till next level: " + PaintFormat.ft(timeTNL))
-                    .build());
-
-            panelComponent.getChildren().add(LineComponent.builder()
                     .left(Microbot.status)
                     .build());
         } catch(Exception ex) {

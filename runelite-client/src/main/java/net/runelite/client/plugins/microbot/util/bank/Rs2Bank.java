@@ -17,11 +17,13 @@ import net.runelite.client.plugins.microbot.util.reflection.Rs2Reflection;
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget;
 import net.runelite.client.plugins.microbot.util.widget.models.ItemWidget;
 
+import java.awt.event.KeyEvent;
 import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static net.runelite.client.plugins.microbot.Microbot.updateItemContainer;
 import static net.runelite.client.plugins.microbot.util.Global.*;
+import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debug;
 
 public class Rs2Bank {
     public static CopyOnWriteArrayList<ItemWidget> bankItems = new CopyOnWriteArrayList<>();
@@ -103,8 +105,9 @@ public class Rs2Bank {
      */
     public static boolean closeBank() {
         if (!isOpen()) return false;
-        Rs2Widget.clickChildWidget(786434, 11);
-        sleepUntilOnClientThread(() -> !isOpen());
+        debug("Sent esc key, sleeping 900ms");
+        VirtualKeyboard.keyPress(KeyEvent.VK_ESCAPE);
+        sleep(900);
 
         return true;
     }
