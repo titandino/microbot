@@ -16,6 +16,8 @@ import net.runelite.client.plugins.microbot.util.widget.Rs2Widget;
 
 import java.util.concurrent.TimeUnit;
 
+import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debug;
+
 class ProgressiveFletchingModel {
     @Getter
     @Setter
@@ -41,8 +43,10 @@ public class FletchingScript extends Script {
                 calculateItemToFletch();
             if (!super.run()) return;
             if (!configChecks(config)) return;
-            if (config.Afk() && Random.random(1, 100) == 2)
+            if (config.Afk() && Random.random(1, 100) == 2) {
+                debug("Afking for up to 60s...");
                 sleep(1000, 60000);
+            }
             try {
                 boolean hasRequirementsToFletch = false;
                 boolean hasRequirementsToBank = false;
@@ -67,16 +71,18 @@ public class FletchingScript extends Script {
 
 
                 if (hasRequirementsToFletch) {
+                    debug("Fletching...");
                     fletch(config);
                 }
                 if (hasRequirementsToBank) {
+                    debug("Banking...");
                     bankItems(config);
                 }
 
             } catch (Exception ex) {
                 System.out.println(ex.getMessage());
             }
-        }, 0, 12000, TimeUnit.MILLISECONDS);
+        }, 0, 200, TimeUnit.MILLISECONDS);
     }
 
     private void bankItems(FletchingConfig config) {
@@ -106,7 +112,6 @@ public class FletchingScript extends Script {
             sleep(2000);
         }
 
-        Rs2Bank.withdrawItemXExact(true, primaryItemToFletch, config.fletchingMode().getAmount());
         if (Rs2Bank.isOpen() && !Rs2Bank.hasItem(secondaryItemToFletch)) {
             Rs2Bank.closeBank();
             Microbot.status = "[Shutting down] - Reason: " + secondaryItemToFletch + " not found in the bank.";
@@ -114,15 +119,17 @@ public class FletchingScript extends Script {
             shutdown();
             return;
         }
-        if (config.fletchingMode() == FletchingMode.STRUNG)
+        if (config.fletchingMode() == FletchingMode.STRUNG) {
+            Rs2Bank.withdrawItemXExact(true, primaryItemToFletch, config.fletchingMode().getAmount());
             Rs2Bank.withdrawItemX(true, secondaryItemToFletch, config.fletchingMode().getAmount());
+        }
         else
             Rs2Bank.withdrawItemAll(secondaryItemToFletch);
 
         final String finalSecondaryItemToFletch = secondaryItemToFletch;
 
         sleepUntil(() -> Inventory.hasItem(finalSecondaryItemToFletch));
-        sleep(600, 3000);
+        sleep(600, 1000);
         Rs2Bank.closeBank();
     }
 

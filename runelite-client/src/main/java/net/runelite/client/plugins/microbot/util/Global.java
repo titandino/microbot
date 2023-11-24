@@ -68,7 +68,7 @@ public class Global {
     }
 
     public static void sleepUntilOnClientThread(BooleanSupplier awaitedCondition) {
-        sleepUntilOnClientThread(awaitedCondition, Random.random(2500, 5000));
+        sleepUntilOnClientThread(awaitedCondition, Random.random(500, 500));
     }
 
     public static void sleepUntilOnClientThread(BooleanSupplier awaitedCondition, int time) {

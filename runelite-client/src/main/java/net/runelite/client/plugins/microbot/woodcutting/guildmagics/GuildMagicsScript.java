@@ -64,7 +64,7 @@ public class GuildMagicsScript extends Script {
                     status = GuildMagicsStatus.PICK_UP_NEST;
                 } else if (!Inventory.isFull()) {
                     status = GuildMagicsStatus.WOODCUTTING;
-                } else if (Inventory.isFull()) {
+                } else if (Inventory.count() >= 26) {
                     status = GuildMagicsStatus.BANKING;
                 } else {
                     debug("Don't know what to do, so I'll empty sack");
@@ -245,7 +245,11 @@ public class GuildMagicsScript extends Script {
             sleepUntil(() -> Microbot.getClient().getLocalPlayer().getWorldLocation().distanceTo(tree.getWorldLocation()) < 8);
         }
 
-        Rs2GameObject.interact(tree);
+        if (!Rs2GameObject.interact(tree)) {
+            debug("Failed to click tree!? Sleeping 1-30s then trying again...");
+            sleep(random(1000,30000));
+            return;
+        }
         debug("Clicked tree. Sleep time zzz..");
         sleepUntil(() -> Inventory.isFull() || Rs2GameObject.getGameObjects()
                 .stream()
