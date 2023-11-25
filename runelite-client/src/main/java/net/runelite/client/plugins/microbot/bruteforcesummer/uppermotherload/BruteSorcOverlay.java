@@ -23,7 +23,7 @@ public class BruteSorcOverlay extends OverlayPanel {
         try {
             panelComponent.setPreferredSize(new Dimension(375, 700));
             panelComponent.getChildren().add(TitleComponent.builder()
-                    .text("Red Bracket Brute Sorc Plugin 0.1")
+                    .text("Red Bracket Brute Sorc Plugin 1.0")
                     .color(Color.GREEN)
                     .build());
             panelComponent.getChildren().add(LineComponent.builder()
