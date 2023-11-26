@@ -56,6 +56,8 @@ public class CraftingPlugin extends Plugin {
     private GemsScript gemsScript = new GemsScript();
     private GlassblowingScript glassblowingScript = new GlassblowingScript();
 
+    public static boolean disablePaint;
+
     @Override
     protected void startUp() throws AWTException {
         expstarted = Microbot.getClient().getSkillExperience(Skill.CRAFTING);
@@ -77,6 +79,8 @@ public class CraftingPlugin extends Plugin {
         } else if (config.activityType() == Activities.GLASSBLOWING) {
             glassblowingScript.run(config);
         }
+
+        disablePaint = config.DisablePaint();
     }
 
     protected void shutDown() {

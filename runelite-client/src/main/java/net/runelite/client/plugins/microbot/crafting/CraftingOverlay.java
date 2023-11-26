@@ -26,6 +26,8 @@ public class CraftingOverlay extends OverlayPanel {
     @Override
     public Dimension render(Graphics2D graphics) {
         try {
+            if (true) return super.render(graphics);
+
             xpGained = Microbot.getClient().getSkillExperience(Skill.CRAFTING) - expstarted;
             int xpPerHour = (int)( xpGained / ((System.currentTimeMillis() - timeBegan) / 3600000.0D));
             nextLevelXp = XP_TABLE[Microbot.getClient().getRealSkillLevel(Skill.CRAFTING) + 1];
