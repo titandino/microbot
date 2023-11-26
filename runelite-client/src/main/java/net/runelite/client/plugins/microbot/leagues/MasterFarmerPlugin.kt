@@ -39,14 +39,16 @@ class MasterFarmerPlugin : Plugin() {
             try {
                 if (Inventory.isFull()) {
                     if (Rs2Bank.walkToBank()) {
-                        Rs2Bank.useBank()
-                        Global.sleep(1000, 2000)
                         Global.sleepUntil { !Microbot.isMoving() }
-                        Rs2Bank.depositAll()
-                        Rs2Bank.closeBank()
-                        Global.sleep(1000, 2000)
+                        continue
                     }
-                    continue;
+                    Rs2Bank.useBank()
+                    Global.sleep(1000, 2000)
+                    Global.sleepUntil { !Microbot.isMoving() }
+                    Rs2Bank.depositAll()
+                    Rs2Bank.closeBank()
+                    Global.sleep(1000, 2000)
+                    continue
                 }
                 if (Rs2Npc.interact("Master farmer", "Pickpocket")) {
                     Global.sleep(1000, 2000)
