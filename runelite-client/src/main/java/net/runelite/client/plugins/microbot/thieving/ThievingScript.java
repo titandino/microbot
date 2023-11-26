@@ -68,7 +68,12 @@ public class ThievingScript extends Script {
         }
         if (config == null ? true : Microbot.getClient().getBoostedSkillLevel(Skill.HITPOINTS) > config.hitpoints()) {
             if (Rs2Npc.interact(config == null ? npc.getName() : config.THIEVING_NPC().getName(), "pickpocket"))
-                sleepUntil(() -> Inventory.count() >= 28 || Inventory.hasItemAmountStackable("coin pouch", 84), 60_000);
+                sleepUntil(() -> {
+                    boolean invFull = Inventory.count() >= 28 || Inventory.hasItemAmountStackable("coin pouch", 84);
+                    boolean stopped = !Microbot.isGainingExp;
+                    System.out.println("Waiting: " + invFull + " - " + stopped);
+                    return invFull || stopped;
+                }, 60_000);
         }
     }
 }
