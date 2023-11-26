@@ -18,7 +18,7 @@ import net.runelite.client.plugins.microbot.util.keyboard.VirtualKeyboard;
 import net.runelite.client.plugins.microbot.util.math.Calculations;
 import net.runelite.client.plugins.microbot.util.math.Random;
 import net.runelite.client.plugins.microbot.util.player.Rs2Player;
-import net.runelite.client.plugins.microbot.util.tabs.Tab;
+import net.runelite.client.plugins.microbot.util.tabs.Rs2Tab;
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget;
 
 import java.time.Instant;
@@ -53,7 +53,7 @@ public class TitheFarmingScript extends Script {
 
     public static final int WATERING_CANS_AMOUNT = 8;
 
-    public static final int DISTANCE_TRESHHOLD_MINIMAP_WALK = 8;
+    public static final int DISTANCE_TRESHHOLD_MINIMAP_WALK = 6;
 
     public static int gricollerCanCharges = -1;
 
@@ -197,7 +197,7 @@ public class TitheFarmingScript extends Script {
                         }
                         break;
                     case STARTING:
-                        Tab.switchToInventoryTab();
+                        Rs2Tab.switchToInventoryTab();
                         init(config);
                         validateInventory();
                         DropFertiliser();
@@ -286,7 +286,7 @@ public class TitheFarmingScript extends Script {
         }
 
         if (plant.isEmptyPatch()) { //start planting seeds
-            Inventory.useItemFast(Objects.requireNonNull(TitheFarmMaterial.getSeedForLevel()).getName(), "Use");
+            Inventory.useItem(Objects.requireNonNull(TitheFarmMaterial.getSeedForLevel()).getName());
             clickPatch(plant);
             sleepUntil(Rs2Player::isAnimating, config.sleepAfterPlantingSeed());
             if (Rs2Player.isAnimating()) {
@@ -364,7 +364,7 @@ public class TitheFarmingScript extends Script {
             sleepUntil(() -> gricollerCanCharges != -1);
             if (gricollerCanCharges < config.gricollerCanRefillTreshhold()) {
                 walkToBarrel();
-                Inventory.useItemFast(ItemID.GRICOLLERS_CAN, "Use");
+                Inventory.useItem(ItemID.GRICOLLERS_CAN);
                 Rs2GameObject.interact("Water barrel");
                 sleepUntil(Microbot::isAnimating, 10000);
             } else {
@@ -372,7 +372,7 @@ public class TitheFarmingScript extends Script {
             }
         } else if (TitheFarmMaterial.hasWateringCanToBeFilled()) {
             walkToBarrel();
-            Inventory.useItemFast(TitheFarmMaterial.getWateringCanToBeFilled(), "Use");
+            Inventory.useItem(TitheFarmMaterial.getWateringCanToBeFilled());
             Rs2GameObject.interact("Water barrel", "Use");
             sleepUntil(() -> Inventory.hasItemAmount(ItemID.WATERING_CAN8, WATERING_CANS_AMOUNT), 60000);
         } else {
@@ -391,7 +391,7 @@ public class TitheFarmingScript extends Script {
 
     private void checkGricollerCharges() {
         gricollerCanCharges = -1;
-        Inventory.useItemFast(ItemID.GRICOLLERS_CAN, "check");
+        Inventory.useItemAction(ItemID.GRICOLLERS_CAN, "check");
     }
 
     private void takeSeeds() {
