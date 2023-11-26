@@ -10,9 +10,7 @@ import net.runelite.client.plugins.PluginDescriptor
 import net.runelite.client.plugins.microbot.Microbot
 import net.runelite.client.plugins.microbot.util.Global
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
-import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Inventory
-import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
 import net.runelite.client.plugins.microbot.util.keyboard.VirtualKeyboard
 import java.awt.event.KeyEvent
 import javax.inject.Inject
@@ -73,38 +71,22 @@ class MakeAllPotions : Plugin() {
     private fun run() {
         while (running) {
             try {
-                if (bankContainsGrimys()) {
-                    cleanGrimys()
-                    continue
+                when {
+                    bankContainsGrimys() -> cleanGrimys()
+                    currentPot == null -> choosePotion()
+                    else -> makePotion()
                 }
-                if (currentPot == null) {
-                    choosePotion()
-                    continue
-                }
-                makePotion()
             } catch (e: Throwable) {
                 e.printStackTrace()
             }
         }
     }
 
-    private fun bankContainsGrimys(): Boolean {
-        for (herb in Herb.entries) {
-            if (Rs2Bank.hasItem(herb.grimyId))
-                return true
-        }
-        return false
-    }
+    private fun bankContainsGrimys() = Herb.values().any { Rs2Bank.hasItem(it.grimyId) }
 
     private fun cleanGrimys() {
-        if (currentHerb == null) {
-            for (herb in Herb.entries) {
-                if (Rs2Bank.hasItem(herb.grimyId))
-                    currentHerb = herb
-            }
-            return
-        }
-        if (!Rs2Bank.hasItem(currentHerb!!.grimyId)) {
+        currentHerb = currentHerb ?: Herb.values().firstOrNull { Rs2Bank.hasItem(it.grimyId) }
+        if (currentHerb == null || !Rs2Bank.hasItem(currentHerb!!.grimyId)) {
             currentHerb = null
             return
         }
@@ -117,43 +99,38 @@ class MakeAllPotions : Plugin() {
         Global.sleep(600, 1000)
         Rs2Bank.closeBank();
         Global.sleep(600, 1000)
-        for (i in 0..27)
-            Inventory.useItemSlot(i)
+        repeat(28) { Inventory.useItemSlot(it) }
+
     }
 
     private fun choosePotion() {
-        for (pot in Potion.entries) {
-            if (Rs2Bank.hasItem(pot.primary) && Rs2Bank.hasItem(pot.secondary)) {
-                currentPot = pot
-                break
-            }
-        }
+        currentPot = Potion.values().firstOrNull { Rs2Bank.hasItem(it.primary) && Rs2Bank.hasItem(it.secondary) }
     }
 
     private fun makePotion() {
-        if (currentPot == null)
-            return
-        if (!Rs2Bank.hasItem(currentPot!!.primary) || !Rs2Bank.hasItem(currentPot!!.secondary)) {
-            currentPot = null;
-            return
+        currentPot?.let { pot ->
+            if (!Rs2Bank.hasItem(pot.primary) || !Rs2Bank.hasItem(pot.secondary)) {
+                currentPot = null
+                return
+            }
+            Rs2Bank.useBank()
+            Global.sleep(600, 1000)
+            Global.sleepUntil { !Microbot.isMoving() }
+            Rs2Bank.depositAll()
+            Global.sleep(600, 1000)
+            Rs2Bank.withdrawX(pot.primary, 14)
+            Global.sleep(600, 1000)
+            Rs2Bank.withdrawX(pot.secondary, 14)
+            Global.sleep(600, 1000)
+            Rs2Bank.closeBank();
+            Global.sleep(1000, 2000)
+            Inventory.useItem(pot.primary)
+            Global.sleep(300, 600)
+            Inventory.useItem(pot.secondary)
+            Global.sleep(600, 1000)
+            VirtualKeyboard.keyPress(KeyEvent.VK_SPACE)
+            Global.sleepUntil({ !Inventory.hasItemAmount(pot.primary, 1) }, 40000)
         }
-        Rs2Bank.useBank()
-        Global.sleep(600, 1000)
-        Global.sleepUntil { !Microbot.isMoving() }
-        Rs2Bank.depositAll()
-        Global.sleep(600, 1000)
-        Rs2Bank.withdrawX(currentPot!!.primary, 14)
-        Global.sleep(600, 1000)
-        Rs2Bank.withdrawX(currentPot!!.secondary, 14)
-        Global.sleep(600, 1000)
-        Rs2Bank.closeBank();
-        Global.sleep(1000, 2000)
-        Inventory.useItem(currentPot!!.primary)
-        Global.sleep(300, 600)
-        Inventory.useItem(currentPot!!.secondary)
-        Global.sleep(600, 1000)
-        VirtualKeyboard.keyPress(KeyEvent.VK_SPACE)
-        Global.sleepUntil({ !Inventory.hasItemAmount(currentPot!!.primary, 1) }, 40000)
     }
 
     override fun shutDown() {
