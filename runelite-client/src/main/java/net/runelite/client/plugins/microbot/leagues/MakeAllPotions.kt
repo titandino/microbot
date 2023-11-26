@@ -148,7 +148,7 @@ class MakeAllPotions : Plugin() {
         Global.sleep(600, 1000)
         Rs2Bank.closeBank();
         Global.sleep(600, 1000)
-        Inventory.useItemOnItemSlot(12, 15)
+        Inventory.useItemOnItem(currentPot!!.primary, currentPot!!.secondary)
         Global.sleep(1000, 1400)
         VirtualKeyboard.keyPress(KeyEvent.VK_SPACE)
         Global.sleepUntil({ !Inventory.hasItemAmount(currentPot!!.primary, 1) }, 40000)

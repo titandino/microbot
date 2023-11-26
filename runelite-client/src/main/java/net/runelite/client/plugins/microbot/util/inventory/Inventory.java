@@ -531,6 +531,20 @@ public class Inventory {
         sleep(100, 250);
         return true;
     }
+
+    public static boolean useItemOnItem(int itemId1, int itemId2) {
+        if (Rs2Bank.isOpen()) return false;
+        Microbot.status = "Use inventory item " + itemId1 + " with " + itemId2;
+        Widget item1 = findItem(itemId1);
+        Widget item2 = findItem(itemId2);
+        if (item1 == null || item2 == null) return false;
+        Microbot.getMouse().click(item1.getBounds().getCenterX(), item1.getBounds().getCenterY());
+        sleep(60, 200);
+        Microbot.getMouse().click(item2.getBounds().getCenterX(), item2.getBounds().getCenterY());
+        sleep(100, 250);
+        return true;
+    }
+
     public static boolean useItemOnObject(int item, int objectID) {
         if (Rs2Bank.isOpen()) return false;
         Widget item1 = findItem(item);
