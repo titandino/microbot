@@ -367,6 +367,10 @@ public class Inventory {
         });
     }
 
+    private static Widget getBankContainer() {
+        return Microbot.getClientThread().runOnClientThread(() -> Microbot.getClient().getWidget(786445));
+    }
+
     public static Widget findItem(String itemName, boolean exact) {
         Microbot.status = "Searching inventory for item: " + itemName;
         Rs2Tab.switchToInventoryTab();
