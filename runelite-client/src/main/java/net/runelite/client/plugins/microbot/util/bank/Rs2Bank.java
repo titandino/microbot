@@ -75,9 +75,11 @@ public class Rs2Bank {
         if (isOpen()) {
             Widget randomClickWidget = Random.random(1, 10) < 5 ? Rs2Widget.findWidget("Rearrange mode", null) : Rs2Widget.findWidget("The bank of", null);
             if (randomClickWidget == null) {
-                Microbot.getMouse().clickFast((int) widget.getBounds().getCenterX(), (int) widget.getBounds().getCenterY());
+                if (widget.getBounds() != null)
+                    Microbot.getMouse().clickFast((int) widget.getBounds().getCenterX(), (int) widget.getBounds().getCenterY());
             } else {
-                Microbot.getMouse().clickFast((int) randomClickWidget.getBounds().getCenterX(), (int) randomClickWidget.getBounds().getCenterY());
+                if (randomClickWidget.getBounds() != null)
+                    Microbot.getMouse().clickFast((int) randomClickWidget.getBounds().getCenterX(), (int) randomClickWidget.getBounds().getCenterY());
             }
         }
         sleep(50);
