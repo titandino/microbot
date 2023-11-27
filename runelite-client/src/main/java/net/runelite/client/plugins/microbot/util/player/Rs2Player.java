@@ -92,12 +92,14 @@ public class Rs2Player {
     }
 
     public static boolean toggleRunEnergy(boolean toggle) {
-
+        System.out.println("Toggling run energy at " + System.currentTimeMillis() + " - " + toggle);
+        // print stack trace
+        new Exception().printStackTrace();
         if (Microbot.getVarbitPlayerValue(173) == 0 && !toggle) return true;
         if (Microbot.getVarbitPlayerValue(173) == 1 && toggle) return true;
         Widget widget = Rs2Widget.getWidget(WidgetInfo.MINIMAP_TOGGLE_RUN_ORB.getId());
         if (widget == null) return false;
-        if (Microbot.getClient().getEnergy() > 8000 && toggle) {
+        if (Microbot.getClient().getEnergy() > 200 && toggle) {
             Microbot.getMouse().click(widget.getCanvasLocation());
             return true;
         } else if (!toggle) {

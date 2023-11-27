@@ -19,11 +19,7 @@ public class PaintLogsScript extends Script {
         debugMessages.add(msg);
     }
 
-    boolean emptySack = false;
     public boolean run() {
-        Microbot.enableAutoRunOn = true;
-        emptySack = false;
-
         mainScheduledFuture = scheduledExecutorService.scheduleWithFixedDelay(() -> {
             if (!super.run()) return;
             if (!Microbot.isLoggedIn()) return;
