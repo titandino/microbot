@@ -44,6 +44,15 @@ public interface CraftingConfig extends Config {
         return false;
     }
 
+    @ConfigItem(
+            keyName = "Paint",
+            name = "Whether to enable overlay paint",
+            description = "Requires restart",
+            position = 2,
+            section = generalSection
+    )
+    default boolean DisablePaint() {return false; }
+
     @ConfigSection(
             name = "Gems",
             description = "Config for gem cutting",
@@ -81,4 +90,5 @@ public interface CraftingConfig extends Config {
     {
         return Glass.PROGRESSIVE;
     }
+
 }

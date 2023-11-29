@@ -23,7 +23,7 @@ public class Rs2DepositBox {
             if (isOpen()) return true;
             GameObject depositBox = Rs2GameObject.findObject("Bank deposit box", false);
             Rs2GameObject.interact(depositBox, "deposit");
-            sleepUntil(Rs2DepositBox::isOpen);
+            sleepUntil(Rs2DepositBox::isOpen, 20000);
             return isOpen();
         } catch (Exception ex) {
             System.out.println(ex.getMessage());

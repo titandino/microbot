@@ -255,7 +255,7 @@ public class GuildMagicsScript extends Script {
                 .stream()
                 .filter(x -> x.getWorldLocation().equals(tree.getWorldLocation()))
                 .filter(x -> CUTTABLE_TREE_IDS.contains(x.getId()))
-                .findFirst().orElse(null) == null, 300_000);
+                .findFirst().orElse(null) == null, 200_000);
 
         if (random(0, 2) != 0) {
             debug("Anti-ban: Sleeping another 2-45s (66% chance)");

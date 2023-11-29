@@ -22,6 +22,7 @@ public interface TitheFarmingConfig extends Config {
                 "Make sure to have 8 x watering can(8) or Gricoller's can, seed dibber, spade in inventory\n" +
                 "Stamina potions are supported!\n" +
                 "Make sure to have the tithe farm plugin from runelite enabled\n" +
+                "Make sure your zoom is set to all the way out, or clicks won't work\n" +
                 "Happy botting!";
     }
 

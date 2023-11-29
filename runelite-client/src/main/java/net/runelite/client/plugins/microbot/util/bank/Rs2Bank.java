@@ -501,9 +501,20 @@ public class Rs2Bank {
      * @param w
      */
     private static void withdrawAll(ItemWidget w) {
-        if (!isOpen()) return;
-        if (w == null) return;
-        if (Inventory.isFull()) return;
+        if (!isOpen()) {
+            System.out.println("Bank not open");
+            return;
+        }
+        if (w == null) {
+            System.out.println("widget null");
+            return;
+        }
+        /*
+        if (Inventory.isFull()) {
+            System.out.println("Inven full");
+            return;
+        }
+         */
 
         execMenuSwapper(BANK_WIDGET_ID, HANDLE_ALL, w);
     }

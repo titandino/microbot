@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.events.ChatMessage;
 import net.runelite.api.events.GameObjectDespawned;
 import net.runelite.api.events.GameObjectSpawned;
 import net.runelite.api.events.GameTick;
@@ -16,6 +17,8 @@ import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.microbot.Microbot;
+import net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.overlay.infobox.InfoBox;
 import net.runelite.client.ui.overlay.infobox.InfoBoxManager;
@@ -53,6 +56,9 @@ public class SummerGardenPlugin extends Plugin
     @Inject
     private SummerGardenConfig config;
 
+    @Inject
+    private SummerGardenScript summerGardenScript;
+
     public static final String CONFIG_GROUP = "oneclicksummergarden";
     public static final String CONFIG_KEY_GATE_START = "useGateStartPoint";
     public static final String CONFIG_KEY_COUNTDOWN_TIMER_INFOBOX = "showCountdownTimer";
@@ -81,6 +87,7 @@ public class SummerGardenPlugin extends Plugin
             enableCountdownTimerInfoBox();
         }
         ElementalCollisionDetector.setGateStart(config.useGateStartPoint());
+        summerGardenScript.run();
     }
 
     @Override
@@ -88,6 +95,7 @@ public class SummerGardenPlugin extends Plugin
     {
         disableOverlay();
         disableCountdownTimerInfoBox();
+        summerGardenScript.shutdown();
     }
 
     private boolean overlayEnabled = false;
@@ -170,7 +178,7 @@ public class SummerGardenPlugin extends Plugin
         // cycle notification
         if (config.cycleNotification() && ElementalCollisionDetector.getTicksUntilStart() == config.notifyTicksBeforeStart())
         {
-            notifier.notify(CYCLE_MESSAGE, TrayIcon.MessageType.INFO);
+            // notifier.notify(CYCLE_MESSAGE, TrayIcon.MessageType.INFO);
         }
 
         playCountdownSounds();
@@ -212,7 +220,7 @@ public class SummerGardenPlugin extends Plugin
             boolean stamActive = client.getVarbitValue(Varbits.RUN_SLOWED_DEPLETION_ACTIVE) != 0;
             if (client.getEnergy() <= stamThreshold && !stamActive && !sentStaminaNotification)
             {
-                notifier.notify(STAMINA_MESSAGE, TrayIcon.MessageType.INFO);
+                // notifier.notify(STAMINA_MESSAGE, TrayIcon.MessageType.INFO);
                 sentStaminaNotification = true;
             }
             else if (client.getEnergy() > stamThreshold)
@@ -269,5 +277,18 @@ public class SummerGardenPlugin extends Plugin
     SummerGardenConfig provideConfig(ConfigManager configManager)
     {
         return configManager.getConfig(SummerGardenConfig.class);
+    }
+
+    @Subscribe
+    public void onChatMessage(ChatMessage message) {
+        if (message.getMessage().equals("You've been spotted by an elemental and teleported out of its garden.")) {
+            Microbot.getNotifier().notify("Got spotted!");
+            SummerGardenScript.failure += 1;
+        }
+        if (message.getMessage().equals("An elemental force emanating from the garden teleports you away.")) {
+            SummerGardenScript.success += 1;
+        }
+
+        PaintLogsScript.status = "Success: " + SummerGardenScript.success + " - Failures: " + SummerGardenScript.failure;
     }
 }
