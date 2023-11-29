@@ -95,7 +95,11 @@ class MakeAllPotions : Plugin() {
         Global.sleepUntil { !Microbot.isMoving() }
         Rs2Bank.depositAll()
         Global.sleep(600, 1000)
-        Rs2Bank.withdrawAll(currentHerb!!.grimyId)
+        attempt(10) {
+            Rs2Bank.withdrawAll(currentHerb!!.grimyId)
+            Global.sleep(600, 1000)
+            return@attempt Inventory.hasItemAmount(currentHerb!!.grimyId, 1)
+        }
         Global.sleep(600, 1000)
         Rs2Bank.closeBank();
         Global.sleep(1000, 2000)
@@ -117,12 +121,12 @@ class MakeAllPotions : Plugin() {
             Global.sleepUntil { Rs2Bank.isOpen() }
             Rs2Bank.depositAll()
             Global.sleep(600, 1000)
-            attempt(5) {
+            attempt(10) {
                 Rs2Bank.withdrawX(pot.primary, 14)
                 Global.sleep(600, 1000)
                 return@attempt Inventory.hasItemAmount(pot.primary, 1)
             }
-            attempt(5) {
+            attempt(10) {
                 Rs2Bank.withdrawX(pot.secondary, 14)
                 Global.sleep(600, 1000)
                 return@attempt Inventory.hasItemAmount(pot.secondary, 1)
@@ -134,21 +138,11 @@ class MakeAllPotions : Plugin() {
             Inventory.useItem(pot.secondary)
             Global.sleep(600, 1000)
             VirtualKeyboard.keyPress(KeyEvent.VK_SPACE)
-            Global.sleepUntil({ !Inventory.hasItemAmount(pot.primary, 1) }, 40000)
+            Global.sleepUntil({ !Inventory.hasItemAmount(pot.secondary, 1) }, 40000)
         }
     }
 
     override fun shutDown() {
         running = false
-    }
-
-    fun attempt(attempts: Int, action: () -> Boolean): Boolean {
-        for (i in 1..attempts) {
-            if (action()) {
-                return true
-            }
-            // Optional: Add a delay or log between attempts
-        }
-        return false
     }
 }

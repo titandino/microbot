@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.microbot.leagues.mining
+package net.runelite.client.plugins.microbot.leagues
 
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -15,16 +15,17 @@ import net.runelite.client.plugins.microbot.util.Global
 import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Inventory
 import net.runelite.client.plugins.microbot.util.math.Random
+import net.runelite.client.plugins.microbot.util.npc.Rs2Npc
 import net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript
 import javax.inject.Inject
 
 @PluginDescriptor(
-    name = PluginDescriptor.Trent + "Mine Note",
-    description = "Mines and notes bars",
+    name = PluginDescriptor.Trent + "Fish Note",
+    description = "Fishes and notes fish",
     tags = ["sorc", "garden", "thieve"],
     enabledByDefault = false
 )
-class MineNotePlugin : Plugin() {
+class FishNote : Plugin() {
     @Inject
     private lateinit var client: Client
 
@@ -48,23 +49,15 @@ class MineNotePlugin : Plugin() {
                     Global.sleep(500, 1000)
                     continue
                 }
-                if (!Microbot.hasLevel(85, Skill.MINING) || !mineRock("Runite rocks"))
-                    if (!Microbot.hasLevel(70, Skill.MINING) || !mineRock("Adamantite rocks"))
-                        if (!Microbot.hasLevel(55, Skill.MINING) || !mineRock("Mithril rocks"))
-                            mineRock("Iron rocks")
+                val fishSpot = Rs2Npc.getNpc(6825)
+                if (fishSpot != null && Rs2Npc.interact(fishSpot, "Bait")) {
+                    Global.sleep(2500, 6500)
+                    Global.sleepUntil({ Inventory.isFull() || client.localPlayer.animation == -1 || Rs2Npc.getNpcs().firstOrNull { it.worldLocation == fishSpot.getWorldLocation() && fishSpot.id == it.id } == null }, 60000)
+                }
             } catch (e: Throwable) {
                 e.printStackTrace()
             }
         }
-    }
-
-    private fun mineRock(rockName: String?): Boolean {
-        val rock = Rs2GameObject.findObject(rockName) ?: return false
-        if (rock.worldLocation.distanceTo(client.localPlayer.worldLocation) <= 14 && Rs2GameObject.interact(rock, "Mine")) {
-            Global.sleepUntil { Rs2GameObject.getGameObjects().firstOrNull { it.worldLocation == rock.getWorldLocation() && rock.id == it.id } == null }
-            return true
-        }
-        return false
     }
 
     override fun shutDown() {
