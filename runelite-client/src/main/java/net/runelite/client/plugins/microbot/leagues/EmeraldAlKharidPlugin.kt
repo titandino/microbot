@@ -53,7 +53,7 @@ class EmeraldAlKharidPlugin : Plugin() {
             Inventory.useItem("chisel")
             Global.sleep(300, 600)
             Inventory.useItem(1621)
-            Global.sleep(600)
+            Global.sleep(800)
             VirtualKeyboard.keyPress(KeyEvent.VK_SPACE)
             Global.sleep(4000)
             Global.sleepUntil({ !Inventory.hasItem(1621) }, 30000)
