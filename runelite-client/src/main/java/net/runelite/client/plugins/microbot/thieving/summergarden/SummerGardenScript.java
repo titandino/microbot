@@ -43,7 +43,7 @@ public class SummerGardenScript extends Script {
                     debug("Afk antiban for " + sleepTime + "ms..");
                     sleep(sleepTime);
                 }
-                if (random(0, 100) == 0) {
+                if (random(0, 10000) == 0) {
                     debug("Randomly reassigning herb gameobject to grab..");
                     getHerb();
                 }
@@ -72,6 +72,7 @@ public class SummerGardenScript extends Script {
 
                 if (Microbot.getClient().getLocalPlayer().getWorldLocation().getY() >= 5481) {
                     Microbot.getNotifier().notify("Somehow not at start position, but also north of gate. Gonna click herb, YOLO");
+                    getHerb();
                     clickHerb(startTime);
                     sleep(random(15_000, 20_000));
                     return;
@@ -89,6 +90,8 @@ public class SummerGardenScript extends Script {
     private void clickHerb(long startTime) {
         debug("Time to go!");
         Rs2GameObject.interact(herbs);
+        System.out.println("Interacting with " + herbs);
+        if (herbs != null) System.out.println("Herb location: " + herbs.getWorldLocation());
         long timeToClick = (System.currentTimeMillis() - startTime) - 300;
         System.out.println("Time from start to click: " + timeToClick + " ms");
         if (timeToClick > 300) Microbot.getNotifier().notify("Click took more than 300ms - Check if we fail to get herbs");
@@ -107,6 +110,7 @@ public class SummerGardenScript extends Script {
     private void goToStartTile() {
         debug("Going to starting position");
         TileObject gate = Rs2GameObject.findObjectById(ObjectID.GATE_11987);
+        getHerb();
 
         if (gate == null) {
             return;
