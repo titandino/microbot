@@ -16,6 +16,7 @@ import net.runelite.client.plugins.microbot.util.widget.Rs2Widget;
 
 import java.util.concurrent.TimeUnit;
 
+import static net.runelite.client.plugins.microbot.util.math.Random.random;
 import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debug;
 
 class ProgressiveFletchingModel {
@@ -43,7 +44,7 @@ public class FletchingScript extends Script {
                 calculateItemToFletch();
             if (!super.run()) return;
             if (!configChecks(config)) return;
-            if (config.Afk() && Random.random(1, 100) == 2) {
+            if (config.Afk() && random(1, 100) == 2) {
                 debug("Afking for up to 60s...");
                 sleep(1000, 60000);
             }
@@ -94,7 +95,9 @@ public class FletchingScript extends Script {
             calculateItemToFletch();
             secondaryItemToFletch = (model.getFletchingMaterial().getName() + " logs").trim();
         } else {
+            debug("Depositing " + config.fletchingItem().getContainsInventoryName());
             Rs2Bank.depositAll(config.fletchingItem().getContainsInventoryName());
+            sleep(random(50, 400));
         }
         sleepUntil(() -> !Inventory.hasItemContains(config.fletchingItem().getContainsInventoryName()));
 
@@ -123,8 +126,10 @@ public class FletchingScript extends Script {
             Rs2Bank.withdrawItemXExact(true, primaryItemToFletch, config.fletchingMode().getAmount());
             Rs2Bank.withdrawItemX(true, secondaryItemToFletch, config.fletchingMode().getAmount());
         }
-        else
+        else {
             Rs2Bank.withdrawItemAll(secondaryItemToFletch);
+            debug("Withdrawing " + secondaryItemToFletch);
+        }
 
         final String finalSecondaryItemToFletch = secondaryItemToFletch;
 
@@ -134,7 +139,15 @@ public class FletchingScript extends Script {
     }
 
     private void fletch(FletchingConfig config) {
-        Inventory.useItemOnItem(primaryItemToFletch, secondaryItemToFletch);
+        if (Rs2Bank.isOpen()) {
+            debug("Bank still open for some reason, closing it...");
+            Rs2Bank.closeBank();
+        }
+        if (Inventory.useItemOnItem(primaryItemToFletch, secondaryItemToFletch)) {
+            debug("Successfully used " + primaryItemToFletch + " on " + secondaryItemToFletch);
+        } else {
+            debug("Failed to use " + primaryItemToFletch + " on " + secondaryItemToFletch);
+        }
         sleepUntil(() -> Rs2Widget.getWidget(17694736) != null);
         if (config.fletchingMode() == FletchingMode.PROGRESSIVE) {
             keyPress(model.getFletchingItem().getOption(model.getFletchingMaterial(), config.fletchingMode()));
