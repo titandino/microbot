@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.microbot.leagues
+package net.runelite.client.plugins.microbot.trent
 
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -7,19 +7,18 @@ import net.runelite.api.Client
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
 import net.runelite.client.plugins.microbot.util.Global
-import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Inventory
-import net.runelite.client.plugins.microbot.util.keyboard.VirtualKeyboard
-import java.awt.event.KeyEvent
+import net.runelite.client.plugins.microbot.util.math.Random
+import net.runelite.client.plugins.microbot.util.npc.Rs2Npc
 import javax.inject.Inject
 
 @PluginDescriptor(
-    name = PluginDescriptor.Trent + "Smithing Note",
-    description = "Smiths noted bars using bankers note",
+    name = PluginDescriptor.Trent + "Fish Note",
+    description = "Fishes and notes fish",
     tags = ["sorc", "garden", "thieve"],
     enabledByDefault = false
 )
-class SmithingNotePlugin : Plugin() {
+class FishNote : Plugin() {
     @Inject
     private lateinit var client: Client
 
@@ -36,21 +35,18 @@ class SmithingNotePlugin : Plugin() {
     private fun run() {
         while (running) {
             try {
-                if (!Inventory.hasItemAmount(2361, 1)) {
-//                    Inventory.useItemSlot(0)
-//                    Global.sleep(233, 451)
-//                    Inventory.useItem(28767)
-//                    Global.sleep(231, 511)
-                    Inventory.useItem(2362)
-                    Global.sleep(263, 484)
+                if (Inventory.isFull()) {
+                    Inventory.useItemSlot(Random.random(0, 6))
+                    Global.sleep(500, 1000)
                     Inventory.useItem(28767)
-                    Global.sleep(222, 300)
+                    Global.sleep(500, 1000)
                     continue
                 }
-                Rs2GameObject.interact("Anvil");
-                Global.sleep(1000, 1400)
-                VirtualKeyboard.keyPress(KeyEvent.VK_SPACE)
-                Global.sleepUntil({ !Inventory.hasItemAmount(2361, 1) }, 120000)
+                val fishSpot = Rs2Npc.getNpc(6825)
+                if (fishSpot != null && Rs2Npc.interact(fishSpot, "Bait")) {
+                    Global.sleep(2500, 6500)
+                    Global.sleepUntil({ Inventory.isFull() || client.localPlayer.animation == -1 || Rs2Npc.getNpcs().firstOrNull { it.worldLocation == fishSpot.getWorldLocation() && fishSpot.id == it.id } == null }, 60000)
+                }
             } catch (e: Throwable) {
                 e.printStackTrace()
             }

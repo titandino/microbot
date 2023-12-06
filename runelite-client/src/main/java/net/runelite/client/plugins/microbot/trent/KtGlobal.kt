@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.microbot.leagues
+package net.runelite.client.plugins.microbot.trent
 
 import net.runelite.client.plugins.microbot.util.math.Random
 

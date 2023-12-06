@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.microbot.leagues
+package net.runelite.client.plugins.microbot.trent
 
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope

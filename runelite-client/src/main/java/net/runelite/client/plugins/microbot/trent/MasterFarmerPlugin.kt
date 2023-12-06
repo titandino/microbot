@@ -1,31 +1,25 @@
-package net.runelite.client.plugins.microbot.leagues
+package net.runelite.client.plugins.microbot.trent
 
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import net.runelite.api.Client
-import net.runelite.api.GameObject
-import net.runelite.api.Skill
-import net.runelite.api.WallObject
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
 import net.runelite.client.plugins.microbot.Microbot
-import net.runelite.client.plugins.microbot.mining.uppermotherload.UpperMotherloadScript
 import net.runelite.client.plugins.microbot.util.Global
-import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
+import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
 import net.runelite.client.plugins.microbot.util.inventory.Inventory
-import net.runelite.client.plugins.microbot.util.math.Random
 import net.runelite.client.plugins.microbot.util.npc.Rs2Npc
-import net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript
 import javax.inject.Inject
 
 @PluginDescriptor(
-    name = PluginDescriptor.Trent + "Fish Note",
-    description = "Fishes and notes fish",
+    name = PluginDescriptor.Trent + "Master Farmer",
+    description = "Thieves master farmer in draynor",
     tags = ["sorc", "garden", "thieve"],
     enabledByDefault = false
 )
-class FishNote : Plugin() {
+class MasterFarmerPlugin : Plugin() {
     @Inject
     private lateinit var client: Client
 
@@ -43,16 +37,21 @@ class FishNote : Plugin() {
         while (running) {
             try {
                 if (Inventory.isFull()) {
-                    Inventory.useItemSlot(Random.random(0, 6))
-                    Global.sleep(500, 1000)
-                    Inventory.useItem(28767)
-                    Global.sleep(500, 1000)
+                    if (Rs2Bank.walkToBank()) {
+                        Global.sleepUntil { !Microbot.isMoving() }
+                        continue
+                    }
+                    Rs2Bank.useBank()
+                    Global.sleep(1000, 2000)
+                    Global.sleepUntil { !Microbot.isMoving() }
+                    Rs2Bank.depositAll()
+                    Rs2Bank.closeBank()
+                    Global.sleep(1000, 2000)
                     continue
                 }
-                val fishSpot = Rs2Npc.getNpc(6825)
-                if (fishSpot != null && Rs2Npc.interact(fishSpot, "Bait")) {
-                    Global.sleep(2500, 6500)
-                    Global.sleepUntil({ Inventory.isFull() || client.localPlayer.animation == -1 || Rs2Npc.getNpcs().firstOrNull { it.worldLocation == fishSpot.getWorldLocation() && fishSpot.id == it.id } == null }, 60000)
+                if (Rs2Npc.interact("Master farmer", "Pickpocket")) {
+                    Global.sleep(1000, 2000)
+                    Global.sleepUntil({ Inventory.count() >= 28 || Inventory.hasItemAmountStackable("coin pouch", 84) }, 60000)
                 }
             } catch (e: Throwable) {
                 e.printStackTrace()

@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.microbot.leagues
+package net.runelite.client.plugins.microbot.trent
 
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -11,19 +11,16 @@ import net.runelite.client.plugins.microbot.Microbot
 import net.runelite.client.plugins.microbot.util.Global
 import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Inventory
-import net.runelite.client.plugins.microbot.util.keyboard.VirtualKeyboard
 import net.runelite.client.plugins.microbot.util.math.Random
-import net.runelite.client.plugins.microbot.util.npc.Rs2Npc
-import java.awt.event.KeyEvent
 import javax.inject.Inject
 
 @PluginDescriptor(
-    name = PluginDescriptor.Trent + "Make Planks",
-    description = "Woodcuts and notes logs",
+    name = PluginDescriptor.Trent + "Mine Note",
+    description = "Mines and notes bars",
     tags = ["sorc", "garden", "thieve"],
     enabledByDefault = false
 )
-class MakePlanks : Plugin() {
+class MineNotePlugin : Plugin() {
     @Inject
     private lateinit var client: Client
 
@@ -40,28 +37,30 @@ class MakePlanks : Plugin() {
     private fun run() {
         while (running) {
             try {
-                if (Inventory.hasItem(6333)) {
-                    Rs2Npc.interact("Sawmill operator", "Buy-plank")
-                    Global.sleep(600, 800)
-                    VirtualKeyboard.keyPress(KeyEvent.VK_SPACE)
-                    Global.sleep(1200, 2500)
-                    continue
-                }
-                if (Inventory.hasItem(8780)) {
-                    Inventory.useItem(8780)
-                    Global.sleep(150, 310)
+                if (Inventory.isFull()) {
+                    Inventory.useItemSlot(Random.random(0, 6))
+                    Global.sleep(500, 1000)
                     Inventory.useItem(28767)
-                    Global.sleep(1200, 2500)
+                    Global.sleep(500, 1000)
                     continue
                 }
-                Inventory.useItem(6334)
-                Global.sleep(150, 310)
-                Inventory.useItem(28767)
-                Global.sleep(1200, 2500)
+                if (!Microbot.hasLevel(85, Skill.MINING) || !mineRock("Runite rocks"))
+                    if (!Microbot.hasLevel(70, Skill.MINING) || !mineRock("Adamantite rocks"))
+                        if (!Microbot.hasLevel(55, Skill.MINING) || !mineRock("Mithril rocks"))
+                            mineRock("Iron rocks")
             } catch (e: Throwable) {
                 e.printStackTrace()
             }
         }
+    }
+
+    private fun mineRock(rockName: String?): Boolean {
+        val rock = Rs2GameObject.findObject(rockName) ?: return false
+        if (rock.worldLocation.distanceTo(client.localPlayer.worldLocation) <= 14 && Rs2GameObject.interact(rock, "Mine")) {
+            Global.sleepUntil { Rs2GameObject.getGameObjects().firstOrNull { it.worldLocation == rock.getWorldLocation() && rock.id == it.id } == null }
+            return true
+        }
+        return false
     }
 
     override fun shutDown() {

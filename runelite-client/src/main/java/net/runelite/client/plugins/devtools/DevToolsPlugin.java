@@ -79,7 +79,7 @@ import org.slf4j.LoggerFactory;
 public class DevToolsPlugin extends Plugin
 {
 	private static final List<MenuAction> EXAMINE_MENU_ACTIONS = ImmutableList.of(MenuAction.EXAMINE_ITEM,
-			MenuAction.EXAMINE_ITEM_GROUND, MenuAction.EXAMINE_NPC, MenuAction.EXAMINE_OBJECT);
+			MenuAction.EXAMINE_ITEM_GROUND, MenuAction.EXAMINE_NPC, MenuAction.EXAMINE_OBJECT, MenuAction.PLAYER_SECOND_OPTION);
 
 	@Inject
 	private Client client;
@@ -503,6 +503,9 @@ public class DevToolsPlugin extends Plugin
 					WorldPoint point = WorldPoint.fromScene(client, entry.getParam0(), entry.getParam1(), client.getPlane());
 					info += " X: " + point.getX() + " Y: " + point.getY();
 				}
+			}
+			if (action == MenuAction.PLAYER_SECOND_OPTION) {
+				info += entry.getPlayer().getTeam();
 			}
 
 			entry.setTarget(entry.getTarget() + " " + ColorUtil.prependColorTag("(" + info + ")", JagexColors.MENU_TARGET));

@@ -1,26 +1,25 @@
-package net.runelite.client.plugins.microbot.leagues
+package net.runelite.client.plugins.microbot.trent
 
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import net.runelite.api.Client
-import net.runelite.api.Skill
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
-import net.runelite.client.plugins.microbot.Microbot
 import net.runelite.client.plugins.microbot.util.Global
-import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Inventory
-import net.runelite.client.plugins.microbot.util.math.Random
+import net.runelite.client.plugins.microbot.util.keyboard.VirtualKeyboard
+import net.runelite.client.plugins.microbot.util.npc.Rs2Npc
+import java.awt.event.KeyEvent
 import javax.inject.Inject
 
 @PluginDescriptor(
-    name = PluginDescriptor.Trent + "Woodcut Note",
+    name = PluginDescriptor.Trent + "Make Planks",
     description = "Woodcuts and notes logs",
     tags = ["sorc", "garden", "thieve"],
     enabledByDefault = false
 )
-class WoodcutNote : Plugin() {
+class MakePlanks : Plugin() {
     @Inject
     private lateinit var client: Client
 
@@ -37,16 +36,24 @@ class WoodcutNote : Plugin() {
     private fun run() {
         while (running) {
             try {
-                if (Inventory.isFull()) {
-                    Inventory.useItemSlot(Random.random(0, 6))
-                    Global.sleep(500, 1000)
-                    Inventory.useItem(28767)
-                    Global.sleep(500, 1000)
+                if (Inventory.hasItem(6333)) {
+                    Rs2Npc.interact("Sawmill operator", "Buy-plank")
+                    Global.sleep(600, 800)
+                    VirtualKeyboard.keyPress(KeyEvent.VK_SPACE)
+                    Global.sleep(1200, 2500)
                     continue
                 }
-                val oak = Rs2GameObject.findObject("Teak tree");
-                if (oak != null && oak.worldLocation.distanceTo(client.localPlayer.worldLocation) <= 14 && Rs2GameObject.interact(oak, "Chop down"))
-                    Global.sleepUntil({ Inventory.isFull() || Rs2GameObject.getGameObjects().firstOrNull { it.worldLocation == oak.getWorldLocation() && oak.id == it.id } == null }, 30000)
+                if (Inventory.hasItem(8780)) {
+                    Inventory.useItem(8780)
+                    Global.sleep(150, 310)
+                    Inventory.useItem(28767)
+                    Global.sleep(1200, 2500)
+                    continue
+                }
+                Inventory.useItem(6334)
+                Global.sleep(150, 310)
+                Inventory.useItem(28767)
+                Global.sleep(1200, 2500)
             } catch (e: Throwable) {
                 e.printStackTrace()
             }
