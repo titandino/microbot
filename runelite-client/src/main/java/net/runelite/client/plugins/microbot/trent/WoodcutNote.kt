@@ -42,7 +42,7 @@ class WoodcutNote : Plugin() {
                     Global.sleep(500, 1000)
                     continue
                 }
-                val oak = Rs2GameObject.findObject("Teak tree");
+                val oak = Rs2GameObject.findObject("Willow tree")
                 if (oak != null && oak.worldLocation.distanceTo(client.localPlayer.worldLocation) <= 14 && Rs2GameObject.interact(oak, "Chop down"))
                     Global.sleepUntil({ Inventory.isFull() || Rs2GameObject.getGameObjects().firstOrNull { it.worldLocation == oak.getWorldLocation() && oak.id == it.id } == null }, 30000)
             } catch (e: Throwable) {

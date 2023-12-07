@@ -36,6 +36,7 @@ public class AgilityScript extends Script {
     public List<AgilityObstacleModel> canafisCourse = new ArrayList<>();
     public List<AgilityObstacleModel> faladorCourse = new ArrayList<>();
     public List<AgilityObstacleModel> seersCourse = new ArrayList<>();
+    public List<AgilityObstacleModel> ardougneCourse = new ArrayList<>();
 
 
     WorldPoint startCourse = null;
@@ -58,6 +59,8 @@ public class AgilityScript extends Script {
                 return faladorCourse;
             case SEERS_VILLAGE_ROOFTOP_COURSE:
                 return seersCourse;
+            case ARDOUGNE_ROOFTOP_COURSE:
+                return ardougneCourse;
             default:
                 return canafisCourse;
         }
@@ -86,6 +89,9 @@ public class AgilityScript extends Script {
             case SEERS_VILLAGE_ROOFTOP_COURSE:
                 startCourse = new WorldPoint(2729, 3486, 0);
                 break;
+            case ARDOUGNE_ROOFTOP_COURSE:
+                startCourse = new WorldPoint(2673, 3298, 0);
+                break;
         }
     }
 
@@ -109,7 +115,7 @@ public class AgilityScript extends Script {
                     currentObstacle = 0;
                 }
 
-                if (Microbot.getClient().getPlane() == 0 && playerWorldLocation.distanceTo(startCourse) > 6 && config.agilityCourse() != GNOME_STRONGHOLD_AGILITY_COURSE) {
+                if (Microbot.getClient().getPlane() == 0 && playerWorldLocation.distanceTo(startCourse) > 3 && config.agilityCourse() != GNOME_STRONGHOLD_AGILITY_COURSE) {
                     currentObstacle = 0;
                     LocalPoint startCourseLocal = LocalPoint.fromWorld(Microbot.getClient(), startCourse);
                     if (playerLocation.distanceTo(startCourseLocal) >= MAX_DISTANCE) {
@@ -178,6 +184,7 @@ public class AgilityScript extends Script {
     }
 
     private boolean waitForAgilityObstabcleToFinish(int agilityExp) {
+        sleep(2500, 3000);
         sleepUntilOnClientThread(() -> agilityExp != Microbot.getClient().getSkillExperience(Skill.AGILITY)
                 || (Microbot.getClient().getPlane() == 0 && currentObstacle != 0), 15000);
         sleepUntilOnClientThread(() -> !Microbot.isMoving() && !Microbot.isAnimating(), 10000);

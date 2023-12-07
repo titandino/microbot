@@ -4,11 +4,18 @@ import net.runelite.api.*;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.cache.ObjectManager;
+import net.runelite.cache.fs.Store;
+import net.runelite.client.RuneLite;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.util.math.Calculations;
+import net.runelite.client.plugins.microbot.util.math.ObjectStrategy;
 import net.runelite.client.plugins.microbot.util.math.Random;
 import net.runelite.client.plugins.microbot.util.reflection.Rs2Reflection;
+import net.runelite.client.rs.ClientLoader;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -16,6 +23,18 @@ import static net.runelite.client.plugins.microbot.util.Global.sleep;
 
 
 public class Rs2GameObject {
+    private static Store store;
+    private static ObjectManager manager;
+
+    public static ObjectManager getManager() throws IOException {
+        if (manager == null) {
+            store = new Store(new File(RuneLite.RUNELITE_DIR, "jagexcache/oldschool/LIVE"));
+            store.load();
+            manager = new ObjectManager(store);
+            manager.load();
+        }
+        return manager;
+    }
 
     public static TileObject objectToInteract = null;
     public static String objectAction = null;
@@ -320,6 +339,57 @@ public class Rs2GameObject {
                 } else if (exact && compName.equalsIgnoreCase(objectName)) {
                     return Microbot.getWalker().canInteract(gameObject.getWorldLocation()) ? gameObject : null;
                 }
+            }
+            return null;
+        });
+    }
+
+    public static GameObject getObject(int objectId) {
+        List<GameObject> gameObjects = getGameObjects();
+
+        if (gameObjects == null) {
+            return null;
+        }
+
+        return Microbot.getClientThread().runOnClientThread(() -> {
+            for (GameObject gameObject : gameObjects) {
+                if (gameObject.getId() == objectId)
+                    return Calculations.pathLengthTo(new ObjectStrategy(gameObject, getManager().getObject(gameObject.getId()))) != -1 ? gameObject : null;
+            }
+            return null;
+        });
+    }
+
+    public static TileObject getObject(int[] objectIds) {
+        List<GameObject> gameObjects = getGameObjects();
+        List<WallObject> wallObjects = getWallObjects();
+        List<GroundObject> groundObjects = getGroundObjects();
+        List<DecorativeObject> decorationObjects = getDecorationObjects();
+
+        if (gameObjects == null) {
+            return null;
+        }
+
+        return Microbot.getClientThread().runOnClientThread(() -> {
+            for (GameObject obj : gameObjects) {
+                if (Arrays.stream(objectIds).anyMatch(id -> obj.getId() == id))
+                    if (Calculations.canReach(new ObjectStrategy(obj, getManager().getObject(obj.getId()))))
+                        return obj;
+            }
+            for (WallObject wall : wallObjects) {
+                if (Arrays.stream(objectIds).anyMatch(id -> wall.getId() == id))
+                    if (Calculations.canReach(new ObjectStrategy(wall, getManager().getObject(wall.getId()))))
+                        return wall;
+            }
+            for (GroundObject ground : groundObjects) {
+                if (Arrays.stream(objectIds).anyMatch(id -> ground.getId() == id))
+                    if (Calculations.canReach( new ObjectStrategy(ground, getManager().getObject(ground.getId()))))
+                        return ground;
+            }
+            for (DecorativeObject deco : decorationObjects) {
+                if (Arrays.stream(objectIds).anyMatch(id -> deco.getId() == id))
+                    if (Calculations.canReach(new ObjectStrategy(deco, getManager().getObject(deco.getId()))))
+                        return deco;
             }
             return null;
         });
