@@ -120,6 +120,14 @@ public class MicroAgilityPlugin extends Plugin {
         agilityScript.seersCourse.add(new AgilityObstacleModel(GAP_14930));
         agilityScript.seersCourse.add(new AgilityObstacleModel(EDGE_14931));
 
+        agilityScript.ardougneCourse.add(new AgilityObstacleModel(WOODEN_BEAMS));
+        agilityScript.ardougneCourse.add(new AgilityObstacleModel(GAP_15609));
+        agilityScript.ardougneCourse.add(new AgilityObstacleModel(PLANK_26635));
+        agilityScript.ardougneCourse.add(new AgilityObstacleModel(GAP_15610));
+        agilityScript.ardougneCourse.add(new AgilityObstacleModel(GAP_15611));
+        agilityScript.ardougneCourse.add(new AgilityObstacleModel(STEEP_ROOF));
+        agilityScript.ardougneCourse.add(new AgilityObstacleModel(GAP_15612));
+
         agilityScript.run(config);}
 
     protected void shutDown() {

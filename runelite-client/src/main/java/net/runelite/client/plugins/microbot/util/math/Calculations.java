@@ -6,6 +6,7 @@ import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.plugins.microbot.Microbot;
+import okhttp3.Route;
 
 import java.awt.*;
 
@@ -104,20 +105,8 @@ public class Calculations {
         }
     }
 
-    /**
-     * checks whether or not a given RSTile is reachable.
-     *
-     * @param dest     The <code>RSTile</code> to check.
-     * @param isObject True if an instance of <code>RSObject</code>.
-     * @return <code>true</code> if player can reach specified Object; otherwise
-     * <code>false</code>.
-     */
-    public static boolean canReach(Tile dest, boolean isObject) {
-        return pathLengthTo(dest, isObject) != -1;
-    }
-
-    public static boolean canReach(WorldPoint dest, boolean isObject) {
-        return pathLengthTo(dest, isObject) != -1;
+    public static boolean canReach(RouteStrategy strategy) {
+        return pathLengthTo(strategy) != -1;
     }
 
     public static boolean tileOnMap(WorldPoint w) {
@@ -148,155 +137,215 @@ public class Calculations {
     /**
      * Returns the length of the path generated to a given RSTile.
      *
-     * @param dest     The destination tile.
-     * @param isObject <code>true</code> if reaching any tile adjacent to the destination
+     * @param strategy <code>true</code> if reaching any tile adjacent to the destination
      *                 should be accepted.
      * @return <code>true</code> if reaching any tile adjacent to the destination
      * should be accepted.
      */
-    public static int pathLengthTo(Tile dest, boolean isObject) {
+
+    public static int pathLengthTo(RouteStrategy strategy) {
         WorldPoint curPos = Microbot.getClient().getLocalPlayer().getWorldLocation();
-        return pathLengthBetween(curPos, dest, isObject);
+        return pathLengthBetween(curPos, strategy);
     }
 
-    public static int pathLengthTo(WorldPoint dest, boolean isObject) {
-        WorldPoint curPos = Microbot.getClient().getLocalPlayer().getWorldLocation();
-        return pathLengthBetween(curPos, dest, isObject);
+    public static int pathLengthBetween(WorldPoint start, RouteStrategy strategy) {
+        return findRouteDistance(start.getX() - Microbot.getClient().getBaseX(),start.getY() - Microbot.getClient().getBaseY(), strategy, false); // if it's an object, accept any adjacent tile
     }
 
-    public static int pathLengthBetween(WorldPoint start, Tile dest, boolean isObject) {
-        return dijkstraDist(start.getX() - Microbot.getClient().getBaseX(), // startX
-                start.getY() - Microbot.getClient().getBaseY(), // startY
-                dest.getWorldLocation().getX() - Microbot.getClient().getBaseX(), // destX
-                dest.getWorldLocation().getY() - Microbot.getClient().getBaseY(), // destY
-                isObject); // if it's an object, accept any adjacent tile
-    }
+    private static final int DIR_NORTH = 0x1;
+    private static final int DIR_EAST = 0x2;
+    private static final int DIR_SOUTH = 0x4;
+    private static final int DIR_WEST = 0x8;
+    private static final int QUEUE_SIZE = 4095;
 
-    public static int pathLengthBetween(WorldPoint start, WorldPoint dest, boolean isObject) {
-        return dijkstraDist(start.getX() - Microbot.getClient().getBaseX(), // startX
-                start.getY() - Microbot.getClient().getBaseY(), // startY
-                dest.getX() - Microbot.getClient().getBaseX(), // destX
-                dest.getY() - Microbot.getClient().getBaseY(), // destY
-                isObject); // if it's an object, accept any adjacent tile
-    }
+    public static int findRouteDistance(int srcX, int srcY, RouteStrategy strategy, boolean findAlternative) {
+        int[][] directions = new int[128][128];
+        int[][] distances = new int[128][128];
+        int[] bufferX = new int[4096];
+        int[] bufferY = new int[4096];
+        int[][] clip = Microbot.getClient().getCollisionMaps()[Microbot.getClient().getPlane()].getFlags();
+        int exitX, exitY;
 
-    /**
-     * @param startX   the startX (0 < startX < 104)
-     * @param startY   the startY (0 < startY < 104)
-     * @param destX    the destX (0 < destX < 104)
-     * @param destY    the destY (0 < destY < 104)
-     * @param isObject if it's an object, it will find path which touches it.
-     * @return The distance of the shortest path to the destination; or -1 if no
-     * valid path to the destination was found.
-     */
-    private static int dijkstraDist(final int startX, final int startY, final int destX, final int destY,
-                                    final boolean isObject) {
-        final int[][] prev = new int[104][104];
-        final int[][] dist = new int[104][104];
-        final int[] path_x = new int[4000];
-        final int[] path_y = new int[4000];
-        for (int xx = 0; xx < 104; xx++) {
-            for (int yy = 0; yy < 104; yy++) {
-                prev[xx][yy] = 0;
-                dist[xx][yy] = 99999999;
+        for (int x = 0; x < 128; x++) {
+            for (int y = 0; y < 128; y++) {
+                directions[x][y] = 0;
+                distances[x][y] = 99999999;
             }
         }
-        int curr_x = startX;
-        int curr_y = startY;
-        prev[startX][startY] = 99;
-        dist[startX][startY] = 0;
-        int path_ptr = 0;
-        int step_ptr = 0;
-        path_x[path_ptr] = startX;
-        path_y[path_ptr++] = startY;
-        final byte blocks[][] = Microbot.getClient().getTileSettings()[Microbot.getClient().getPlane()];
-        final int pathLength = path_x.length;
-        boolean foundPath = false;
-        while (step_ptr != path_ptr) {
-            curr_x = path_x[step_ptr];
-            curr_y = path_y[step_ptr];
-            if (Math.abs(curr_x - destX) + Math.abs(curr_y - destY) == (isObject ? 1 : 0)) {
-                foundPath = true;
-                break;
+        boolean found = false;
+        {
+            int currentX = srcX;
+            int currentY = srcY;
+            int graphBaseX = srcX - (64);
+            int graphBaseY = srcY - (64);
+            directions[(64)][(64)] = 99;
+            distances[(64)][(64)] = 0;
+            int read = 0;
+            int write = 1;
+            bufferX[0] = srcX;
+            bufferY[0] = srcY;
+            while (read != write) {
+                currentX = bufferX[read];
+                currentY = bufferY[read];
+                read = read + 1 & QUEUE_SIZE;
+                int currentGraphX = currentX - graphBaseX;
+                int currentGraphY = currentY - graphBaseY;
+                int clipX = currentX;
+                int clipY = currentY;
+                if (strategy.canExit(currentX, currentY, 1, clip)) {
+                    exitX = currentX;
+                    exitY = currentY;
+                    found = true;
+                }
+                int nextDistance = distances[currentGraphX][currentGraphY] + 1;
+                if (currentGraphX > 0 && directions[currentGraphX - 1][currentGraphY] == 0 &&
+                        !ClipFlag.flagged(clip[clipX - 1][clipY], ClipFlag.PFBW_GROUND_DECO, ClipFlag.PFBW_FLOOR, ClipFlag.PF_E, ClipFlag.PF_FULL)) {
+                    bufferX[write] = currentX - 1;
+                    bufferY[write] = currentY;
+                    write = write + 1 & QUEUE_SIZE;
+                    directions[currentGraphX - 1][currentGraphY] = DIR_EAST;
+                    distances[currentGraphX - 1][currentGraphY] = nextDistance;
+                }
+                if (currentGraphX < 127 && directions[currentGraphX + 1][currentGraphY] == 0 &&
+                        !ClipFlag.flagged(clip[clipX + 1][clipY], ClipFlag.PFBW_GROUND_DECO, ClipFlag.PFBW_FLOOR, ClipFlag.PF_W, ClipFlag.PF_FULL)) {
+                    bufferX[write] = currentX + 1;
+                    bufferY[write] = currentY;
+                    write = write + 1 & QUEUE_SIZE;
+                    directions[currentGraphX + 1][currentGraphY] = DIR_WEST;
+                    distances[currentGraphX + 1][currentGraphY] = nextDistance;
+                }
+                if (currentGraphY > 0 && directions[currentGraphX][currentGraphY - 1] == 0 &&
+                        !ClipFlag.flagged(clip[clipX][clipY - 1], ClipFlag.PFBW_GROUND_DECO, ClipFlag.PFBW_FLOOR, ClipFlag.PF_N, ClipFlag.PF_FULL)) {
+                    bufferX[write] = currentX;
+                    bufferY[write] = currentY - 1;
+                    write = write + 1 & QUEUE_SIZE;
+                    directions[currentGraphX][currentGraphY - 1] = DIR_NORTH;
+                    distances[currentGraphX][currentGraphY - 1] = nextDistance;
+                }
+                if (currentGraphY < 127 && directions[currentGraphX][currentGraphY + 1] == 0 &&
+                        !ClipFlag.flagged(clip[clipX][clipY + 1], ClipFlag.PFBW_GROUND_DECO, ClipFlag.PFBW_FLOOR, ClipFlag.PF_S, ClipFlag.PF_FULL)) {
+                    bufferX[write] = currentX;
+                    bufferY[write] = currentY + 1;
+                    write = write + 1 & QUEUE_SIZE;
+                    directions[currentGraphX][currentGraphY + 1] = DIR_SOUTH;
+                    distances[currentGraphX][currentGraphY + 1] = nextDistance;
+                }
+                if (currentGraphX > 0 && currentGraphY > 0 && directions[currentGraphX - 1][currentGraphY - 1] == 0 &&
+                        !ClipFlag.flagged(clip[clipX - 1][clipY - 1], ClipFlag.PFBW_GROUND_DECO, ClipFlag.PFBW_FLOOR, ClipFlag.PF_N, ClipFlag.PF_NE, ClipFlag.PF_E, ClipFlag.PF_FULL) &&
+                        !ClipFlag.flagged(clip[clipX - 1][clipY], ClipFlag.PFBW_GROUND_DECO, ClipFlag.PFBW_FLOOR, ClipFlag.PF_E, ClipFlag.PF_FULL) &&
+                        !ClipFlag.flagged(clip[clipX][clipY - 1], ClipFlag.PFBW_GROUND_DECO, ClipFlag.PFBW_FLOOR, ClipFlag.PF_N, ClipFlag.PF_FULL)) {
+                    bufferX[write] = currentX - 1;
+                    bufferY[write] = currentY - 1;
+                    write = write + 1 & QUEUE_SIZE;
+                    directions[currentGraphX - 1][currentGraphY - 1] = 3;
+                    distances[currentGraphX - 1][currentGraphY - 1] = nextDistance;
+                }
+                if (currentGraphX < 127 && currentGraphY > 0 && directions[currentGraphX + 1][currentGraphY - 1] == 0 &&
+                        !ClipFlag.flagged(clip[clipX + 1][clipY - 1], ClipFlag.PFBW_GROUND_DECO, ClipFlag.PFBW_FLOOR, ClipFlag.PF_NW, ClipFlag.PF_N, ClipFlag.PF_W, ClipFlag.PF_FULL) &&
+                        !ClipFlag.flagged(clip[clipX + 1][clipY], ClipFlag.PFBW_GROUND_DECO, ClipFlag.PFBW_FLOOR, ClipFlag.PF_W, ClipFlag.PF_FULL) &&
+                        !ClipFlag.flagged(clip[clipX][clipY - 1], ClipFlag.PFBW_GROUND_DECO, ClipFlag.PFBW_FLOOR, ClipFlag.PF_N, ClipFlag.PF_FULL)) {
+                    bufferX[write] = currentX + 1;
+                    bufferY[write] = currentY - 1;
+                    write = write + 1 & QUEUE_SIZE;
+                    directions[currentGraphX + 1][currentGraphY - 1] = 9;
+                    distances[currentGraphX + 1][currentGraphY - 1] = nextDistance;
+                }
+                if (currentGraphX > 0 && currentGraphY < 127 && directions[currentGraphX - 1][currentGraphY + 1] == 0 &&
+                        !ClipFlag.flagged(clip[clipX - 1][clipY + 1], ClipFlag.PFBW_GROUND_DECO, ClipFlag.PFBW_FLOOR, ClipFlag.PF_E, ClipFlag.PF_SE, ClipFlag.PF_S, ClipFlag.PF_FULL) &&
+                        !ClipFlag.flagged(clip[clipX - 1][clipY], ClipFlag.PFBW_GROUND_DECO, ClipFlag.PFBW_FLOOR, ClipFlag.PF_E, ClipFlag.PF_FULL) &&
+                        !ClipFlag.flagged(clip[clipX][clipY + 1], ClipFlag.PFBW_GROUND_DECO, ClipFlag.PFBW_FLOOR, ClipFlag.PF_S, ClipFlag.PF_FULL)) {
+                    bufferX[write] = currentX - 1;
+                    bufferY[write] = currentY + 1;
+                    write = write + 1 & QUEUE_SIZE;
+                    directions[currentGraphX - 1][currentGraphY + 1] = 6;
+                    distances[currentGraphX - 1][currentGraphY + 1] = nextDistance;
+                }
+                if (currentGraphX < 127 && currentGraphY < 127 && directions[currentGraphX + 1][currentGraphY + 1] == 0 &&
+                        !ClipFlag.flagged(clip[clipX + 1][clipY + 1], ClipFlag.PFBW_GROUND_DECO, ClipFlag.PFBW_FLOOR, ClipFlag.PF_S, ClipFlag.PF_SW, ClipFlag.PF_W, ClipFlag.PF_FULL) &&
+                        !ClipFlag.flagged(clip[clipX + 1][clipY], ClipFlag.PFBW_GROUND_DECO, ClipFlag.PFBW_FLOOR, ClipFlag.PF_W, ClipFlag.PF_FULL) &&
+                        !ClipFlag.flagged(clip[clipX][clipY + 1], ClipFlag.PFBW_GROUND_DECO, ClipFlag.PFBW_FLOOR, ClipFlag.PF_S, ClipFlag.PF_FULL)) {
+                    bufferX[write] = currentX + 1;
+                    bufferY[write] = currentY + 1;
+                    write = write + 1 & QUEUE_SIZE;
+                    directions[currentGraphX + 1][currentGraphY + 1] = 12;
+                    distances[currentGraphX + 1][currentGraphY + 1] = nextDistance;
+                }
             }
-            step_ptr = (step_ptr + 1) % pathLength;
-            final int cost = dist[curr_x][curr_y] + 1;
-            // south
-            if ((curr_y > 0) && (prev[curr_x][curr_y - 1] == 0) && ((blocks[curr_x + 1][curr_y] & 0x1280102) == 0)) {
-                path_x[path_ptr] = curr_x;
-                path_y[path_ptr] = curr_y - 1;
-                path_ptr = (path_ptr + 1) % pathLength;
-                prev[curr_x][curr_y - 1] = 1;
-                dist[curr_x][curr_y - 1] = cost;
-            }
-            // west
-            if ((curr_x > 0) && (prev[curr_x - 1][curr_y] == 0) && ((blocks[curr_x][curr_y + 1] & 0x1280108) == 0)) {
-                path_x[path_ptr] = curr_x - 1;
-                path_y[path_ptr] = curr_y;
-                path_ptr = (path_ptr + 1) % pathLength;
-                prev[curr_x - 1][curr_y] = 2;
-                dist[curr_x - 1][curr_y] = cost;
-            }
-            // north
-            if ((curr_y < 104 - 1) && (prev[curr_x][curr_y + 1] == 0) && ((blocks[curr_x + 1][curr_y + 2] &
-                    0x1280120) == 0)) {
-                path_x[path_ptr] = curr_x;
-                path_y[path_ptr] = curr_y + 1;
-                path_ptr = (path_ptr + 1) % pathLength;
-                prev[curr_x][curr_y + 1] = 4;
-                dist[curr_x][curr_y + 1] = cost;
-            }
-            // east
-            if ((curr_x < 104 - 1) && (prev[curr_x + 1][curr_y] == 0) && ((blocks[curr_x + 2][curr_y + 1] &
-                    0x1280180) == 0)) {
-                path_x[path_ptr] = curr_x + 1;
-                path_y[path_ptr] = curr_y;
-                path_ptr = (path_ptr + 1) % pathLength;
-                prev[curr_x + 1][curr_y] = 8;
-                dist[curr_x + 1][curr_y] = cost;
-            }
-            // south west
-            if ((curr_x > 0) && (curr_y > 0) && (prev[curr_x - 1][curr_y - 1] == 0) && ((blocks[curr_x][curr_y] &
-                    0x128010e) == 0) && ((blocks[curr_x][curr_y + 1] & 0x1280108) == 0) && ((blocks[curr_x +
-                    1][curr_y] & 0x1280102) == 0)) {
-                path_x[path_ptr] = curr_x - 1;
-                path_y[path_ptr] = curr_y - 1;
-                path_ptr = (path_ptr + 1) % pathLength;
-                prev[curr_x - 1][curr_y - 1] = 3;
-                dist[curr_x - 1][curr_y - 1] = cost;
-            }
-            // north west
-            if ((curr_x > 0) && (curr_y < 104 - 1) && (prev[curr_x - 1][curr_y + 1] == 0) && (
-                    (blocks[curr_x][curr_y + 2] & 0x1280138) == 0) && ((blocks[curr_x][curr_y + 1] & 0x1280108) ==
-                    0) && ((blocks[curr_x + 1][curr_y + 2] & 0x1280120) == 0)) {
-                path_x[path_ptr] = curr_x - 1;
-                path_y[path_ptr] = curr_y + 1;
-                path_ptr = (path_ptr + 1) % pathLength;
-                prev[curr_x - 1][curr_y + 1] = 6;
-                dist[curr_x - 1][curr_y + 1] = cost;
-            }
-            // south east
-            if ((curr_x < 104 - 1) && (curr_y > 0) && (prev[curr_x + 1][curr_y - 1] == 0) && ((blocks[curr_x +
-                    2][curr_y] & 0x1280183) == 0) && ((blocks[curr_x + 2][curr_y + 1] & 0x1280180) == 0) && (
-                    (blocks[curr_x + 1][curr_y] & 0x1280102) == 0)) {
-                path_x[path_ptr] = curr_x + 1;
-                path_y[path_ptr] = curr_y - 1;
-                path_ptr = (path_ptr + 1) % pathLength;
-                prev[curr_x + 1][curr_y - 1] = 9;
-                dist[curr_x + 1][curr_y - 1] = cost;
-            }
-            // north east
-            if ((curr_x < 104 - 1) && (curr_y < 104 - 1) && (prev[curr_x + 1][curr_y + 1] == 0) && ((blocks[curr_x
-                    + 2][curr_y + 2] & 0x12801e0) == 0) && ((blocks[curr_x + 2][curr_y + 1] & 0x1280180) == 0) && (
-                    (blocks[curr_x + 1][curr_y + 2] & 0x1280120) == 0)) {
-                path_x[path_ptr] = curr_x + 1;
-                path_y[path_ptr] = curr_y + 1;
-                path_ptr = (path_ptr + 1) % pathLength;
-                prev[curr_x + 1][curr_y + 1] = 12;
-                dist[curr_x + 1][curr_y + 1] = cost;
+            exitX = currentX;
+            exitY = currentY;
+        }
+        int graphBaseX = srcX - 64;
+        int graphBaseY = srcY - 64;
+        int endX = exitX;
+        int endY = exitY;
+        if (!found) {
+            if (findAlternative) {
+                int lowestCost = Integer.MAX_VALUE;
+                int lowestDistance = Integer.MAX_VALUE;
+                int alternativeRouteRange = 10;
+                int approxDestX = strategy.getApproxDestinationX();
+                int approxDestY = strategy.getApproxDestinationY();
+                int approxDestinationSizeX = strategy.getApproxDestinationSizeX();
+                int approxDestinationSizeY = strategy.getApproxDestinationSizeY();
+                for (int checkX = approxDestX - alternativeRouteRange; checkX <= approxDestX + alternativeRouteRange; checkX++) {
+                    for (int checkY = approxDestY - alternativeRouteRange; checkY <= approxDestY + alternativeRouteRange; checkY++) {
+                        int graphX = checkX - graphBaseX;
+                        int graphY = checkY - graphBaseY;
+                        if (graphX >= 0 && graphY >= 0 && graphX < 128 && graphY < 128 && (distances[graphX][graphY] < 100)) {
+                            int deltaX = 0;
+                            if (checkX < approxDestX)
+                                deltaX = approxDestX - checkX;
+                            else if (checkX > approxDestinationSizeX + approxDestX - 1)
+                                deltaX = checkX - (approxDestX + approxDestinationSizeX - 1);
+                            int deltaY = 0;
+                            if (checkY < approxDestY)
+                                deltaY = approxDestY - checkY;
+                            else if (checkY > approxDestinationSizeY + approxDestY - 1)
+                                deltaY = checkY - (approxDestY + approxDestinationSizeY - 1);
+                            int cost = deltaX * deltaX + deltaY * deltaY;
+                            if (cost < lowestCost || (cost == lowestCost && (distances[graphX][graphY]) < lowestDistance)) {
+                                lowestCost = cost;
+                                lowestDistance = (distances[graphX][graphY]);
+                                endX = checkX;
+                                endY = checkY;
+                            }
+                        }
+                    }
+                }
+                if (lowestCost == Integer.MAX_VALUE)
+                    return -1;
+            } else {
+                if (srcX == endX && srcY == endY)
+                    return 0;
+                return -1;
             }
         }
-        return foundPath ? dist[curr_x][curr_y] : -1;
+        if (srcX == endX && srcY == endY)
+            return 0;
+        int steps = 0;
+        int realSteps = 0;
+        bufferX[steps] = endX;
+        bufferY[steps++] = endY;
+        int lastwritten;
+        int direction = (lastwritten = directions[endX - graphBaseX][endY - graphBaseY]);
+        while (srcX != endX || endY != srcY) {
+            if (lastwritten != direction) {
+                lastwritten = direction;
+                bufferX[steps] = endX;
+                bufferY[steps++] = endY;
+            }
+            if ((direction & 0x2) != 0)
+                endX++;
+            else if ((direction & 0x8) != 0)
+                endX--;
+            if ((direction & 0x1) != 0)
+                endY++;
+            else if ((direction & 0x4) != 0)
+                endY--;
+            realSteps++;
+            direction = directions[endX - graphBaseX][endY - graphBaseY];
+        }
+        return realSteps;
     }
 
     public static void renderValidMovement() {

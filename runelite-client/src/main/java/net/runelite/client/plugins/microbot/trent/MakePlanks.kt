@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.microbot.leagues
+package net.runelite.client.plugins.microbot.trent
 
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -7,19 +7,19 @@ import net.runelite.api.Client
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
 import net.runelite.client.plugins.microbot.util.Global
-import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Inventory
 import net.runelite.client.plugins.microbot.util.keyboard.VirtualKeyboard
+import net.runelite.client.plugins.microbot.util.npc.Rs2Npc
 import java.awt.event.KeyEvent
 import javax.inject.Inject
 
 @PluginDescriptor(
-    name = PluginDescriptor.Trent + "Smithing Note",
-    description = "Smiths noted bars using bankers note",
+    name = PluginDescriptor.Trent + "Make Planks",
+    description = "Woodcuts and notes logs",
     tags = ["sorc", "garden", "thieve"],
     enabledByDefault = false
 )
-class SmithingNotePlugin : Plugin() {
+class MakePlanks : Plugin() {
     @Inject
     private lateinit var client: Client
 
@@ -36,21 +36,24 @@ class SmithingNotePlugin : Plugin() {
     private fun run() {
         while (running) {
             try {
-                if (!Inventory.hasItemAmount(2361, 1)) {
-//                    Inventory.useItemSlot(0)
-//                    Global.sleep(233, 451)
-//                    Inventory.useItem(28767)
-//                    Global.sleep(231, 511)
-                    Inventory.useItem(2362)
-                    Global.sleep(263, 484)
-                    Inventory.useItem(28767)
-                    Global.sleep(222, 300)
+                if (Inventory.hasItem(6333)) {
+                    Rs2Npc.interact("Sawmill operator", "Buy-plank")
+                    Global.sleep(600, 800)
+                    VirtualKeyboard.keyPress(KeyEvent.VK_SPACE)
+                    Global.sleep(1200, 2500)
                     continue
                 }
-                Rs2GameObject.interact("Anvil");
-                Global.sleep(1000, 1400)
-                VirtualKeyboard.keyPress(KeyEvent.VK_SPACE)
-                Global.sleepUntil({ !Inventory.hasItemAmount(2361, 1) }, 120000)
+                if (Inventory.hasItem(8780)) {
+                    Inventory.useItem(8780)
+                    Global.sleep(150, 310)
+                    Inventory.useItem(28767)
+                    Global.sleep(1200, 2500)
+                    continue
+                }
+                Inventory.useItem(6334)
+                Global.sleep(150, 310)
+                Inventory.useItem(28767)
+                Global.sleep(1200, 2500)
             } catch (e: Throwable) {
                 e.printStackTrace()
             }

@@ -1,21 +1,15 @@
-package net.runelite.client.plugins.microbot.leagues
+package net.runelite.client.plugins.microbot.trent
 
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import net.runelite.api.Client
-import net.runelite.api.Skill
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
-import net.runelite.client.plugins.microbot.Microbot
 import net.runelite.client.plugins.microbot.util.Global
 import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Inventory
-import net.runelite.client.plugins.microbot.util.keyboard.VirtualKeyboard
-import net.runelite.client.plugins.microbot.util.math.Random
-import net.runelite.client.plugins.microbot.util.npc.Rs2Npc
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget
-import java.awt.event.KeyEvent
 import javax.inject.Inject
 
 @PluginDescriptor(

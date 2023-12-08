@@ -1,14 +1,18 @@
 package net.runelite.client.plugins.microbot.util.player;
 
-import net.runelite.api.VarPlayer;
-import net.runelite.api.Varbits;
+import net.runelite.api.*;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.VarbitChanged;
 import net.runelite.api.widgets.Widget;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.util.equipment.Rs2Equipment;
+import net.runelite.client.plugins.microbot.util.math.Calculations;
+import net.runelite.client.plugins.microbot.util.math.Random;
+import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget;
+
+import static net.runelite.client.plugins.microbot.util.Global.sleep;
 
 
 public class Rs2Player {
@@ -112,4 +116,59 @@ public class Rs2Player {
     public static WorldPoint getWorldLocation() {
         return Microbot.getClientThread().runOnClientThread(() -> Microbot.getClient().getLocalPlayer().getWorldLocation());
     }
+
+    public static Player playerInteraction = null;
+    public static String playerAction = null;
+
+    public static boolean interact(Player player, String action) {
+        if (player == null) return false;
+        try {
+            playerInteraction = player;
+            playerAction = action;
+            if (Calculations.tileOnScreen(player)) {
+                Microbot.getMouse().click(player.getCanvasTilePoly().getBounds());
+            } else {
+                Microbot.getMouse().clickFast(Random.random(0, Microbot.getClient().getCanvasWidth()), Random.random(0, Microbot.getClient().getCanvasHeight()));
+            }
+            sleep(100);
+            playerInteraction = null;
+            playerAction = null;
+        } catch(Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+
+        return true;
+    }
+
+    public static void handleMenuSwapper(MenuEntry menuEntry) {
+        if (playerInteraction == null) return;
+        try {
+            menuEntry.setIdentifier(playerInteraction.getId());
+            menuEntry.setParam0(0);
+            menuEntry.setTarget("<col=ffff00>" + playerInteraction.getName() + "<col=ff00>  (level-" + playerInteraction.getCombatLevel() + ")");
+            menuEntry.setParam1(0);
+            menuEntry.setOption(playerAction);
+
+//            if (Microbot.getClient().isWidgetSelected()) {
+//                menuEntry.setType(MenuAction.WIDGET_TARGET_ON_NPC);
+//            } else if (index == 0) {
+//                menuEntry.setType(MenuAction.PLAYER_FIRST_OPTION);
+//            } else
+            if (playerAction == "attack") {
+                menuEntry.setType(MenuAction.PLAYER_SECOND_OPTION);
+            }
+//            } else if (index == 2) {
+//                menuEntry.setType(MenuAction.PLAYER_THIRD_OPTION);
+//
+//            } else if (index == 3) {
+//                menuEntry.setType(MenuAction.PLAYER_FOURTH_OPTION);
+//
+//            } else if (index == 4) {
+//                menuEntry.setType(MenuAction.PLAYER_FIFTH_OPTION);
+//            }
+        } catch (Exception ex) {
+            System.out.println("NPC MENU SWAP FAILED WITH MESSAGE: " + ex.getMessage());
+        }
+    }
+
 }
