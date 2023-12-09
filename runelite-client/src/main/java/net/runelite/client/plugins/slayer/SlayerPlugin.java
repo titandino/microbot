@@ -157,7 +157,7 @@ public class SlayerPlugin extends Plugin
 	@Named("developerMode")
 	boolean developerMode;
 
-	@Getter(AccessLevel.PACKAGE)
+	@Getter(AccessLevel.PUBLIC)
 	@Setter(AccessLevel.PACKAGE)
 	private int amount;
 
@@ -169,7 +169,7 @@ public class SlayerPlugin extends Plugin
 	@Setter(AccessLevel.PACKAGE)
 	private String taskLocation;
 
-	@Getter(AccessLevel.PACKAGE)
+	@Getter(AccessLevel.PUBLIC)
 	@Setter(AccessLevel.PACKAGE)
 	private String taskName;
 

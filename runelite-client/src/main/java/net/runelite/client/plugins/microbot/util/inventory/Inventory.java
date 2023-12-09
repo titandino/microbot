@@ -595,8 +595,12 @@ public class Inventory {
 
     public static boolean useItemAction(String itemName, String actionName) {
         Microbot.status = "Use inventory item " + itemName + " with action " + actionName;
+        System.out.println(Microbot.status);
         Widget item = findItem(itemName);
-        if (item == null) return false;
+        if (item == null) {
+            System.out.println("Couldn't find inventory item " + itemName);
+            return false;
+        }
         return Rs2Menu.doAction(actionName, new Point((int) item.getBounds().getCenterX(), (int) item.getBounds().getCenterY()));
     }
 

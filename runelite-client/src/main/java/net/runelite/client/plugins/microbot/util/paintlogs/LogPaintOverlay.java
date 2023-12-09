@@ -39,9 +39,14 @@ public class LogPaintOverlay extends OverlayPanel {
                         .left("Debug " + (1 + i) + ": " + debugMessages.get(i))
                         .build());
             }
+            return super.render(graphics);
         } catch(Exception ex) {
-            System.out.println(ex.getMessage());
+            StringBuilder sb = new StringBuilder("Error rendering status " + status + ", debug lines. ");
+            for (int i = 0; i < debugMessages.size(); i++) {
+                sb.append(i).append(": ").append(debugMessages.get(i)).append("\n");
+            }
+            System.out.println("Failed to render " + sb.toString());
         }
-        return super.render(graphics);
+        return null;
     }
 }
