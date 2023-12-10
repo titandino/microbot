@@ -10,7 +10,8 @@ import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScrip
 @Getter
 public enum MonsterEnum {
     SCORPION("Scorpions", "Scorpion", false, new WorldPoint(3224, 3944, 0), false, false, false, null),
-    HELLHOUND("Hellhounds", "Hellhound", false, new WorldPoint(3444, 10081, 0), true, true, true, new WorldPoint(3405, 10092, 0));
+    HELLHOUND("Hellhounds", "Hellhound", false, new WorldPoint(3445, 10085, 0), true, true, true, new WorldPoint(3405, 10092, 0)),
+    ANKOU("Ankou", "Ankou", false, new WorldPoint(3359, 10078, 0), true, true, true, new WorldPoint(3400, 10069, 0));
 
     private final String taskName;
     private final String npcName;

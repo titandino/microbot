@@ -16,35 +16,23 @@ import static net.runelite.client.plugins.microbot.util.math.Random.random;
 import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debug;
 
 public class WildyWalk {
-     private static boolean walkToAndBack(int dx, int dy) {
-        WorldPoint origin = Microbot.getClient().getLocalPlayer().getWorldLocation();
-        if (!Microbot.getWalker().canReach(origin.dx(dx).dy(dy))) return false;
-
-        debug("Walking " + dx + ", " + dy + " tiles away to reset aggro..");
-        while (wildySlayerRunning && distTo(origin.dx(dx).dy(dy)) > 2) {
-            Microbot.getWalker().walkTo(origin.dx(dx).dy(dy));
-            sleep(1200, 2400);
-        }
-        debug("Walking back...");
-        while (wildySlayerRunning && !Microbot.getClient().getLocalPlayer().getWorldLocation().equals(origin)) {
-            Microbot.getWalker().walkTo(origin);
-        }
-        debug("Aggro reset!");
-        return true;
-    }
-    public static void resetAggro() {
+    public static void toResetAggroSpot() {
          debug("Walking to aggro reset spot...");
-         while (wildySlayerRunning && distTo(task().getAggroResetSpot()) < 3) {
+         while (wildySlayerRunning && distTo(task().getAggroResetSpot()) > 3) {
              Microbot.getWalker().walkTo(task().getAggroResetSpot());
              sleep(800, 1600);
          }
+    }
+
+    public static int distTo(int x, int y) {
+         return distTo(new WorldPoint(x, y, Microbot.getClient().getLocalPlayer().getWorldLocation().getPlane()));
     }
 
     public static int distTo(WorldPoint point) {
          return Microbot.getClient().getLocalPlayer().getWorldLocation().distanceTo(point);
     }
 
-    public static void walkToSlayerLocation(String taskName) {
+    public static void toSlayerLocation(String taskName) {
          if (inFerox()) {
              debug("Leaving barrier..");
              Rs2GameObject.interact(39652);
@@ -53,11 +41,11 @@ public class WildyWalk {
          }
          while (wildySlayerRunning && distTo(new WorldPoint(3122, 3629, 0)) < 40) {
              debug("Getting unstuck from West of Ferox...");
-             Microbot.getWalker().walkTo(Microbot.getClient().getLocalPlayer().getWorldLocation().dx(-7).dy(7));
-             sleep(800, 1200);
+             Microbot.getWalker().walkTo(Microbot.getClient().getLocalPlayer().getWorldLocation().dx(-2).dy(7));
+             sleep(1200, 1800);
          }
          if (getConfig(taskName).isInSlayerCave() && Microbot.getClient().getLocalPlayer().getWorldLocation().getY() < 10000) {
-             goToSlayerCave();
+             toSlayerCave();
              return;
          }
          if (getConfig(taskName).getLocation().getY() > 3903 && Microbot.getClient().getLocalPlayer().getWorldLocation().getY() <= 3903) {
@@ -75,7 +63,7 @@ public class WildyWalk {
          sleep(600, 1200);
     }
 
-    private static void goToSlayerCave() {
+    private static void toSlayerCave() {
         debug("Going to the slayer cave...");
         if (Rs2GameObject.interact(40388)) {
             debug("Entering slayer cave...");
@@ -92,22 +80,13 @@ public class WildyWalk {
             debug("Already in Ferox.. Sleeping 25 seconds");
             sleep(25_000);
         }
-        if (Microbot.getClient().getLocalPlayer().getWorldLocation().getY() > 3903) {
-            if (Rs2GameObject.interact(1728) || Rs2GameObject.interact(1569)) {
-                debug("Opening northern gate...");
-                sleep(5000);
-            }
-            debug("Walking to the northern gate..");
-            Microbot.getWalker().walkTo(new WorldPoint(3224, 3902, 0));
-            sleep(random(1200, 2400));
-            return;
-        }
         if (inSlayerCave() && Microbot.getClient().getLocalPlayer().getWorldLocation().getY() <= 10079 ||
                 !inSlayerCave() && Microbot.getClient().getLocalPlayer().getWorldLocation().getY() <= 3679) {
             while (wildySlayerRunning && Microbot.getClient().getLocalPlayer().getHealthScale() != -1) {
                 debug("Can't use dueling ring while in combat! Trying to run away");
+                WorldPoint runSpot = Microbot.getClient().getLocalPlayer().getWorldLocation().dy(-10);
                 Microbot.getWalker().walkTo(Microbot.getClient().getLocalPlayer().getWorldLocation().dy(-10));
-                sleep(600, 1200);
+                sleepUntil(() -> distTo(runSpot) < 2);
             }
             debug("Using dueling ring");
             Inventory.useItemSafe("Ring of Dueling"); // assumes your dueling rings are left-click rub
@@ -120,11 +99,21 @@ public class WildyWalk {
             debug("Walking to slayer cave entrance..");
             Microbot.getWalker().walkTo(slayerCaveEntrance);
             sleep(random(1200, 2400));
-        } else {
-            debug("Walking south..");
-            Microbot.getWalker().walkTo(Microbot.getClient().getLocalPlayer().getWorldLocation().dy(-10));
-            sleep(random(1200, 2400));
+            return;
         }
+        if (Microbot.getClient().getLocalPlayer().getWorldLocation().getY() > 3903) {
+            if (Rs2GameObject.interact(1728) || Rs2GameObject.interact(1569)) {
+                debug("Opening northern gate...");
+                sleep(5000);
+            }
+            debug("Walking to the northern gate..");
+            Microbot.getWalker().walkTo(new WorldPoint(3224, 3902, 0));
+            sleep(random(1200, 2400));
+            return;
+        }
+        debug("Walking south..");
+        Microbot.getWalker().walkTo(Microbot.getClient().getLocalPlayer().getWorldLocation().dy(-10));
+        sleep(random(1200, 2400));
     }
 
     private static final WorldPoint fallyBank = new WorldPoint(2946, 3370, 0);

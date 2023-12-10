@@ -17,10 +17,43 @@ public class Gear {
             "Monkfish", 5,
             "Prayer potion(4)", 5
         );
+
+    public static void getNewTaskGear() {
+        debug("Banking with banker...");
+        Rs2Npc.interact("Banker", "Bank");
+        sleepUntil(Rs2Bank::isOpen, 15_000);
+        if (!Rs2Bank.isOpen()) {
+            debug("Failed to open bank, trying again");
+            return;
+        }
+        debug("Depositing items...");
+        Rs2Bank.depositAll();
+        Rs2Bank.depositEquipment();
+        sleep(3000);
+        debug("Withdrawing task grab gear...");
+        Rs2Bank.withdrawOne("Ardougne cloak");
+        sleep(600, 1200);
+        Rs2Bank.withdrawOne("Dramen staff");
+        sleep(600, 1200);
+        Rs2Bank.closeBank();
+        sleep(3000);
+        debug("Equiping staff...");
+        Rs2Equipment.equipItem("Dramen staff");
+        sleep(3000);
+        if (!Rs2Equipment.hasEquipped("Dramen staff")) {
+            debug("Failed to equip staff.. trying again");
+            Rs2Equipment.equipItem("Dramen staff");
+        }
+    }
+
     public static void gearUp() {
         debug("Banking with banker...");
         Rs2Npc.interact("Banker", "Bank");
         sleepUntil(Rs2Bank::isOpen, 15_000);
+        if (!Rs2Bank.isOpen()) {
+            debug("Failed to open bank, trying again");
+            return;
+        }
         debug("Depositing items...");
         Rs2Bank.depositAll();
         Rs2Bank.depositEquipment();
