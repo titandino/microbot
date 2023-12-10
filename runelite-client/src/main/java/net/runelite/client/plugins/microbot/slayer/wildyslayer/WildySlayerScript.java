@@ -2,26 +2,32 @@ package net.runelite.client.plugins.microbot.slayer.wildyslayer;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Skill;
-import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.Script;
+import net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.MonsterEnum;
+import net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.WildyWalk;
+import net.runelite.client.plugins.microbot.util.bank.Rs2Bank;
+import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject;
 import net.runelite.client.plugins.microbot.util.inventory.Inventory;
-import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
-import net.runelite.client.plugins.microbot.util.widget.Rs2Widget;
+import net.runelite.client.plugins.microbot.util.prayer.Rs2Prayer;
 import net.runelite.client.plugins.slayer.SlayerPlugin;
 
 import javax.inject.Inject;
 import java.util.concurrent.TimeUnit;
 
+import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Combat.handleFight;
+import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Gear.gearUp;
+import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Gear.gearedUp;
+import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.WildyWalk.*;
 import static net.runelite.client.plugins.microbot.util.math.Random.random;
 import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debug;
 
 @Slf4j
 public class WildySlayerScript extends Script {
-    private final WildySlayerConfig config;
-    private final WildySlayerPlugin plugin;
-    private final SlayerPlugin slayerPlugin;
+    public final WildySlayerConfig config;
+    public final WildySlayerPlugin plugin;
+    public final SlayerPlugin slayerPlugin;
 
     @Inject
     private WildySlayerScript(WildySlayerConfig config, WildySlayerPlugin plugin, SlayerPlugin slayerPlugin)
@@ -31,36 +37,44 @@ public class WildySlayerScript extends Script {
         this.slayerPlugin = slayerPlugin;
     }
 
-    private long _lastRunXp = 0;
-
     public boolean run() {
         debug("Got config options " + config.GUIDE());
         mainScheduledFuture = scheduledExecutorService.scheduleWithFixedDelay(() -> {
             if (!super.run()) return;
             if (!Microbot.isLoggedIn()) return;
+            Microbot.enableAutoRunOn = true;
             try {
-                // Check for stuckness
-                if (Microbot.getClient().getOverallExperience() > _lastRunXp) plugin.lastMeaningfulActonTime = System.currentTimeMillis();
-                _lastRunXp = Microbot.getClient().getOverallExperience();
-
                 // Decide what to do
-                if (inFerox()) {
-                    debug("We're in ferox! Happy days.");
-                    sleep(5_000);
+                if (southOfWildy()) {
+                    debug("Lol I died");
+                    handleDeath();
+                } else if (inFerox() && needsToDrinkPPot()) {
+                    debug("Turning off prayers and drinking from pool...");
+                    Rs2Prayer.turnOffMeleePrayer();
+                    Rs2GameObject.interact("Pool of Refreshment");
+                    sleepUntil(() -> !needsToDrinkPPot(), 30_000);
                 } else if (slayerPlugin.getAmount() <= 0) {
-                    debug("Task is complete!");
+                    debug(task().getName() + " complete!");
                     toFerox();
+                } else if (task() == null) {
+                    debug("Task not supported! Going Ferox..");
+                    toFerox();
+                } else if (inFerox() && !gearedUp()) {
+                    debug("Not geared up for task! Gearing up..");
+                    gearUp();
                 } else if (needsToDrinkPPot() && getPPots().length == 0) {
                     debug("I have no ppots but I'm thirsty! Going to Ferox..");
                     toFerox();
                 } else if (needsToDrinkPPot()) {
                     drinkPPot();
-                } else if (plugin.lastMeaningfulActonTime + 10_000 < System.currentTimeMillis()) {
-                    debug("Haven't gotten exp in at least 10 seconds! Going to try and re-trigger aggression...");
-                    resetAggro();
+                } else if (!atSlayerLocation()) {
+                    debug("Not where my slayer location is!");
+                    WildyWalk.walkToSlayerLocation(slayerPlugin.getTaskName());
+                    plugin.lastMeaningfulActonTime = System.currentTimeMillis();
                 } else {
-                    debug("Should be fighting! Sleeping 25 secs..");
-                    sleep(25_000);
+                    debug("Should be fighting!");
+                    handleFight();
+                    sleep(5000);
                 }
             } catch (Exception ex) {
                 System.out.println(ex.getMessage());
@@ -69,29 +83,28 @@ public class WildySlayerScript extends Script {
         return true;
     }
 
-    private boolean walkToAndBack(int dx, int dy) {
-        WorldPoint origin = Microbot.getClient().getLocalPlayer().getWorldLocation();
-        if (!Microbot.getWalker().canReach(origin.dx(dx).dy(dy))) return false;
-
-        debug("Walking " + dx + ", " + dy + " tiles away to reset aggro..");
-        Microbot.getWalker().walkTo(origin.dx(dx).dy(dy));
-        sleepUntil(() -> Microbot.getClient().getLocalPlayer().getWorldLocation().equals(origin.dx(dx).dy(dy)), 30_000);
-        debug("Walking back...");
-        Microbot.getWalker().walkTo(origin);
-        sleepUntil(() -> Microbot.getClient().getLocalPlayer().getWorldLocation().equals(origin), 30_000);
-        debug("Aggro reset!");
-        return true;
-    }
-    private void resetAggro() {
-        // Need to run 30+ tiles away and back
-        // Try S, E and W
-        for (int i = 0; i < 5; i++) {
-            if (walkToAndBack(30 + i, 0)) return;
-            if (walkToAndBack(-30 - i, 0)) return;
-            if (walkToAndBack(0, -30 - i)) return;
+    private void handleDeath() {
+        toFallyBank();
+        if (!Rs2Bank.isOpen()) {
+            Rs2Bank.openBank();
+            sleepUntil(Rs2Bank::isOpen, 30_000);
         }
-        debug("Failed to reset aggro! halp");
-        Microbot.getNotifier().notify("Failed to reset monster aggro!");
+        Rs2Bank.withdrawOne("Ring of Dueling", false);
+        Rs2Bank.closeBank();
+        sleep(3000);
+        toFerox();
+    }
+
+    private boolean southOfWildy() {
+        return Microbot.getClient().getLocalPlayer().getWorldLocation().getY() < 3387;
+    }
+
+    public MonsterEnum task() {
+        return MonsterEnum.getConfig(slayerPlugin.getTaskName());
+    }
+
+    private boolean atSlayerLocation() {
+        return WildyWalk.distTo(task().getLocation()) < (task().isAfkable() ? 5 : 25);
     }
 
     private Widget[] getPPots() {
@@ -104,42 +117,12 @@ public class WildySlayerScript extends Script {
         debug("Drinking a ppot...");
         for (Widget potion: getPPots()) {
             if (potion.getName().toLowerCase().contains("prayer") || potion.getName().toLowerCase().contains("super restore")) {
-                debug("Drinking " + potion.getName());
                 Microbot.getMouse().click(potion.getBounds());
                 sleep(1200, 2000);
                 return;
             }
         }
         debug("Couldn't find a ppot! I'm prolly gonna die");
-    }
-
-    private final WorldPoint slayerCaveEntrance = new WorldPoint(3385, 10053, 0);
-    private void toFerox() {
-        if (inFerox() && Microbot.getClient().getLocalPlayer().getWorldLocation().getY() <= 10079 || !inFerox() && Microbot.getClient().getLocalPlayer().getWorldLocation().getY() <= 3679) {
-            debug("Using dueling ring");
-            Inventory.useItemSafe("Ring of Dueling"); // assumes your dueling rings are left-click rub
-            sleepUntil(() -> Rs2Widget.findWidget("Ferox Enclave.") != null);
-            Rs2Widget.clickWidget("Ferox Enclave.");
-            sleep(3000);
-            return;
-        }
-        if (inSlayerCave()) {
-            debug("Walking to slayer cave entrance..");
-            Microbot.getWalker().walkTo(slayerCaveEntrance);
-            sleep(random(1200, 2400));
-        } else {
-            debug("Walking south..");
-            Microbot.getWalker().walkTo(Microbot.getClient().getLocalPlayer().getWorldLocation().dy(-10));
-            sleep(random(1200, 2400));
-        }
-    }
-
-    private boolean inFerox() {
-        return Rs2Npc.getNpc("Banker") != null;
-    }
-
-    private boolean inSlayerCave() {
-        return Microbot.getClient().getLocalPlayer().getWorldLocation().getY() > 10000;
     }
 
     private boolean needsToDrinkPPot() {

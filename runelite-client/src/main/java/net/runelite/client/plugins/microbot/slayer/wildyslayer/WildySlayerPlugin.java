@@ -5,6 +5,7 @@ import net.runelite.client.config.ConfigManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDependency;
 import net.runelite.client.plugins.PluginDescriptor;
+import net.runelite.client.plugins.microbot.slayer.wildyslayer.parallel.WildySlayerStatusUpdater;
 import net.runelite.client.plugins.slayer.SlayerPlugin;
 
 import javax.inject.Inject;
@@ -20,18 +21,18 @@ import java.awt.*;
 @PluginDependency(SlayerPlugin.class)
 public class WildySlayerPlugin extends Plugin {
     @Inject
-    private net.runelite.client.plugins.slayer.SlayerPluginService slayerPluginService;
+    public WildySlayerConfig config;
     @Inject
-    private WildySlayerConfig config;
+    public WildySlayerScript wildySlayerScript;
     @Inject
-    private WildySlayerScript wildySlayerScript;
-    @Inject
-    private WildySlayerStatusUpdater wildySlayerStatusUpdater;
+    public WildySlayerStatusUpdater wildySlayerStatusUpdater;
 
     @Provides
     WildySlayerConfig provideConfig(ConfigManager configManager) {
         return configManager.getConfig(WildySlayerConfig.class);
     }
+
+    public static boolean wildySlayerRunning = false;
 
     public long startTime;
     public long lastMeaningfulActonTime;
@@ -40,12 +41,18 @@ public class WildySlayerPlugin extends Plugin {
     protected void startUp() throws AWTException {
         startTime = System.currentTimeMillis();
         lastMeaningfulActonTime = System.currentTimeMillis();
+        wildySlayerRunning = true;
+        Instance = this;
         wildySlayerScript.run();
         wildySlayerStatusUpdater.run();
     }
 
     protected void shutDown() {
+        Instance = null;
+        wildySlayerRunning = false;
         wildySlayerScript.shutdown();
         wildySlayerStatusUpdater.shutdown();
     }
+
+    public static WildySlayerPlugin Instance;
 }

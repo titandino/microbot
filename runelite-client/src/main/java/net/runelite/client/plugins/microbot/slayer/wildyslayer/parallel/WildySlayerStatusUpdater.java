@@ -1,8 +1,10 @@
-package net.runelite.client.plugins.microbot.slayer.wildyslayer;
+package net.runelite.client.plugins.microbot.slayer.wildyslayer.parallel;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.Script;
+import net.runelite.client.plugins.microbot.slayer.wildyslayer.WildySlayerConfig;
+import net.runelite.client.plugins.microbot.slayer.wildyslayer.WildySlayerPlugin;
 import net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript;
 import net.runelite.client.plugins.slayer.SlayerPlugin;
 
@@ -30,7 +32,7 @@ public class WildySlayerStatusUpdater extends Script {
         mainScheduledFuture = scheduledExecutorService.scheduleWithFixedDelay(() -> {
             if (!super.run()) return;
             if (!Microbot.isLoggedIn()) return;
-            PaintLogsScript.status = "Remaining Tasks: " + slayerPlugin.getAmount() + " - Run time: " + prettyRunTime(plugin.startTime);
+            PaintLogsScript.status = "Task: " + slayerPlugin.getTaskName() + " - Remaining: " + slayerPlugin.getAmount() + " - Runtime: " + prettyRunTime(plugin.startTime);
         }, 0, 500, TimeUnit.MILLISECONDS);
         return true;
     }

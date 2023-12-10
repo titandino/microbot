@@ -471,7 +471,7 @@ public class Rs2Bank {
      * @param amount
      * @param exact
      */
-    private static void withdrawX(String name, int amount, boolean exact) {
+    public static void withdrawX(String name, int amount, boolean exact) {
         withdrawX(findBankItem(name, exact), amount);
     }
 
