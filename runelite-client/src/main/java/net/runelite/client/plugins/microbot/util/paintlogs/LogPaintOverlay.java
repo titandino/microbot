@@ -25,7 +25,7 @@ public class LogPaintOverlay extends OverlayPanel {
         try {
             panelComponent.setPreferredSize(new Dimension(375, 700));
             panelComponent.getChildren().add(TitleComponent.builder()
-                    .text("Red Bracket Logs version 2.0")
+                    .text("Red Bracket Logs version 2.1")
                     .color(Color.GREEN)
                     .build());
             panelComponent.getChildren().add(LineComponent.builder()

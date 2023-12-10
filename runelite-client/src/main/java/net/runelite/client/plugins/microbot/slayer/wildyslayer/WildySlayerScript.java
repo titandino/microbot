@@ -48,13 +48,13 @@ public class WildySlayerScript extends Script {
                 if (southOfWildy()) {
                     debug("Lol I died");
                     handleDeath();
-                } else if (inFerox() && needsToDrinkPPot()) {
+                } else if (inFerox() && (needsToDrinkPPot() || needsToEatFood())) {
                     debug("Turning off prayers and drinking from pool...");
                     Rs2Prayer.turnOffMeleePrayer();
                     Rs2GameObject.interact("Pool of Refreshment");
                     sleepUntil(() -> !needsToDrinkPPot(), 30_000);
                 } else if (slayerPlugin.getAmount() <= 0) {
-                    debug(task().getName() + " complete!");
+                    debug("Task complete!");
                     toFerox();
                 } else if (task() == null) {
                     debug("Task not supported! Going Ferox..");
@@ -67,6 +67,8 @@ public class WildySlayerScript extends Script {
                     toFerox();
                 } else if (needsToDrinkPPot()) {
                     drinkPPot();
+                } else if (needsToEatFood() && getFoods().length != 0) {
+                    eatFood();
                 } else if (!atSlayerLocation()) {
                     debug("Not where my slayer location is!");
                     WildyWalk.walkToSlayerLocation(slayerPlugin.getTaskName());
@@ -79,16 +81,18 @@ public class WildySlayerScript extends Script {
             } catch (Exception ex) {
                 System.out.println(ex.getMessage());
             }
-        }, 0, 100, TimeUnit.MILLISECONDS);
+        }, 0, 1000, TimeUnit.MILLISECONDS);
         return true;
     }
 
     private void handleDeath() {
+        debug("Going to Fally bank...");
         toFallyBank();
         if (!Rs2Bank.isOpen()) {
             Rs2Bank.openBank();
             sleepUntil(Rs2Bank::isOpen, 30_000);
         }
+        debug("Going to Ferox...");
         Rs2Bank.withdrawOne("Ring of Dueling", false);
         Rs2Bank.closeBank();
         sleep(3000);
@@ -96,7 +100,7 @@ public class WildySlayerScript extends Script {
     }
 
     private boolean southOfWildy() {
-        return Microbot.getClient().getLocalPlayer().getWorldLocation().getY() < 3387;
+        return Microbot.getClient().getLocalPlayer().getWorldLocation().getY() <= 3520;
     }
 
     public MonsterEnum task() {
@@ -125,8 +129,23 @@ public class WildySlayerScript extends Script {
         debug("Couldn't find a ppot! I'm prolly gonna die");
     }
 
+    private Widget[] getFoods() {
+        Widget[] foods = Microbot.getClientThread().runOnClientThread(Inventory::getInventoryFood);
+        if (foods == null) return new Widget[0];
+        return foods;
+    }
+
+    private void eatFood() {
+        debug("Eating some tasties...");
+        if (getFoods().length != 0) Microbot.getMouse().click(getFoods()[0].getBounds());
+    }
+
     private boolean needsToDrinkPPot() {
         return Microbot.getClient().getBoostedSkillLevel(Skill.PRAYER) * 100 /  Microbot.getClient().getRealSkillLevel(Skill.PRAYER) < random(25, 30);
+    }
+
+    private boolean needsToEatFood() {
+        return Microbot.getClient().getBoostedSkillLevel(Skill.HITPOINTS) * 100 /  Microbot.getClient().getRealSkillLevel(Skill.HITPOINTS) < random(50, 60);
     }
 
 }

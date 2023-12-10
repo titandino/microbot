@@ -4,6 +4,7 @@ import net.runelite.api.NPC;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.slayer.wildyslayer.WildySlayerPlugin;
 import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
+import net.runelite.client.plugins.microbot.util.prayer.Prayer;
 import net.runelite.client.plugins.microbot.util.prayer.Rs2Prayer;
 
 import java.util.Arrays;
@@ -12,17 +13,17 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.WildyWalk.distTo;
+import static net.runelite.client.plugins.microbot.util.Global.sleep;
 import static net.runelite.client.plugins.microbot.util.math.Random.random;
 import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debug;
 
 public class Combat {
 
-    private static MonsterEnum task() {
+    public static MonsterEnum task() {
         return WildySlayerPlugin.Instance.wildySlayerScript.task();
     }
     public static void handleFight() {
-        if (task().isPrayMelee()) Rs2Prayer.turnOnMeleePrayer();
-        Rs2Prayer.turnOffMeleePrayer();
+        Rs2Prayer.fastPray(Prayer.PROTECT_MELEE, task().isPrayMelee());
 
         if (task().isAfkable()) {
             handleAfkFight();
@@ -60,18 +61,28 @@ public class Combat {
         if (prevTasksRemaining != WildySlayerPlugin.Instance.wildySlayerScript.slayerPlugin.getAmount()) {
             debug("Tasks remaining decreased, attacking a new NPC");
             prevTasksRemaining = WildySlayerPlugin.Instance.wildySlayerScript.slayerPlugin.getAmount();
-            Rs2Npc.interact(getNPCToAttack(), "Attack");
+            attackNpc();
             return;
         }
         if (prevUpdateTime + 10_000 < System.currentTimeMillis()) {
             debug("No xp in 10s, attacking a new NPC");
             prevUpdateTime = System.currentTimeMillis();
-            Rs2Npc.interact(getNPCToAttack(), "Attack");
+            attackNpc();
         }
+    }
+
+    private static void attackNpc() {
+        if (getNPCToAttack() == null) {
+            debug("Found no NPCs to attack, getting closer to center of task..");
+            WildyWalk.walkToSlayerLocation(task().getTaskName());
+            sleep(5000);
+        }
+        Rs2Npc.interact(getNPCToAttack(), "Attack");
     }
 
     private static void handleAfkFight() {
         if (prevExp != Microbot.getClient().getOverallExperience()) prevUpdateTime = System.currentTimeMillis();
+        if (Microbot.getClient().getLocalPlayer().getHealthScale() != -1) prevUpdateTime = System.currentTimeMillis();
         prevExp = Microbot.getClient().getOverallExperience();
         if (prevUpdateTime + 10_000 < System.currentTimeMillis()) {
             debug("Haven't gotten exp in at least 10 seconds! Going to try and re-trigger aggression...");

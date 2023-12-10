@@ -8,6 +8,7 @@ import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget;
 
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.WildySlayerPlugin.wildySlayerRunning;
+import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Combat.task;
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.MonsterEnum.getConfig;
 import static net.runelite.client.plugins.microbot.util.Global.sleep;
 import static net.runelite.client.plugins.microbot.util.Global.sleepUntil;
@@ -32,15 +33,11 @@ public class WildyWalk {
         return true;
     }
     public static void resetAggro() {
-        // Need to run 30+ tiles away and back
-        // Try S, E and W
-        for (int i = 0; i < 5; i++) {
-            if (walkToAndBack(30 + i, 0)) return;
-            if (walkToAndBack(-30 - i, 0)) return;
-            if (walkToAndBack(0, -30 - i)) return;
-        }
-        debug("Failed to reset aggro! halp");
-        Microbot.getNotifier().notify("Failed to reset monster aggro!");
+         debug("Walking to aggro reset spot...");
+         while (wildySlayerRunning && distTo(task().getAggroResetSpot()) < 3) {
+             Microbot.getWalker().walkTo(task().getAggroResetSpot());
+             sleep(800, 1600);
+         }
     }
 
     public static int distTo(WorldPoint point) {
@@ -49,9 +46,18 @@ public class WildyWalk {
 
     public static void walkToSlayerLocation(String taskName) {
          if (inFerox()) {
-            debug("Leaving barrier..");
+             debug("Leaving barrier..");
              Rs2GameObject.interact(39652);
              sleepUntil(() -> !inFerox());
+             return;
+         }
+         while (wildySlayerRunning && distTo(new WorldPoint(3122, 3629, 0)) < 40) {
+             debug("Getting unstuck from West of Ferox...");
+             Microbot.getWalker().walkTo(Microbot.getClient().getLocalPlayer().getWorldLocation().dx(-7).dy(7));
+             sleep(800, 1200);
+         }
+         if (getConfig(taskName).isInSlayerCave() && Microbot.getClient().getLocalPlayer().getWorldLocation().getY() < 10000) {
+             goToSlayerCave();
              return;
          }
          if (getConfig(taskName).getLocation().getY() > 3903 && Microbot.getClient().getLocalPlayer().getWorldLocation().getY() <= 3903) {
@@ -67,6 +73,17 @@ public class WildyWalk {
          debug("Walking to " + taskName);
          Microbot.getWalker().walkTo(getConfig(taskName).getLocation(), false);
          sleep(600, 1200);
+    }
+
+    private static void goToSlayerCave() {
+        debug("Going to the slayer cave...");
+        if (Rs2GameObject.interact(40388)) {
+            debug("Entering slayer cave...");
+            sleep(5000);
+            return;
+        }
+        Microbot.getWalker().walkTo(new WorldPoint(3259, 3662, 0));
+        sleep(600, 1200);
     }
 
     private final static WorldPoint slayerCaveEntrance = new WorldPoint(3385, 10053, 0);
@@ -87,6 +104,11 @@ public class WildyWalk {
         }
         if (inSlayerCave() && Microbot.getClient().getLocalPlayer().getWorldLocation().getY() <= 10079 ||
                 !inSlayerCave() && Microbot.getClient().getLocalPlayer().getWorldLocation().getY() <= 3679) {
+            while (wildySlayerRunning && Microbot.getClient().getLocalPlayer().getHealthScale() != -1) {
+                debug("Can't use dueling ring while in combat! Trying to run away");
+                Microbot.getWalker().walkTo(Microbot.getClient().getLocalPlayer().getWorldLocation().dy(-10));
+                sleep(600, 1200);
+            }
             debug("Using dueling ring");
             Inventory.useItemSafe("Ring of Dueling"); // assumes your dueling rings are left-click rub
             sleepUntil(() -> Rs2Widget.findWidget("Ferox Enclave.") != null);
