@@ -239,7 +239,7 @@ public class Walker {
     }
 
     public boolean walkTo(WorldPoint target) {
-        return walkTo(target, true);
+        return walkTo(target, false);
     }
 
     public boolean walkTo(net.runelite.api.NPC npc) {
