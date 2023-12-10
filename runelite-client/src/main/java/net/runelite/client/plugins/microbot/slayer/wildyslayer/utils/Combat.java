@@ -11,10 +11,7 @@ import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
 import net.runelite.client.plugins.microbot.util.prayer.Prayer;
 import net.runelite.client.plugins.microbot.util.prayer.Rs2Prayer;
 
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.WildyWalk.distTo;
@@ -25,7 +22,7 @@ import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScrip
 
 public class Combat {
 
-    private static final Set<String> lootItems = Set.of("Larran's key", "Blighted super restore(4)");
+    private static final Set<String> lootItems = Set.of("Larran's key", "Blighted super restore(4)", "Trouver parchment");
     public static MonsterEnum task() {
         return WildySlayerPlugin.Instance.wildySlayerScript.task();
     }
@@ -61,9 +58,16 @@ public class Combat {
     }
 
     private static void getLoot() {
-        List<RS2Item> itemsToLoot = Arrays.stream(Rs2GroundItem.getAll(4))
-                .filter(x -> x.getItem().getHaPrice() > 9000 || lootItems.contains(x.getItem().getName()))
-                .collect(Collectors.toList());
+        RS2Item[] groundItems = Microbot.getClientThread().runOnClientThread(() ->
+                Rs2GroundItem.getAll(8)
+        );
+        List<RS2Item> itemsToLoot = new ArrayList<>();
+        for (RS2Item rs2Item : groundItems) {
+            if (distTo(rs2Item.getTile().getWorldLocation()) > 4) continue;
+            if (rs2Item.getItem().getHaPrice() < 9000 && !lootItems.contains(rs2Item.getItem().getName())) continue;
+            itemsToLoot.add(rs2Item);
+        }
+        if (itemsToLoot.isEmpty()) return;
         if (random(0, 5) != 0) {
             debug("There's loot, but skipping it (antiban)");
             return;

@@ -7,6 +7,7 @@ import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
 
 import java.util.Map;
 
+import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Combat.task;
 import static net.runelite.client.plugins.microbot.util.Global.sleep;
 import static net.runelite.client.plugins.microbot.util.Global.sleepUntil;
 import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debug;
@@ -38,7 +39,7 @@ public class Gear {
         Rs2Bank.closeBank();
         sleep(3000);
         debug("Equiping staff...");
-        Rs2Equipment.equipItem("Dramen staff");
+        Rs2Equipment.equipItemFast("Dramen staff");
         sleep(3000);
         if (!Rs2Equipment.hasEquipped("Dramen staff")) {
             debug("Failed to equip staff.. trying again");
@@ -71,12 +72,28 @@ public class Gear {
             System.out.println("Withdrew " + item);
             sleep(600, 1200);
         }
+        if (task().getHelmOverride() != null) {
+            Rs2Bank.depositOne("Helm of neitiznot");
+            sleep(600, 1200);
+            Rs2Bank.withdrawOne(task().getHelmOverride());
+            sleep(600, 1200);
+        }
         Rs2Bank.closeBank();
         sleep(3000);
         debug("Equiping gear...");
         for (String item : equip) {
             Rs2Equipment.equipItem(item);
             sleep(600, 1200);
+        }
+        if (task().getHelmOverride() != null) {
+            sleep(1000);
+            Rs2Equipment.equipItem(task().getHelmOverride());
+            sleep(1000);
+            if (Rs2Equipment.hasEquipped(task().getHelmOverride())) {
+                debug("Failed to equip helm override - Trying again...");
+                Rs2Equipment.equipItemFast(task().getHelmOverride());
+                sleep(1000);
+            }
         }
     }
 
@@ -85,8 +102,10 @@ public class Gear {
             if (!Inventory.hasItemAmount(entry.getKey(), entry.getValue())) return false;
         }
         for (String item : equip) {
+            if (task().getHelmOverride() != null && item.equalsIgnoreCase("Helm of neitiznot")) continue;
             if (!Rs2Equipment.hasEquipped(item)) return false;
         }
+        if (task().getHelmOverride() != null && !Rs2Equipment.hasEquipped(task().getHelmOverride())) return false;
         return true;
     }
 

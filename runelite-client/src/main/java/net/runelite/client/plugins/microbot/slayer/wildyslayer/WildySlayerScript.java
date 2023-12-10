@@ -70,7 +70,10 @@ public class WildySlayerScript extends Script {
                     toFerox();
                 } else if (needsToDrinkPPot()) {
                     drinkPPot();
-                } else if (needsToEatFood() && getFoods().length != 0) {
+                } else if (needsToEatFood() && getFoods().length == 0) {
+                    debug("I eat but no munchies! Going to Ferox..");
+                    toFerox();
+                } else if (needsToEatFood()) {
                     eatFood();
                 } else if (!atSlayerLocation()) {
                     debug("Not where my slayer location is!");
