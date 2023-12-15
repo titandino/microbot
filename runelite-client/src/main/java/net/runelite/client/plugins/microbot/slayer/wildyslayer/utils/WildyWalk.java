@@ -39,7 +39,7 @@ public class WildyWalk {
              sleepUntil(() -> !inFerox());
              return;
          }
-         while (wildySlayerRunning && distTo(new WorldPoint(3122, 3629, 0)) < 40) {
+         while (wildySlayerRunning && distTo(new WorldPoint(3122, 3629, 0)) < 25) {
              debug("Getting unstuck from West of Ferox...");
              Microbot.getWalker().walkTo(Microbot.getClient().getLocalPlayer().getWorldLocation().dx(-2).dy(7));
              sleep(1200, 1800);
@@ -60,7 +60,7 @@ public class WildyWalk {
          }
          debug("Walking to " + taskName);
          Microbot.getWalker().walkTo(getConfig(taskName).getLocation(), false);
-         sleep(600, 1200);
+         sleep(1200, 3600);
     }
 
     private static void toSlayerCave() {
@@ -132,5 +132,10 @@ public class WildyWalk {
     private static boolean inSlayerCave() {
         return Microbot.getClient().getLocalPlayer().getWorldLocation().getY() > 10000;
     }
+
+    public static boolean inWildy() {
+        return Microbot.getClient().getLocalPlayer().getWorldLocation().getY() > 3520;
+    }
+
 
 }

@@ -1,19 +1,18 @@
 package net.runelite.client.plugins.microbot.slayer.wildyslayer.utils;
 
 import net.runelite.api.NPC;
-import net.runelite.api.Player;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.slayer.wildyslayer.WildySlayerPlugin;
 import net.runelite.client.plugins.microbot.util.grounditem.Rs2GroundItem;
 import net.runelite.client.plugins.microbot.util.inventory.Inventory;
 import net.runelite.client.plugins.microbot.util.models.RS2Item;
 import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
-import net.runelite.client.plugins.microbot.util.prayer.Prayer;
 import net.runelite.client.plugins.microbot.util.prayer.Rs2Prayer;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Hop.considerHopping;
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.WildyWalk.distTo;
 import static net.runelite.client.plugins.microbot.util.Global.sleep;
 import static net.runelite.client.plugins.microbot.util.Global.sleepUntil;
@@ -28,33 +27,16 @@ public class Combat {
     }
 
     public static void handleFight() {
-        Rs2Prayer.fastPray(Prayer.PROTECT_MELEE, task().isPrayMelee());
+        debug("Should be fighting!");
+        if (task().getProtectionPrayer() != null) Rs2Prayer.fastPray(task().getProtectionPrayer(), true);
 
-        debug("Checking loot..");
         getLoot();
-        debug("Considering world hop..");
         considerHopping();
-        debug("Handling afk or interactive fight..");
         if (task().isAfkable()) {
             handleAfkFight();
         } else {
             handleInteractiveFight();
         }
-    }
-
-    private static final int[] worlds = new int[] {320, 323, 324, 332, 338, 339, 340, 355, 356, 357};
-    private static void considerHopping() {
-        List<Player> otherPlayers = Microbot.getClient().getPlayers().stream()
-                .filter(p -> distTo(p.getWorldLocation()) < 30)
-                .collect(Collectors.toList());
-        if (otherPlayers.size() <= 1) return;
-        debug("Hopping because someone else is here..");
-        WildyWalk.toResetAggroSpot();
-        debug("Hopping...");
-        sleep(4000);
-        Microbot.hopToWorld(worlds[random(0, worlds.length - 1)]);
-        sleep(10_000);
-        debug("Hopefully successfully hopped!");
     }
 
     private static void getLoot() {
@@ -64,10 +46,12 @@ public class Combat {
         List<RS2Item> itemsToLoot = new ArrayList<>();
         for (RS2Item rs2Item : groundItems) {
             if (distTo(rs2Item.getTile().getWorldLocation()) > 4) continue;
-            if (rs2Item.getItem().getHaPrice() < 9000 && !lootItems.contains(rs2Item.getItem().getName())) continue;
-            itemsToLoot.add(rs2Item);
+            if (Microbot.getItemManager().getItemPrice(rs2Item.getItem().getId()) > 25000 || rs2Item.getItem().getHaPrice() > 9000 || lootItems.contains(rs2Item.getItem().getName())) itemsToLoot.add(rs2Item);
         }
-        if (itemsToLoot.isEmpty()) return;
+        if (itemsToLoot.isEmpty()) {
+            debug("No loot worth getting");
+            return;
+        }
         if (random(0, 5) != 0) {
             debug("There's loot, but skipping it (antiban)");
             return;
@@ -136,7 +120,7 @@ public class Combat {
         if (prevUpdateTime + 10_000 < System.currentTimeMillis()) {
             debug("Haven't gotten exp in at least 10 seconds! Going to try and re-trigger aggression...");
             WildyWalk.toResetAggroSpot();
-            prevUpdateTime = System.currentTimeMillis() + 20_000; // Give it some time to start up again
+            prevUpdateTime = System.currentTimeMillis() + 60_000; // Give it some time to start up again
         }
     }
 

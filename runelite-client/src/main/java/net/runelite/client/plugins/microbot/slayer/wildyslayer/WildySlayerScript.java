@@ -16,11 +16,13 @@ import net.runelite.client.plugins.microbot.util.prayer.Rs2Prayer;
 import net.runelite.client.plugins.slayer.SlayerPlugin;
 
 import javax.inject.Inject;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.WildySlayerPlugin.wildySlayerRunning;
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Combat.handleFight;
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Gear.*;
+import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Hop.hopRandomWorld;
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.WildyWalk.*;
 import static net.runelite.client.plugins.microbot.util.math.Random.random;
 import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debug;
@@ -42,12 +44,13 @@ public class WildySlayerScript extends Script {
     public boolean run() {
         debug("Got config options " + config.GUIDE());
         mainScheduledFuture = scheduledExecutorService.scheduleWithFixedDelay(() -> {
+            System.out.println("Debug - Loop started");
             if (!super.run()) return;
             if (!Microbot.isLoggedIn()) return;
             Microbot.enableAutoRunOn = true;
             try {
                 // Decide what to do
-                if (southOfWildy()) {
+                if (!inWildy()) {
                     debug("Lol I died");
                     handleDeath();
                 } else if (inFerox() && (needsToDrinkPPot() || needsToEatFood())) {
@@ -79,14 +82,20 @@ public class WildySlayerScript extends Script {
                     debug("Not where my slayer location is!");
                     WildyWalk.toSlayerLocation(slayerPlugin.getTaskName());
                     plugin.lastMeaningfulActonTime = System.currentTimeMillis();
+                } else if (shouldDrinkStrPot()) {
+                    debug("Drinking strength pot");
+                    Microbot.getMouse().click(getStrPot()[0].getBounds());
+                } else if (shouldDrinkAtkPot()) {
+                    debug("Drinking attack pot");
+                    Microbot.getMouse().click(getAtkPot()[0].getBounds());
                 } else {
-                    debug("Should be fighting!");
                     handleFight();
                     sleep(5000);
                 }
             } catch (Exception ex) {
                 System.out.println(ex.getMessage());
             }
+            System.out.println("Debug - Loop complete");
         }, 0, 1000, TimeUnit.MILLISECONDS);
         return true;
     }
@@ -122,7 +131,7 @@ public class WildySlayerScript extends Script {
         debug("Getting new task...");
         Rs2Npc.interact("Krystilia", "Assignment");
         sleepUntil(() -> slayerPlugin.getAmount() != 0, 15_000);
-        debug((slayerPlugin.getAmount() != 0 ? "successfully got" : "failed to get") + " a new task!");
+        debug((slayerPlugin.getAmount() != 0 ? "Successfully got" : "Failed to get") + " a new task!");
         toFerox();
     }
 
@@ -135,6 +144,8 @@ public class WildySlayerScript extends Script {
     }
 
     private void handleDeath() {
+        debug("Hopping worlds..");
+        hopRandomWorld();
         debug("Going to Fally bank...");
         toFallyBank();
         if (!Rs2Bank.isOpen()) {
@@ -148,22 +159,19 @@ public class WildySlayerScript extends Script {
         toFerox();
     }
 
-    private boolean southOfWildy() {
-        return Microbot.getClient().getLocalPlayer().getWorldLocation().getY() <= 3520;
-    }
-
     public MonsterEnum task() {
         return MonsterEnum.getConfig(slayerPlugin.getTaskName());
     }
 
     private boolean atSlayerLocation() {
+        if (task().getNpcName().equals("Elder Chaos Druid")) return WildyWalk.distTo(task().getLocation()) < 10;
         return WildyWalk.distTo(task().getLocation()) < (task().isAfkable() ? 5 : 25);
     }
 
     private Widget[] getPPots() {
-        Widget[] potions = Microbot.getClientThread().runOnClientThread(Inventory::getPotions);
-        if (potions == null) return new Widget[0];
-        return potions;
+        return Arrays.stream(Microbot.getClientThread().runOnClientThread(Inventory::getPotions))
+                .filter(p -> p.getName().toLowerCase().contains("prayer") || p.getName().toLowerCase().contains("super restore"))
+                .toArray(Widget[]::new);
     }
     
     private void drinkPPot() {
@@ -176,6 +184,26 @@ public class WildySlayerScript extends Script {
             }
         }
         debug("Couldn't find a ppot! I'm prolly gonna die");
+    }
+
+    private Widget[] getStrPot() {
+        return Arrays.stream(Microbot.getClientThread().runOnClientThread(Inventory::getPotions))
+                .filter(p -> p.getName().toLowerCase().contains("strength"))
+                .toArray(Widget[]::new);
+    }
+
+    private boolean shouldDrinkStrPot() {
+        return getStrPot().length > 0 && Microbot.getClient().getBoostedSkillLevel(Skill.STRENGTH) <  Microbot.getClient().getRealSkillLevel(Skill.STRENGTH) + 3;
+    }
+
+    private Widget[] getAtkPot() {
+        return Arrays.stream(Microbot.getClientThread().runOnClientThread(Inventory::getPotions))
+                .filter(p -> p.getName().toLowerCase().contains("attack"))
+                .toArray(Widget[]::new);
+    }
+
+    private boolean shouldDrinkAtkPot() {
+        return getAtkPot().length > 0 && Microbot.getClient().getBoostedSkillLevel(Skill.ATTACK) <  Microbot.getClient().getRealSkillLevel(Skill.ATTACK) + 3;
     }
 
     private Widget[] getFoods() {

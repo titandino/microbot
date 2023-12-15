@@ -161,6 +161,7 @@ public class Microbot {
         rsWorld.setLocation(newWorld.getLocation());
         rsWorld.setTypes(WorldUtil.toWorldTypes(newWorld.getTypes()));
         if (rsWorld == null) {
+            System.out.println("Couldn't hop to world - it was null");
             return;
         }
         Microbot.getClient().openWorldHopper();

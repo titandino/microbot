@@ -1,5 +1,7 @@
 package net.runelite.client.plugins.microbot.slayer.wildyslayer.utils;
 
+import net.runelite.api.coords.WorldPoint;
+import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank;
 import net.runelite.client.plugins.microbot.util.equipment.Rs2Equipment;
 import net.runelite.client.plugins.microbot.util.inventory.Inventory;
@@ -16,7 +18,9 @@ public class Gear {
     private static final String[] equip = new String[]{"Rune gloves", "Climbing boots", "Helm of neitiznot", "Dragon scimitar", "Monk's robe top", "Monk's robe", "Cape of legends"};
     private static final Map<String, Integer> inventoryRequirements = Map.of(
             "Monkfish", 5,
-            "Prayer potion(4)", 5
+            "Prayer potion(4)", 5,
+            //"Strength potion(4)", 1,
+            "Attack potion(4)", 3
         );
 
     public static void getNewTaskGear() {
@@ -25,6 +29,8 @@ public class Gear {
         sleepUntil(Rs2Bank::isOpen, 15_000);
         if (!Rs2Bank.isOpen()) {
             debug("Failed to open bank, trying again");
+            Microbot.getWalker().walkTo(new WorldPoint(3138, 3629, 0));
+            sleep(4000);
             return;
         }
         debug("Depositing items...");
