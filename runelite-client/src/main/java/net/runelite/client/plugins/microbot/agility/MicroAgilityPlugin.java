@@ -127,6 +127,16 @@ public class MicroAgilityPlugin extends Plugin {
         agilityScript.ardougneCourse.add(new AgilityObstacleModel(GAP_15611));
         agilityScript.ardougneCourse.add(new AgilityObstacleModel(STEEP_ROOF));
         agilityScript.ardougneCourse.add(new AgilityObstacleModel(GAP_15612));
+        // Pollnivneach
+        agilityScript.polnivCourse.add(new AgilityObstacleModel(BASKET_14935));
+        agilityScript.polnivCourse.add(new AgilityObstacleModel(MARKET_STALL_14936));
+        agilityScript.polnivCourse.add(new AgilityObstacleModel(BANNER_14937));
+        agilityScript.polnivCourse.add(new AgilityObstacleModel(GAP_14938));
+        agilityScript.polnivCourse.add(new AgilityObstacleModel(TREE_14939));
+        agilityScript.polnivCourse.add(new AgilityObstacleModel(ROUGH_WALL_14940));
+        agilityScript.polnivCourse.add(new AgilityObstacleModel(MONKEYBARS));
+        agilityScript.polnivCourse.add(new AgilityObstacleModel(TREE_14944));
+        agilityScript.polnivCourse.add(new AgilityObstacleModel(DRYING_LINE));
 
         agilityScript.run(config);}
 
