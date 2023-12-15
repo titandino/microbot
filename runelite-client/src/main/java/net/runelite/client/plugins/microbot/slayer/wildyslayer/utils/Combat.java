@@ -3,25 +3,22 @@ package net.runelite.client.plugins.microbot.slayer.wildyslayer.utils;
 import net.runelite.api.NPC;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.slayer.wildyslayer.WildySlayerPlugin;
-import net.runelite.client.plugins.microbot.util.grounditem.Rs2GroundItem;
-import net.runelite.client.plugins.microbot.util.inventory.Inventory;
-import net.runelite.client.plugins.microbot.util.models.RS2Item;
 import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
 import net.runelite.client.plugins.microbot.util.prayer.Rs2Prayer;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Hop.considerHopping;
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.WildyWalk.distTo;
 import static net.runelite.client.plugins.microbot.util.Global.sleep;
-import static net.runelite.client.plugins.microbot.util.Global.sleepUntil;
 import static net.runelite.client.plugins.microbot.util.math.Random.random;
 import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debug;
 
 public class Combat {
 
-    private static final Set<String> lootItems = Set.of("Larran's key", "Blighted super restore(4)", "Trouver parchment");
     public static MonsterEnum task() {
         return WildySlayerPlugin.Instance.wildySlayerScript.task();
     }
@@ -30,39 +27,13 @@ public class Combat {
         debug("Should be fighting!");
         if (task().getProtectionPrayer() != null) Rs2Prayer.fastPray(task().getProtectionPrayer(), true);
 
-        getLoot();
+        Loot.getLoot();
         considerHopping();
         if (task().isAfkable()) {
             handleAfkFight();
         } else {
             handleInteractiveFight();
         }
-    }
-
-    private static void getLoot() {
-        RS2Item[] groundItems = Microbot.getClientThread().runOnClientThread(() ->
-                Rs2GroundItem.getAll(8)
-        );
-        List<RS2Item> itemsToLoot = new ArrayList<>();
-        for (RS2Item rs2Item : groundItems) {
-            if (distTo(rs2Item.getTile().getWorldLocation()) > 4) continue;
-            if (Microbot.getItemManager().getItemPrice(rs2Item.getItem().getId()) > 25000 || rs2Item.getItem().getHaPrice() > 9000 || lootItems.contains(rs2Item.getItem().getName())) itemsToLoot.add(rs2Item);
-        }
-        if (itemsToLoot.isEmpty()) {
-            debug("No loot worth getting");
-            return;
-        }
-        if (random(0, 5) != 0) {
-            debug("There's loot, but skipping it (antiban)");
-            return;
-        }
-        debug("Looting items!");
-        for (RS2Item item : itemsToLoot) {
-            long count = Inventory.count();
-            Rs2GroundItem.interact(item);
-            sleepUntil(() -> Inventory.count() > count);
-        }
-        debug("Done looting");
     }
 
     private static NPC getNPCToAttack() {
