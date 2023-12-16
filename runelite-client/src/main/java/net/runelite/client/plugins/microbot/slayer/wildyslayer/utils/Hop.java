@@ -2,6 +2,7 @@ package net.runelite.client.plugins.microbot.slayer.wildyslayer.utils;
 
 import net.runelite.api.Player;
 import net.runelite.client.plugins.microbot.Microbot;
+import net.runelite.http.api.worlds.World;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -24,13 +25,14 @@ public class Hop {
     }
 
     public static void hopRandomWorld() {
-        if (inWildy()) {
+        if (inWildy() && !inFerox()) {
             WildyWalk.toResetAggroSpot();
         }
         if (!wildySlayerRunning) return;
         debug("Hopping...");
         sleep(4000);
-        Microbot.hopToWorld(worlds[random(0, worlds.length - 1)]);
+        int worldNumber = worlds[random(0, worlds.length - 1)];
+        Microbot.hopToWorld(worldNumber);
         sleep(10_000);
         debug("Hopefully successfully hopped!");
     }

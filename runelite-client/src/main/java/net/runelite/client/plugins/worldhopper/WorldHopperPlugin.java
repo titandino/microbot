@@ -508,7 +508,7 @@ public class WorldHopperPlugin extends Plugin
 		}
 	}
 
-	private void hop(boolean previous)
+	void hop(boolean previous)
 	{
 		WorldResult worldResult = worldService.getWorlds();
 		if (worldResult == null || client.getGameState() != GameState.LOGGED_IN)

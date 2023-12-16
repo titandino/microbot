@@ -76,6 +76,7 @@ public class WildySlayerScript extends Script {
                 } else if (needsToEatFood() && getFoods().length == 0) {
                     debug("I eat but no munchies! Going to Ferox..");
                     toFerox();
+                    return;
                 } else if (needsToEatFood()) {
                     eatFood();
                 } else if (!atSlayerLocation()) {

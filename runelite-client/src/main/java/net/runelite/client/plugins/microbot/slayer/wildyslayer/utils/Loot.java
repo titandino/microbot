@@ -1,11 +1,7 @@
 package net.runelite.client.plugins.microbot.slayer.wildyslayer.utils;
 
-import net.runelite.api.ItemComposition;
-import net.runelite.api.NPC;
 import net.runelite.api.Tile;
 import net.runelite.api.TileItem;
-import net.runelite.client.eventbus.Subscribe;
-import net.runelite.client.events.NpcLootReceived;
 import net.runelite.client.game.ItemStack;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.util.grounditem.Rs2GroundItem;
@@ -14,35 +10,24 @@ import net.runelite.client.plugins.microbot.util.models.RS2Item;
 
 import java.util.*;
 
-import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Combat.task;
 import static net.runelite.client.plugins.microbot.util.Global.sleepUntil;
 import static net.runelite.client.plugins.microbot.util.math.Random.random;
 import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debug;
 
 public class Loot {
-    private static final Set<String> lootItems = Set.of("Larran's key", "Blighted super restore(4)", "Trouver parchment");
-    private static final List<ItemStack> itemsToGrab = new ArrayList<>();
+    public static final Set<String> lootItems = Set.of("Larran's key", "Blighted super restore(4)", "Trouver parchment");
+    public static final List<ItemStack> itemsToGrab = new ArrayList<>();
 
-    @Subscribe
-    public void onNpcLootReceived(final NpcLootReceived npcLootReceived)
-    {
-        final NPC npc = npcLootReceived.getNpc();
-        if (!Objects.equals(npc.getName(), task().getNpcName())) return;
-        final Collection<ItemStack> items = npcLootReceived.getItems();
-        for (ItemStack stack : items) {
-            final ItemComposition itemComposition = Microbot.getItemManager().getItemComposition(stack.getId());
-            final int gePrice = Microbot.getItemManager().getItemPrice(stack.getId());
-            final int haPrice = itemComposition.getHaPrice();
-            if (gePrice > 25000 || haPrice > 9000 || lootItems.contains(itemComposition.getName())) itemsToGrab.add(stack);
-        }
-    }
-
-    protected static void getLoot() {
+    protected static void getLoot(boolean force) {
         if (itemsToGrab.isEmpty()) {
             debug("No loot worth getting");
             return;
         }
-        if (random(0, 5) != 0) {
+        if (Inventory.count() >= 28) {
+            debug("Inventory full, can't loot");
+            return;
+        }
+        if (!force && random(0, 5) != 0) {
             debug("There's loot, but skipping it (antiban)");
             return;
         }

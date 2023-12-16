@@ -27,7 +27,7 @@ public class Combat {
         debug("Should be fighting!");
         if (task().getProtectionPrayer() != null) Rs2Prayer.fastPray(task().getProtectionPrayer(), true);
 
-        Loot.getLoot();
+        Loot.getLoot(false);
         considerHopping();
         if (task().isAfkable()) {
             handleAfkFight();
@@ -89,6 +89,7 @@ public class Combat {
         if (Microbot.getClient().getLocalPlayer().getHealthScale() != -1) prevUpdateTime = System.currentTimeMillis();
         prevExp = Microbot.getClient().getOverallExperience();
         if (prevUpdateTime + 10_000 < System.currentTimeMillis()) {
+            Loot.getLoot(true);
             debug("Haven't gotten exp in at least 10 seconds! Going to try and re-trigger aggression...");
             WildyWalk.toResetAggroSpot();
             prevUpdateTime = System.currentTimeMillis() + 60_000; // Give it some time to start up again

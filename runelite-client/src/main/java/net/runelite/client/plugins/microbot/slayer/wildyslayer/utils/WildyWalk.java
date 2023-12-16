@@ -61,6 +61,10 @@ public class WildyWalk {
          debug("Walking to " + taskName);
          Microbot.getWalker().walkTo(getConfig(taskName).getLocation(), false);
          sleep(1200, 3600);
+        if (inGraveyardOfShadows()) {
+            debug("Sleeping another 6 seconds because walker easily gets stuck in Graveyard of Shadows..");
+            sleep(6000);
+        }
     }
 
     private static void toSlayerCave() {
@@ -79,6 +83,7 @@ public class WildyWalk {
         if (inFerox()) {
             debug("Already in Ferox.. Sleeping 25 seconds");
             sleep(25_000);
+            return;
         }
         if (inSlayerCave() && Microbot.getClient().getLocalPlayer().getWorldLocation().getY() <= 10079 ||
                 !inSlayerCave() && Microbot.getClient().getLocalPlayer().getWorldLocation().getY() <= 3679) {
@@ -132,6 +137,17 @@ public class WildyWalk {
     private static boolean inSlayerCave() {
         return Microbot.getClient().getLocalPlayer().getWorldLocation().getY() > 10000;
     }
+
+    private static boolean inGraveyardOfShadows() {
+        int x1 = 3147;
+        int x2 = 3184;
+        int y1 = 3656;
+        int y2 = 3689;
+        int x = Microbot.getClient().getLocalPlayer().getWorldLocation().getX();
+        int y = Microbot.getClient().getLocalPlayer().getWorldLocation().getY();
+        return x > x1 && x < x2 && y > y1 && y < y2;
+    }
+
 
     public static boolean inWildy() {
         return Microbot.getClient().getLocalPlayer().getWorldLocation().getY() > 3520;

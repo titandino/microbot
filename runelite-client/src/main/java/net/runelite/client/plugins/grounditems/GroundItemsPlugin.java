@@ -293,6 +293,7 @@ public class GroundItemsPlugin extends Plugin
 	@Subscribe
 	public void onNpcLootReceived(NpcLootReceived npcLootReceived)
 	{
+		System.out.println("GroundItems receieved loot");
 		Collection<ItemStack> items = npcLootReceived.getItems();
 		lootReceived(items, LootType.PVM);
 	}

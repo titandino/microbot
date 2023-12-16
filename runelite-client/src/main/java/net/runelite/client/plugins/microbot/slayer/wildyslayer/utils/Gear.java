@@ -59,6 +59,7 @@ public class Gear {
         sleepUntil(Rs2Bank::isOpen, 15_000);
         if (!Rs2Bank.isOpen()) {
             debug("Failed to open bank, trying again");
+            Microbot.getWalker().walkTo(new WorldPoint(3138, 3629, 0));
             return;
         }
         debug("Depositing items...");
@@ -105,13 +106,22 @@ public class Gear {
 
     public static boolean gearedUp() {
         for (Map.Entry<String, Integer> entry : inventoryRequirements.entrySet()) {
-            if (!Inventory.hasItemAmount(entry.getKey(), entry.getValue())) return false;
+            if (!Inventory.hasItemAmount(entry.getKey(), entry.getValue())) {
+                debug("Missing " + entry.getKey() + "x " + entry.getValue());
+                return false;
+            }
         }
         for (String item : equip) {
             if (task().getHelmOverride() != null && item.equalsIgnoreCase("Helm of neitiznot")) continue;
-            if (!Rs2Equipment.hasEquipped(item)) return false;
+            if (!Rs2Equipment.hasEquipped(item)) {
+                debug("Missing " + item);
+                return false;
+            }
         }
-        if (task().getHelmOverride() != null && !Rs2Equipment.hasEquipped(task().getHelmOverride())) return false;
+        if (task().getHelmOverride() != null && !Rs2Equipment.hasEquipped(task().getHelmOverride())) {
+            debug("Missing " + task().getHelmOverride());
+            return false;
+        }
         return true;
     }
 
