@@ -18,7 +18,7 @@ import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScrip
 public class WildyWalk {
     public static void toResetAggroSpot() {
          debug("Walking to aggro reset spot...");
-         while (wildySlayerRunning && distTo(task().getAggroResetSpot()) > 3) {
+         while (inWildy() && wildySlayerRunning && distTo(task().getAggroResetSpot()) > 3) {
              Microbot.getWalker().walkTo(task().getAggroResetSpot());
              sleep(800, 1600);
          }
@@ -145,7 +145,7 @@ public class WildyWalk {
 
     private static final WorldPoint fallyBank = new WorldPoint(2946, 3370, 0);
     public static void toFallyBank() {
-        while (wildySlayerRunning && distTo(fallyBank) > 10) {
+        while (wildySlayerRunning && distTo(fallyBank) > 10 && distTo(fallyBank) < 100) {
             Microbot.getWalker().walkTo(fallyBank);
             sleep(1200, 2400);
         }

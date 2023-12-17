@@ -29,8 +29,16 @@ public class Loot {
             return;
         }
         if (Inventory.count() >= 28) {
-            debug("Inventory full, can't loot");
-            return;
+            if (Inventory.contains("Vial")) {
+                debug("Dropping vials to make inventory space");
+                Inventory.dropAll("Vial");
+            } else if (Inventory.contains("Monkfish")) {
+                debug("Dropping monks to make inventory space");
+                Inventory.dropAll("Monkfish");
+            } else {
+                debug("Inventory full of valuables, can't loot");
+                return;
+            }
         }
         if (!force && random(0, 3) != 0) {
             debug("There's loot, but skipping it (antiban)");

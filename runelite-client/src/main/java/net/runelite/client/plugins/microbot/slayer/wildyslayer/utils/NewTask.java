@@ -7,11 +7,8 @@ import net.runelite.client.plugins.microbot.util.bank.Rs2Bank;
 import net.runelite.client.plugins.microbot.util.equipment.Rs2Equipment;
 import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject;
 import net.runelite.client.plugins.microbot.util.inventory.Inventory;
-import net.runelite.client.plugins.microbot.util.keyboard.VirtualKeyboard;
 import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget;
-
-import java.awt.event.KeyEvent;
 
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.WildySlayerPlugin.wildySlayerRunning;
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Combat.task;
@@ -88,8 +85,9 @@ public class NewTask {
         debug("Getting new task...");
         Rs2Npc.interact("Krystilia", "Assignment");
         sleepUntil(() -> WildySlayerPlugin.Instance.wildySlayerScript.slayerPlugin.getAmount() != 0, 15_000);
-        debug((WildySlayerPlugin.Instance.wildySlayerScript.slayerPlugin.getAmount() != 0 ? "Successfully got" : "Failed to get") + " a new task!");
-        while (wildySlayerRunning && task().isSkip()) {
+        debug((WildySlayerPlugin.Instance.wildySlayerScript.slayerPlugin.getAmount() != 0 ? "Successfully got" : "Failed to get") + " a task!");
+        debug("Deciding to skip or not..");
+        while (wildySlayerRunning && task() != null && task().isSkip()) {
             skipAndGetNewTask();
         }
         debug("Teleing to Ferox...");
@@ -100,24 +98,47 @@ public class NewTask {
     }
 
     private static void skipAndGetNewTask() {
-        debug("TODO - skip and get a new task");
         Rs2Npc.interact("Krystilia", "Rewards");
 
-        sleepUntil(() -> Rs2Widget.findWidgetExact("Tasks") != null);
-        Rs2Widget.clickWidget("Skip Task", true);
+        sleepUntil(() -> Rs2Widget.findWidget("Tasks") != null, 15_000);
+        if (Rs2Widget.findWidget("Tasks") == null) {
+            debug("Tasks widget null! Idk what to do");
+            return;
+        }
+        debug("Tasks widget appeared, clicking it..");
+        Rs2Widget.clickWidget("Tasks", true);
+        sleep(3000);
 
+
+        debug("Waiting for Cancel Task to appear");
         // Click the widget to skip task
         sleepUntil(() -> Rs2Widget.findWidgetExact("Cancel Task") != null);
-        Rs2Widget.clickWidget("Skip Task", true);
+        if (Rs2Widget.findWidgetExact("Cancel Task") == null) {
+            debug("Cancel Task widget null! Idk what to do");
+            return;
+        }
+        debug("Cancel Task appeared, clicking it..");
+        Rs2Widget.clickWidget("Cancel Task", true);
+        sleep(3000);
+
 
         // Click the confirm widget
         sleepUntil(() -> Rs2Widget.findWidgetExact("Confirm") != null);
+        if (Rs2Widget.findWidgetExact("Confirm") == null) {
+            debug("Confirm widget null! Idk what to do");
+            return;
+        }
+        debug("Confirm appeared, clicking it..");
         Rs2Widget.clickWidget("Confirm", true);
+        sleep(3000);
 
-        // Close the interface
-        debug("Sent esc key to close slayer interface, sleeping 900ms");
-        VirtualKeyboard.keyPress(KeyEvent.VK_ESCAPE);
-        sleep(900);
+
+        debug("Cancelled the task! Right? Moving in on 3 seconds...");
+        sleep(3000);
+
+        Microbot.getWalker().walkTo(Microbot.getClient().getLocalPlayer().getWorldLocation().dx(1));
+        sleep(3000);
+        debug("Walked away, interface should be closed");
     }
 
 

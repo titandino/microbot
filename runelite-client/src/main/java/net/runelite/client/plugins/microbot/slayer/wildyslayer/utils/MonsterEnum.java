@@ -21,7 +21,9 @@ public enum MonsterEnum {
     SPIDER("Spiders", "Giant spider", false, new WorldPoint(3167, 3885, 0), null, false, false, new WorldPoint(3105, 3895, 0), null, Direction.EAST),
     ENTS("Ents", "Ent", false, new WorldPoint(3304, 3605, 0), Prayer.PROTECT_MELEE, false, false, new WorldPoint(3239, 3586, 0), null, Direction.EAST),
     ICE_WARRIOR("Ice Warriors", "Ice warrior", false, new WorldPoint(2950, 3869, 0), Prayer.PROTECT_MELEE, false, false, new WorldPoint(2962, 3828, 0), null, Direction.WEST),
-    PIRATE("Pirates", "Pirate", true, null, null, false, false, null, null, Direction.EAST);
+    BLACK_DEMONS("Black Demons", "Black demon", false, new WorldPoint(3363, 10120, 0), Prayer.PROTECT_MELEE, true, true, new WorldPoint(3382, 10077, 0), null, Direction.EAST),
+    PIRATE("Pirates", "Pirate", true, null, null, false, false, null, null, Direction.EAST),
+    ROGUES("Rogues", "Rogue", true, null, null, false, false, null, null, Direction.EAST);
 
     private final String taskName;
     private final String npcName;

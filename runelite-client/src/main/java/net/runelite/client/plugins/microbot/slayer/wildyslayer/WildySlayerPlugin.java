@@ -13,6 +13,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.slayer.wildyslayer.parallel.WildySlayerStatusUpdater;
 import net.runelite.client.plugins.slayer.SlayerPlugin;
+import org.apache.commons.lang3.tuple.Pair;
 
 import javax.inject.Inject;
 import java.awt.*;
@@ -85,7 +86,7 @@ public class WildySlayerPlugin extends Plugin {
             final int haPrice = itemComposition.getHaPrice();
             if (gePrice > 25000 || haPrice > 9000 || lootItems.contains(itemComposition.getName())){
                 debug("Added " + itemComposition.getName() + " to items to loot");
-                itemsToGrab.add(stack);
+                itemsToGrab.add(Pair.of(itemComposition.getName(), stack));
             }
             else debug("Skipped " + itemComposition.getName() + "; ge " + gePrice + "/ha : " + haPrice);
         }

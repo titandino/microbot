@@ -37,7 +37,7 @@ public class Potions {
     }
 
     public static boolean shouldDrinkStrPot() {
-        return getStrPot().length > 0 && Microbot.getClient().getBoostedSkillLevel(Skill.STRENGTH) <  Microbot.getClient().getRealSkillLevel(Skill.STRENGTH) + 5;
+        return getStrPot().length > 0 && Microbot.getClient().getBoostedSkillLevel(Skill.STRENGTH) <  Microbot.getClient().getRealSkillLevel(Skill.STRENGTH) + random(1, 5);
     }
 
     public static Widget[] getAtkPot() {
@@ -47,7 +47,7 @@ public class Potions {
     }
 
     public static boolean shouldDrinkAtkPot() {
-        return getAtkPot().length > 0 && Microbot.getClient().getBoostedSkillLevel(Skill.ATTACK) <  Microbot.getClient().getRealSkillLevel(Skill.ATTACK) + 5;
+        return getAtkPot().length > 0 && Microbot.getClient().getBoostedSkillLevel(Skill.ATTACK) <  Microbot.getClient().getRealSkillLevel(Skill.ATTACK) + random(1, 5);
     }
 
     public static Widget[] getFoods() {

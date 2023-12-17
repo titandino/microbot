@@ -10,6 +10,7 @@ import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
 import java.util.Map;
 
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Combat.task;
+import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.WildyWalk.distTo;
 import static net.runelite.client.plugins.microbot.util.Global.sleep;
 import static net.runelite.client.plugins.microbot.util.Global.sleepUntil;
 import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debug;
@@ -25,6 +26,11 @@ public class Gear {
 
     public static void gearUp() {
         debug("Banking with banker...");
+        if (distTo(3138, 3629) > 5) {
+            debug("Walking a little closer..");
+            Microbot.getWalker().walkTo(new WorldPoint(3138, 3629, 0));
+            sleep(4000);
+        }
         Rs2Npc.interact("Banker", "Bank");
         sleepUntil(Rs2Bank::isOpen, 15_000);
         if (!Rs2Bank.isOpen()) {
@@ -42,7 +48,7 @@ public class Gear {
         for (Map.Entry<String, Integer> entry : inventoryRequirements.entrySet()) {
             Rs2Bank.withdrawX(entry.getKey(), entry.getValue(), true);
             System.out.println("Withdrew " + entry.getKey());
-            sleep(600, 1200);
+            sleep(1300);
         }
         for (String item : equip) {
             Rs2Bank.withdrawOne(item, true);

@@ -12,6 +12,7 @@ import net.runelite.client.plugins.microbot.util.prayer.Rs2Prayer;
 import net.runelite.client.plugins.slayer.SlayerPlugin;
 
 import javax.inject.Inject;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Combat.handleFight;
@@ -59,6 +60,9 @@ public class WildySlayerScript extends Script {
                 } else if (slayerPlugin.getAmount() <= 0) {
                     debug("Task complete! Going Ferox");
                     toFerox();
+                } else if (task().isSkip()) {
+                    debug("Task should be skipped!");
+                    getNewTask();
                 } else if (task() == null) {
                     debug("Task not supported! Going Ferox..");
                     toFerox();
@@ -91,7 +95,7 @@ public class WildySlayerScript extends Script {
                     sleep(5000);
                 }
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+                System.out.println("Caught exception " + ex + " with message " + ex.getMessage() + " and stacktrace: " + Arrays.toString(ex.getStackTrace()));
             }
             System.out.println("Debug - Loop complete");
         }, 0, 1000, TimeUnit.MILLISECONDS);
