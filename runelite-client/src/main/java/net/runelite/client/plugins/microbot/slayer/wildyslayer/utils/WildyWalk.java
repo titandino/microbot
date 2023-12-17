@@ -34,10 +34,7 @@ public class WildyWalk {
 
     public static void toSlayerLocation(String taskName) {
          if (inFerox()) {
-             debug("Leaving barrier..");
-             Rs2GameObject.interact(39652);
-             sleepUntil(() -> !inFerox());
-             return;
+             exitFerox();
          }
          while (wildySlayerRunning && distTo(new WorldPoint(3122, 3629, 0)) < 25) {
              debug("Getting unstuck from West of Ferox...");
@@ -65,6 +62,31 @@ public class WildyWalk {
             debug("Sleeping another 6 seconds because walker easily gets stuck in Graveyard of Shadows..");
             sleep(6000);
         }
+    }
+
+    private static void exitFerox() {
+        debug("Leaving barrier..");
+        WorldPoint barrierPoint = null;
+        switch (task().getFeroxExitDir()) {
+            case WEST:
+                barrierPoint = new WorldPoint(3124, 3629, 0);
+                break;
+            case NORTH:
+                barrierPoint = new WorldPoint(3135, 3639, 0);
+                break;
+            case EAST:
+                barrierPoint = new WorldPoint(3154, 3635, 0);
+                break;
+            case SOUTH:
+                barrierPoint = new WorldPoint(3135, 3617, 0);
+                break;
+        }
+        while (wildySlayerRunning && distTo(barrierPoint) > 8 && inFerox()) {
+            Microbot.getWalker().walkTo(barrierPoint);
+            sleep(random(3000, 4000));
+        }
+        Rs2GameObject.interact(39652);
+        sleepUntil(() -> !inFerox());
     }
 
     private static void toSlayerCave() {
@@ -117,8 +139,8 @@ public class WildyWalk {
             return;
         }
         debug("Walking south..");
-        Microbot.getWalker().walkTo(Microbot.getClient().getLocalPlayer().getWorldLocation().dy(-10));
-        sleep(random(1200, 2400));
+        Microbot.getWalker().walkTo(Microbot.getClient().getLocalPlayer().getWorldLocation().dy(-20));
+        sleep(random(200, 1800));
     }
 
     private static final WorldPoint fallyBank = new WorldPoint(2946, 3370, 0);

@@ -19,39 +19,9 @@ public class Gear {
     private static final Map<String, Integer> inventoryRequirements = Map.of(
             "Monkfish", 5,
             "Prayer potion(4)", 5,
-            //"Strength potion(4)", 1,
-            "Attack potion(4)", 3
+            "Super strength(3)", 2,
+            "Super attack(3)", 2
         );
-
-    public static void getNewTaskGear() {
-        debug("Banking with banker...");
-        Rs2Npc.interact("Banker", "Bank");
-        sleepUntil(Rs2Bank::isOpen, 15_000);
-        if (!Rs2Bank.isOpen()) {
-            debug("Failed to open bank, trying again");
-            Microbot.getWalker().walkTo(new WorldPoint(3138, 3629, 0));
-            sleep(4000);
-            return;
-        }
-        debug("Depositing items...");
-        Rs2Bank.depositAll();
-        Rs2Bank.depositEquipment();
-        sleep(3000);
-        debug("Withdrawing task grab gear...");
-        Rs2Bank.withdrawOne("Ardougne cloak");
-        sleep(600, 1200);
-        Rs2Bank.withdrawOne("Dramen staff");
-        sleep(600, 1200);
-        Rs2Bank.closeBank();
-        sleep(3000);
-        debug("Equiping staff...");
-        Rs2Equipment.equipItemFast("Dramen staff");
-        sleep(3000);
-        if (!Rs2Equipment.hasEquipped("Dramen staff")) {
-            debug("Failed to equip staff.. trying again");
-            Rs2Equipment.equipItem("Dramen staff");
-        }
-    }
 
     public static void gearUp() {
         debug("Banking with banker...");
