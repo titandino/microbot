@@ -104,7 +104,7 @@ public class WildySlayerScript extends Script {
 
     private void drinkFromPool() {
         Microbot.getWalker().walkTo(new WorldPoint(3134, 3634, 0));
-        sleep(6000);
+        sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
         Rs2GameObject.interact("Pool of Refreshment");
         sleepUntil(() -> !needsToDrinkPPot(), 15_000);
     }

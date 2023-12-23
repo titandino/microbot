@@ -23,14 +23,14 @@ public class NewTask {
         if (distTo(3138, 3629) > 5) {
             debug("Walking a little closer..");
             Microbot.getWalker().walkTo(new WorldPoint(3138, 3629, 0));
-            sleep(4000);
+            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
         }
         Rs2Npc.interact("Banker", "Bank");
         sleepUntil(Rs2Bank::isOpen, 15_000);
         if (!Rs2Bank.isOpen()) {
             debug("Failed to open bank, trying again");
             Microbot.getWalker().walkTo(new WorldPoint(3138, 3629, 0));
-            sleep(4000);
+            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
             return;
         }
         debug("Depositing items...");
@@ -79,7 +79,7 @@ public class NewTask {
         sleep(2000);
         while (wildySlayerRunning && distTo(3109, 3514) > 5) {
             Microbot.getWalker().walkTo(new WorldPoint(3109, 3514, 0));
-            sleep(2000, 4800);
+            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
         }
         if (!wildySlayerRunning) return;
         debug("Getting new task...");

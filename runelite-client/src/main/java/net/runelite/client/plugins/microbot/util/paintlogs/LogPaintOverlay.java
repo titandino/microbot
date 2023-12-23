@@ -1,5 +1,6 @@
 package net.runelite.client.plugins.microbot.util.paintlogs;
 
+import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.ui.overlay.OverlayPanel;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.components.LineComponent;
@@ -7,7 +8,9 @@ import net.runelite.client.ui.overlay.components.TitleComponent;
 
 import javax.inject.Inject;
 import java.awt.*;
+import java.util.Arrays;
 
+import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.WildyWalk.distTo;
 import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debugMessages;
 import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.status;
 
@@ -23,13 +26,14 @@ public class LogPaintOverlay extends OverlayPanel {
     @Override
     public Dimension render(Graphics2D graphics) {
         try {
+            // System.out.println("Walker dest: " + Microbot.getClient().getLocalDestinationLocation() + " (dist: " + distTo(Microbot.getClient().getLocalDestinationLocation()) + ")");
             panelComponent.setPreferredSize(new Dimension(375, 700));
             panelComponent.getChildren().add(TitleComponent.builder()
                     .text("Red Bracket Logs version 2.1")
                     .color(Color.GREEN)
                     .build());
             panelComponent.getChildren().add(LineComponent.builder()
-                    .left("Status: " + status)
+                    .left("Status: " + status + " (dist: " + distTo(Microbot.getClient().getLocalDestinationLocation()) + ")")
                     .build());
             panelComponent.getChildren().add(LineComponent.builder()
                     .left("---")
@@ -45,7 +49,8 @@ public class LogPaintOverlay extends OverlayPanel {
             for (int i = 0; i < debugMessages.size(); i++) {
                 sb.append(i).append(": ").append(debugMessages.get(i)).append("\n");
             }
-            System.out.println("Failed to render " + sb.toString());
+            System.out.println("Failed to render " + sb);
+            System.out.println("Exception: " + ex + "\n. Stack: " + Arrays.toString(ex.getStackTrace()));
         }
         return null;
     }

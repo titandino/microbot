@@ -22,7 +22,10 @@ public enum MonsterEnum {
     ENTS("Ents", "Ent", false, new WorldPoint(3304, 3605, 0), Prayer.PROTECT_MELEE, false, false, new WorldPoint(3239, 3586, 0), null, Direction.EAST),
     ICE_WARRIOR("Ice Warriors", "Ice warrior", false, new WorldPoint(2950, 3869, 0), Prayer.PROTECT_MELEE, false, false, new WorldPoint(2962, 3828, 0), null, Direction.WEST),
     BLACK_DEMONS("Black Demons", "Black demon", false, new WorldPoint(3363, 10120, 0), Prayer.PROTECT_MELEE, true, true, new WorldPoint(3382, 10077, 0), null, Direction.EAST),
+    SKELETONS("Skeletons", "Skeleton", false, new WorldPoint(3258, 3735, 0), null, false, false, new WorldPoint(3265, 3652, 0), null, Direction.EAST),
+    JELLIES("Jellies", "Jelly", false, new WorldPoint(3431, 10102, 0), Prayer.PROTECT_MELEE, false, true, new WorldPoint(3400, 10065, 0), null, Direction.EAST),
     PIRATE("Pirates", "Pirate", true, null, null, false, false, null, null, Direction.EAST),
+    MAGIC_AXES("Magic Axes", "Magic Axe", true, null, null, false, false, null, null, Direction.EAST),
     ROGUES("Rogues", "Rogue", true, null, null, false, false, null, null, Direction.EAST);
 
     private final String taskName;
