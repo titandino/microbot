@@ -20,7 +20,7 @@ public class WildyWalk {
          debug("Walking to aggro reset spot...");
          while (inWildy() && wildySlayerRunning && distTo(task().getAggroResetSpot()) > 3) {
              Microbot.getWalker().walkTo(task().getAggroResetSpot());
-             sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
+             sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5, 15_0000);
          }
     }
 
@@ -45,7 +45,13 @@ public class WildyWalk {
          while (wildySlayerRunning && distTo(new WorldPoint(3122, 3629, 0)) < 25) {
              debug("Getting unstuck from West of Ferox...");
              Microbot.getWalker().walkTo(Microbot.getClient().getLocalPlayer().getWorldLocation().dx(-2).dy(7));
-             sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
+             sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5, 15_0000);
+         }
+         if (isInRuins()) {
+             debug("Running East until we get out of the Ruins..");
+             Microbot.getWalker().walkTo(Microbot.getClient().getLocalPlayer().getWorldLocation().dx(20));
+             sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) <= 0, 15_0000);
+             return;
          }
          if (getConfig(taskName).isInSlayerCave() && Microbot.getClient().getLocalPlayer().getWorldLocation().getY() < 10000) {
              toSlayerCave();
@@ -58,16 +64,15 @@ public class WildyWalk {
              }
              debug("Walking to the northern gate to get to " + taskName);
              Microbot.getWalker().walkTo(new WorldPoint(3223, 3906, 0));
-             sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
+             sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5, 15_0000);
              return;
          }
          debug("Walking to " + taskName);
          Microbot.getWalker().walkTo(getConfig(taskName).getLocation(), false);
-         sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
-         sleep(1200, 3600);
+         sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5, 15_0000);
         if (inGraveyardOfShadows()) {
-            debug("Sleeping another 6 seconds because walker easily gets stuck in Graveyard of Shadows..");
-            sleep(6000);
+            debug("Sleeping until we stop walking because bot easily gets stuck in Graveyard of Shadows..");
+            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) <= 0, 15_0000);
         }
     }
 
@@ -90,7 +95,7 @@ public class WildyWalk {
         }
         while (wildySlayerRunning && distTo(barrierPoint) > 8 && inFerox()) {
             Microbot.getWalker().walkTo(barrierPoint);
-            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
+            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5, 15_0000);
         }
         Rs2GameObject.interact(39652);
         sleepUntil(() -> !inFerox());
@@ -104,7 +109,7 @@ public class WildyWalk {
             return;
         }
         Microbot.getWalker().walkTo(new WorldPoint(3259, 3662, 0));
-        sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
+        sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5, 15_0000);
     }
 
     private final static WorldPoint slayerCaveEntrance = new WorldPoint(3385, 10053, 0);
@@ -119,7 +124,7 @@ public class WildyWalk {
             while (wildySlayerRunning && Microbot.getClient().getLocalPlayer().getHealthScale() != -1) {
                 debug("Can't use dueling ring while in combat! Trying to run away");
                 Microbot.getWalker().walkTo(Microbot.getClient().getLocalPlayer().getWorldLocation().dy(-10));
-                sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
+                sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5, 15_0000);
             }
             debug("Using dueling ring");
             Inventory.useItemSafe("Ring of Dueling"); // assumes your dueling rings are left-click rub
@@ -131,7 +136,7 @@ public class WildyWalk {
         if (inSlayerCave()) {
             debug("Walking to slayer cave entrance..");
             Microbot.getWalker().walkTo(slayerCaveEntrance);
-            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
+            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5, 15_0000);
             return;
         }
         if (Microbot.getClient().getLocalPlayer().getWorldLocation().getY() > 3903) {
@@ -141,19 +146,19 @@ public class WildyWalk {
             }
             debug("Walking to the northern gate..");
             Microbot.getWalker().walkTo(new WorldPoint(3224, 3902, 0));
-            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
+            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5, 15_0000);
             return;
         }
         debug("Walking south..");
         Microbot.getWalker().walkTo(Microbot.getClient().getLocalPlayer().getWorldLocation().dy(-20));
-        sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
+        sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5, 15_0000);
     }
 
     private static final WorldPoint fallyBank = new WorldPoint(2946, 3370, 0);
     public static void toFallyBank() {
         while (wildySlayerRunning && distTo(fallyBank) > 10 && distTo(fallyBank) < 100) {
             Microbot.getWalker().walkTo(fallyBank);
-            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
+            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5, 15_0000);
         }
     }
 
@@ -176,6 +181,15 @@ public class WildyWalk {
         return x > x1 && x < x2 && y > y1 && y < y2;
     }
 
+    private static boolean isInRuins() {
+        int x1 = 3140;
+        int x2 = 3188;
+        int y1 = 3722;
+        int y2 = 3748;
+        int x = Microbot.getClient().getLocalPlayer().getWorldLocation().getX();
+        int y = Microbot.getClient().getLocalPlayer().getWorldLocation().getY();
+        return x > x1 && x < x2 && y > y1 && y < y2;
+    }
 
     public static boolean inWildy() {
         return Microbot.getClient().getLocalPlayer().getWorldLocation().getY() > 3520;

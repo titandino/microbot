@@ -20,7 +20,7 @@ import static net.runelite.client.plugins.microbot.util.math.Random.random;
 import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debug;
 
 public class Loot {
-    public static final Set<String> lootItems = Set.of("Larran's key", "Blighted super restore(4)", "Trouver parchment", "Ranarr seed");
+    public static final Set<String> lootItems = Set.of("Larran's key", "Blighted super restore(4)", "Trouver parchment", "Ranarr seed", "Loop half of key", "Tooth half of key", "Looting bag", "Dragon bones", "Green dragonhide");
     public static final List<Pair<String, ItemStack>> itemsToGrab = new ArrayList<>();
 
     protected static void getLoot(boolean force) {
@@ -28,6 +28,13 @@ public class Loot {
             debug("No loot worth getting");
             return;
         }
+
+        if (Inventory.hasClosedLootingBag()) {
+            debug("Opening Looting bag..");
+            Inventory.useItemSafe("Looting bag"); // assumes your Looting bag is left-click Open
+            debug("Opened Looting bag..");
+        }
+
         if (Inventory.count() >= 28) {
             if (Inventory.contains("Vial")) {
                 debug("Dropping vials to make inventory space");

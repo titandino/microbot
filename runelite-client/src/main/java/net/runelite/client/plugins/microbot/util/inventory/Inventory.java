@@ -243,7 +243,6 @@ public class Inventory {
             return items;
         });
     }
-
     public static Widget[] getPotions() {
         Microbot.status = "Fetching inventory potions";
         Widget inventoryWidget = getInventory();
@@ -942,4 +941,30 @@ public class Inventory {
        return findItemInMemory(itemName, false);
     }
 
+    public static boolean hasLootingBagWithView() {
+        // NOTE - THIS FUNCTION IS FOR RUNNING WHEN YOU HAVE THE BANK OPEN
+        return Microbot.getClientThread().runOnClientThread(() -> {
+            Widget[] items = Arrays.stream(Inventory.getInventory().getDynamicChildren()).filter(Inventory::itemExistsInInventory).toArray(Widget[]::new);
+            System.out.println("Inventory items: " + items.length);
+            for (Widget widget : items) {
+                System.out.println(widget.getName() + ": " + Arrays.toString(widget.getActions()));
+            }
+            items = Arrays.stream(items)
+                    .filter(x -> Arrays.stream(x.getActions()).anyMatch(c -> c != null && c.toLowerCase().contains("view")))
+                    .filter(x -> x.getName().toLowerCase().contains("looting bag"))
+                    .toArray(Widget[]::new);
+            return items;
+        }).length > 0;
+    }
+
+    public static boolean hasClosedLootingBag() {
+        return Microbot.getClientThread().runOnClientThread(() -> {
+            Widget[] items = Arrays.stream(Inventory.getInventory().getDynamicChildren()).filter(Inventory::itemExistsInInventory).toArray(Widget[]::new);
+            items = Arrays.stream(items)
+                    .filter(x -> Arrays.stream(x.getActions()).anyMatch(c -> c != null && c.equalsIgnoreCase("open")))
+                    .filter(x -> x.getName().toLowerCase().contains("looting bag"))
+                    .toArray(Widget[]::new);
+            return items;
+        }).length > 0;
+    }
 }

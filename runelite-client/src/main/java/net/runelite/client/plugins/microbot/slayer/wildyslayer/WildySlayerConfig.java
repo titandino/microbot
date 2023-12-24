@@ -14,10 +14,10 @@ public interface WildySlayerConfig extends Config {
             position = 0
     )
     default String GUIDE() {
-        StringBuilder sb = new StringBuilder("You must enable the RuneLite Slayer plugin and Paint Logs. This is an opinionated Wildy Slayer bot by Red Bracket. You will need to customize the code to fit your needs.");
-        sb.append("\nYour dueling rings must all be set to left-click rub");
-        sb.append("\nYour Ardougne cloak must be set to left-click Monastery Teleport");
-        sb.append("\nYour fairy ring left-click must be set to DKR");
-        return sb.toString();
+        return "You must enable the RuneLite Slayer plugin and Paint Logs. This is an opinionated Wildy Slayer bot by Red Bracket. You will need to customize the code to fit your needs." +
+                "\nYour dueling rings must all be set to left-click rub" +
+                "\nYour Ardougne cloak must be set to left-click Monastery Teleport" +
+                "\nYour fairy ring left-click must be set to DKR" +
+                "\nYour Looting Bag left-click must be Open, and in a bank, the left-click must be View";
     }
 }

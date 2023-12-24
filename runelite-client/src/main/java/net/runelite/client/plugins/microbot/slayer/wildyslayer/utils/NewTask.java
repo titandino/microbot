@@ -11,6 +11,7 @@ import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget;
 
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.WildySlayerPlugin.wildySlayerRunning;
+import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Bank.openBankAndDepositAll;
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Combat.task;
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.WildyWalk.distTo;
 import static net.runelite.client.plugins.microbot.util.Global.sleep;
@@ -19,23 +20,7 @@ import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScrip
 
 public class NewTask {
     public static void getNewTaskGear() {
-        debug("Banking with banker...");
-        if (distTo(3138, 3629) > 5) {
-            debug("Walking a little closer..");
-            Microbot.getWalker().walkTo(new WorldPoint(3138, 3629, 0));
-            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
-        }
-        Rs2Npc.interact("Banker", "Bank");
-        sleepUntil(Rs2Bank::isOpen, 15_000);
-        if (!Rs2Bank.isOpen()) {
-            debug("Failed to open bank, trying again");
-            Microbot.getWalker().walkTo(new WorldPoint(3138, 3629, 0));
-            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
-            return;
-        }
-        debug("Depositing items...");
-        Rs2Bank.depositAll();
-        Rs2Bank.depositEquipment();
+        openBankAndDepositAll();
         sleep(3000);
         debug("Withdrawing task grab gear...");
         Rs2Bank.withdrawOne("Ardougne cloak");
@@ -79,7 +64,7 @@ public class NewTask {
         sleep(2000);
         while (wildySlayerRunning && distTo(3109, 3514) > 5) {
             Microbot.getWalker().walkTo(new WorldPoint(3109, 3514, 0));
-            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
+            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5, 15_0000);
         }
         if (!wildySlayerRunning) return;
         debug("Getting new task...");

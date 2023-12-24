@@ -12,6 +12,7 @@ import net.runelite.client.plugins.PluginDependency;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.slayer.wildyslayer.parallel.WildySlayerStatusUpdater;
+import net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Gear;
 import net.runelite.client.plugins.slayer.SlayerPlugin;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -53,6 +54,7 @@ public class WildySlayerPlugin extends Plugin {
 
     @Override
     protected void startUp() throws AWTException {
+        Gear.gearFails = 0;
         startTime = System.currentTimeMillis();
         lastMeaningfulActonTime = System.currentTimeMillis();
         wildySlayerRunning = true;

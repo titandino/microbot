@@ -9,6 +9,7 @@ import net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.WildyWalk;
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank;
 import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject;
 import net.runelite.client.plugins.microbot.util.prayer.Rs2Prayer;
+import net.runelite.client.plugins.microbot.util.tabs.Rs2Tab;
 import net.runelite.client.plugins.slayer.SlayerPlugin;
 
 import javax.inject.Inject;
@@ -46,6 +47,8 @@ public class WildySlayerScript extends Script {
             if (!Microbot.isLoggedIn()) return;
             Microbot.enableAutoRunOn = true;
             try {
+                Rs2Tab.switchToInventoryTab();
+
                 // Decide what to do
                 if (!inWildy()) {
                     debug("Lol I died");
@@ -67,6 +70,7 @@ public class WildySlayerScript extends Script {
                     debug("Task not supported! Going Ferox..");
                     toFerox();
                 } else if (inFerox() && !gearedUp()) {
+                    System.out.println("in ferox and not geared up");
                     debug("Not geared up for task! Gearing up..");
                     gearUp();
                 } else if (needsToDrinkPPot() && getPPots().length == 0) {
@@ -104,7 +108,7 @@ public class WildySlayerScript extends Script {
 
     private void drinkFromPool() {
         Microbot.getWalker().walkTo(new WorldPoint(3134, 3634, 0));
-        sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5);
+        sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5, 15_0000);
         Rs2GameObject.interact("Pool of Refreshment");
         sleepUntil(() -> !needsToDrinkPPot(), 15_000);
     }
