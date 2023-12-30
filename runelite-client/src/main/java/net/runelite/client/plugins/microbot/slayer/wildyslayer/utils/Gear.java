@@ -17,9 +17,11 @@ public class Gear {
     private static String[] getEquip() {
         switch (task()) {
             case DUST_DEVILS:
-                return new String[]{"Rune gloves", "Climbing boots", "Face mask", "Dragon scimitar", "Monk's robe top", "Monk's robe", "Cape of legends"};
+                return new String[]{"Rune gloves", "Climbing boots", "Facemask", "Dragon scimitar", "Monk's robe top", "Monk's robe", "Cape of legends"};
             case GREEN_DRAGONS:
                 return new String[]{"Rune gloves", "Climbing boots", "Helm of neitiznot", "Dragon scimitar", "Monk's robe top", "Monk's robe", "Cape of legends", "Anti-dragon shield"};
+            case ICE_GIANTS:
+                return new String[]{"Rune gloves", "Climbing boots", "Barrelchest anchor", "Rune platebody", "Rune plateskirt", "Cape of legends"};
             default:
                 return new String[]{"Rune gloves", "Climbing boots", "Helm of neitiznot", "Dragon scimitar", "Monk's robe top", "Monk's robe", "Cape of legends"};
         }
@@ -28,10 +30,19 @@ public class Gear {
     private static Map<String, Integer> getInventoryRequirements() {
         switch (task()) {
             case GREEN_DRAGONS:
+                return Map.of(
+                        "Monkfish", 10,
+                        "Prayer potion(4)", 3
+                );
             case BEARS:
             case SPIDER:
+            case ZOMBIES:
                 return Map.of(
                         "Monkfish", 10
+                );
+            case ICE_GIANTS:
+                return Map.of(
+                        "Monkfish", 20
                 );
             default:
                 return Map.of(

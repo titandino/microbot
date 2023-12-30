@@ -70,7 +70,6 @@ public class WildySlayerScript extends Script {
                     debug("Task not supported! Going Ferox..");
                     toFerox();
                 } else if (inFerox() && !gearedUp()) {
-                    System.out.println("in ferox and not geared up");
                     debug("Not geared up for task! Gearing up..");
                     gearUp();
                 } else if (needsToDrinkPPot() && getPPots().length == 0) {
@@ -108,7 +107,7 @@ public class WildySlayerScript extends Script {
 
     private void drinkFromPool() {
         Microbot.getWalker().walkTo(new WorldPoint(3134, 3634, 0));
-        sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5, 15_0000);
+        sleepWalk();
         Rs2GameObject.interact("Pool of Refreshment");
         sleepUntil(() -> !needsToDrinkPPot(), 15_000);
     }
@@ -134,8 +133,14 @@ public class WildySlayerScript extends Script {
     }
 
     private boolean atSlayerLocation() {
-        if (task().getNpcName().equals("Elder Chaos Druid")) return WildyWalk.distTo(task().getLocation()) < 10;
-        return WildyWalk.distTo(task().getLocation()) < (task().isAfkable() ? 5 : 25);
+        switch (task()) {
+            case CHAOS_DRUIDS:
+                return WildyWalk.distTo(task().getLocation()) < 10;
+            case ICE_GIANTS:
+                return WildyWalk.distTo(task().getLocation()) < 7;
+            default:
+                return WildyWalk.distTo(task().getLocation()) < (task().isAfkable() ? 5 : 25);
+        }
     }
 
 }

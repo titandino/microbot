@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Hop.considerHopping;
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.WildyWalk.distTo;
+import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.WildyWalk.isNorthOfGate;
 import static net.runelite.client.plugins.microbot.util.Global.sleep;
 import static net.runelite.client.plugins.microbot.util.Global.sleepUntil;
 import static net.runelite.client.plugins.microbot.util.math.Random.random;
@@ -49,6 +50,8 @@ public class Combat {
                 .filter(n -> !n.isDead())
                 .filter(n -> n.getInteracting() == null || n.getInteracting() == Microbot.getClient().getLocalPlayer())
                 .filter(n -> distTo(n.getWorldLocation()) < distToAttack())
+                .filter(n -> isNorthOfGate(n.getWorldLocation()) && isNorthOfGate(Microbot.getClient().getLocalPlayer().getWorldLocation())
+                        || !isNorthOfGate(n.getWorldLocation()) && !isNorthOfGate(Microbot.getClient().getLocalPlayer().getWorldLocation()))
                 .sorted(Comparator.comparingInt(x -> distTo(x.getWorldLocation())))
                 .collect(Collectors.toList());
 

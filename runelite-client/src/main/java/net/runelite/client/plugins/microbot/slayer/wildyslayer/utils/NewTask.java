@@ -14,6 +14,7 @@ import static net.runelite.client.plugins.microbot.slayer.wildyslayer.WildySlaye
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Bank.openBankAndDepositAll;
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.Combat.task;
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.WildyWalk.distTo;
+import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.WildyWalk.sleepWalk;
 import static net.runelite.client.plugins.microbot.util.Global.sleep;
 import static net.runelite.client.plugins.microbot.util.Global.sleepUntil;
 import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debug;
@@ -64,7 +65,7 @@ public class NewTask {
         sleep(2000);
         while (wildySlayerRunning && distTo(3109, 3514) > 5) {
             Microbot.getWalker().walkTo(new WorldPoint(3109, 3514, 0));
-            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5, 15_0000);
+            sleepWalk();
         }
         if (!wildySlayerRunning) return;
         debug("Getting new task...");

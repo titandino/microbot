@@ -9,6 +9,7 @@ import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget;
 
 import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.WildyWalk.distTo;
+import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.WildyWalk.sleepWalk;
 import static net.runelite.client.plugins.microbot.util.Global.sleep;
 import static net.runelite.client.plugins.microbot.util.Global.sleepUntil;
 import static net.runelite.client.plugins.microbot.util.inventory.Inventory.findItem;
@@ -20,16 +21,20 @@ public class Bank {
         if (distTo(3138, 3629) > 5) {
             debug("Walking a little closer..");
             Microbot.getWalker().walkTo(new WorldPoint(3138, 3629, 0));
-            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5, 15_0000);
+            sleepWalk();
         }
         Rs2Npc.interact("Banker", "Bank");
         sleepUntil(Rs2Bank::isOpen, 15_000);
         if (!Rs2Bank.isOpen()) {
             debug("Failed to open bank, trying again");
             Microbot.getWalker().walkTo(new WorldPoint(3138, 3629, 0));
-            sleepUntil(() -> distTo(Microbot.getClient().getLocalDestinationLocation()) < 5, 15_0000);
+            sleepWalk();
             Rs2Npc.interact("Banker", "Bank");
             sleepUntil(Rs2Bank::isOpen, 15_000);
+        }
+        if (!Rs2Bank.isOpen()) {
+            debug("Failed to open bank");
+            return;
         }
         debug("Depositing items...");
         if (Inventory.hasLootingBagWithView()) {

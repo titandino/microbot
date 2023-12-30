@@ -77,6 +77,10 @@ public class WildySlayerPlugin extends Plugin {
     {
         System.out.println("Received loot " + npcLootReceived);
         final NPC npc = npcLootReceived.getNpc();
+        if (task() == null) {
+            debug("Got loot but have no task!");
+            return;
+        }
         if (!Objects.equals(npc.getName().toLowerCase(), task().getNpcName().toLowerCase())) {
             debug("Got loot from " + npc.getName() + ", which is not " + task().getNpcName());
             return;
