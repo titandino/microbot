@@ -1,6 +1,5 @@
 package net.runelite.client.plugins.microbot.util.paintlogs;
 
-import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.ui.overlay.OverlayPanel;
 import net.runelite.client.ui.overlay.OverlayPosition;
 import net.runelite.client.ui.overlay.components.LineComponent;
@@ -10,7 +9,6 @@ import javax.inject.Inject;
 import java.awt.*;
 import java.util.Arrays;
 
-import static net.runelite.client.plugins.microbot.slayer.wildyslayer.utils.WildyWalk.distTo;
 import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.debugMessages;
 import static net.runelite.client.plugins.microbot.util.paintlogs.PaintLogsScript.status;
 
@@ -33,7 +31,7 @@ public class LogPaintOverlay extends OverlayPanel {
                     .color(Color.GREEN)
                     .build());
             panelComponent.getChildren().add(LineComponent.builder()
-                    .left("Status: " + status + " (dist: " + distTo(Microbot.getClient().getLocalDestinationLocation()) + ")")
+                    .left("Status: " + status)
                     .build());
             panelComponent.getChildren().add(LineComponent.builder()
                     .left("---")

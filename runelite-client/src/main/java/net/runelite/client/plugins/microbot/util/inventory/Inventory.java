@@ -700,6 +700,51 @@ public class Inventory {
         return !hasItem(itemName);
     }
 
+    public static boolean dropAll(String[] itemNames) {
+        if (!Rs2Settings.enableDropShiftSetting()) return false;
+        if (Inventory.isEmpty()) return true;
+        if (!VirtualKeyboard.isKeyPressed(KeyEvent.VK_SHIFT) || !Rs2Menu.hasAction("drop"))
+            VirtualKeyboard.holdShift();
+
+        // Fetch the inventory widget which contains the items.
+        Widget inventoryWidget = getInventory();
+        if (inventoryWidget == null) return false;
+
+        Microbot.pauseAllScripts = true;
+
+        // Loop over each slot in the inventory.
+        for (int i = 0; i < 28; i++) {
+            Widget item = inventoryWidget.getChild(i);
+            System.out.println("Got item " + (item != null ? item.getName() : "null") + " in slot " + i);
+            if (Microbot.getClientThread().runOnClientThread(() -> itemExistsInInventory(item))) {
+                System.out.println("Item exists");
+                String itemName = item.getName().split(">")[1].split("</")[0].toLowerCase();
+                // Check if the item name matches any in the provided list.
+                for (String name : itemNames) {
+                    if (itemName.contains(name.toLowerCase())) {
+                        System.out.println("Match! Dropping...");
+                        Inventory.useItemSlot(i);
+                        sleep(30, 80);
+                        break;
+                    }
+                }
+                System.out.println("Didn't match - skipping");
+            }
+        }
+
+        Microbot.pauseAllScripts = false;
+        VirtualKeyboard.releaseShift();
+
+        // Check if any items from the list still exist in the inventory.
+        for (String itemName : itemNames) {
+            if (hasItem(itemName)) {
+                return false;
+            }
+        }
+
+        return true; // Return true if all items have been successfully dropped.
+    }
+
     public static boolean dropAll(int itemId) {
         if (!Rs2Settings.enableDropShiftSetting()) return false;
         if (Inventory.isEmpty()) return true;
