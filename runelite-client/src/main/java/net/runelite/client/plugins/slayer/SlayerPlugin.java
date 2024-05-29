@@ -157,7 +157,7 @@ public class SlayerPlugin extends Plugin
 	@Named("developerMode")
 	boolean developerMode;
 
-	@Getter(AccessLevel.PACKAGE)
+	@Getter(AccessLevel.PUBLIC)
 	@Setter(AccessLevel.PACKAGE)
 	private int amount;
 
@@ -169,7 +169,7 @@ public class SlayerPlugin extends Plugin
 	@Setter(AccessLevel.PACKAGE)
 	private String taskLocation;
 
-	@Getter(AccessLevel.PACKAGE)
+	@Getter(AccessLevel.PUBLIC)
 	@Setter(AccessLevel.PACKAGE)
 	private String taskName;
 
@@ -405,7 +405,7 @@ public class SlayerPlugin extends Plugin
 			else if (!Objects.equals(taskName, this.taskName) || !Objects.equals(taskLocation, this.taskLocation))
 			{
 				log.debug("Task change: {}x {} at {}", amount, taskName, taskLocation);
-				setTask(taskName, amount, initialAmount, taskLocation, true);
+				setTask(taskName, amount, amount, taskLocation, true);
 			}
 			else if (amount != this.amount)
 			{
@@ -604,7 +604,7 @@ public class SlayerPlugin extends Plugin
 	{
 		taskName = name;
 		amount = amt;
-		initialAmount = Math.max(amt, initAmt);
+		initialAmount = initAmt;
 		taskLocation = location;
 		save();
 		removeCounter();

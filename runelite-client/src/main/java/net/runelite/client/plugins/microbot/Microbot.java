@@ -23,6 +23,8 @@ import net.runelite.http.api.worlds.World;
 import javax.swing.*;
 import java.util.concurrent.*;
 
+import static net.runelite.client.plugins.microbot.util.Global.sleep;
+
 public class Microbot {
     @Getter
     @Setter
@@ -142,8 +144,12 @@ public class Microbot {
     }
 
     public static void hopToWorld(int worldNumber) {
-        if (quickHopTargetWorld != null || Microbot.getClient().getGameState() != GameState.LOGGED_IN) return;
+        if (quickHopTargetWorld != null || Microbot.getClient().getGameState() != GameState.LOGGED_IN) {
+            System.out.println("Can't hop because quickHopTargetWorld isn't or we're not logged in");
+            return;
+        }
         if (Microbot.getClient().getWorld() == worldNumber) {
+            System.out.println("Already in world " + worldNumber);
             return;
         }
         World newWorld = Microbot.getWorldService().getWorlds().findWorld(worldNumber);
@@ -161,9 +167,12 @@ public class Microbot {
         rsWorld.setLocation(newWorld.getLocation());
         rsWorld.setTypes(WorldUtil.toWorldTypes(newWorld.getTypes()));
         if (rsWorld == null) {
+            System.out.println("Couldn't hop to world - it was null");
             return;
         }
         Microbot.getClient().openWorldHopper();
+        sleep(4000);
+        System.out.println("Opened world hopper");
         Microbot.getClient().hopToWorld(rsWorld);
         quickHopTargetWorld = null;
     }

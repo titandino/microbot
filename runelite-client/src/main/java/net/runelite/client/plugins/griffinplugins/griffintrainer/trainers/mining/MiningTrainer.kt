@@ -8,8 +8,6 @@ import net.runelite.api.coords.WorldPoint
 import net.runelite.client.plugins.griffinplugins.griffintrainer.GriffinTrainerConfig
 import net.runelite.client.plugins.griffinplugins.griffintrainer.TrainerInterruptor
 import net.runelite.client.plugins.griffinplugins.griffintrainer.TrainerThread
-import net.runelite.client.plugins.griffinplugins.griffintrainer.helpers.BankHelper
-import net.runelite.client.plugins.griffinplugins.griffintrainer.helpers.ItemHelper
 import net.runelite.client.plugins.griffinplugins.griffintrainer.itemsets.GeneralItemSets
 import net.runelite.client.plugins.griffinplugins.griffintrainer.models.inventory.InventoryRequirements
 import net.runelite.client.plugins.griffinplugins.griffintrainer.trainers.BaseTrainer
@@ -17,14 +15,16 @@ import net.runelite.client.plugins.griffinplugins.util.helpers.MiningHelper
 import net.runelite.client.plugins.griffinplugins.util.helpers.WorldHelper
 import net.runelite.client.plugins.microbot.Microbot
 import net.runelite.client.plugins.microbot.staticwalker.WorldDestinations
-import net.runelite.client.plugins.microbot.util.Global
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
 import net.runelite.client.plugins.microbot.util.inventory.Inventory
 import net.runelite.client.plugins.microbot.util.player.Rs2Player
 
-class MiningTrainer(private val config: GriffinTrainerConfig) : BaseTrainer() {
+class MiningTrainer(private val config: GriffinTrainerConfig) : BaseTrainer(config) {
     private val varrockEastMineWorldArea = WorldArea(3281, 3363, 10, 9, 0)
     private val varrockEastMineWorldPoint = WorldPoint(3284, 3366, 0)
+
+    private val varrockWestMineWorldArea = WorldArea(3172, 3364, 13, 16, 0)
+    private val varrockWestMineWorldPoint = WorldPoint(3175, 3363, 0)
 
     private enum class ScriptState {
         SETUP, CHECKING_AREA, MINING, BANKING
@@ -33,7 +33,11 @@ class MiningTrainer(private val config: GriffinTrainerConfig) : BaseTrainer() {
     private var scriptState: ScriptState = ScriptState.SETUP
 
     override fun getBankLocation(): WorldPoint {
-        return WorldDestinations.VARROCK_EAST_BANK.worldPoint
+        if (config.miningLocation() == MiningLocations.VARROCK_EAST) {
+            return WorldDestinations.VARROCK_EAST_BANK.worldPoint
+        } else {
+            return WorldDestinations.VARROCK_WEST_BANK.worldPoint
+        }
     }
 
     override fun getInventoryRequirements(): InventoryRequirements {
@@ -72,22 +76,18 @@ class MiningTrainer(private val config: GriffinTrainerConfig) : BaseTrainer() {
 
         } else if (minimumSkillLevel < 99) {
             updateCounts("Mining Iron", "Iron Mined")
-            processState(varrockEastMineWorldArea, varrockEastMineWorldPoint, "iron rocks", ItemID.IRON_ORE)
+
+            if (config.miningLocation() == MiningLocations.VARROCK_EAST) {
+                processState(varrockEastMineWorldArea, varrockEastMineWorldPoint, "iron rocks", ItemID.IRON_ORE)
+            } else {
+                processState(varrockWestMineWorldArea, varrockWestMineWorldPoint, "iron rocks", ItemID.IRON_ORE)
+            }
 
         } else {
             return true
         }
 
         return false
-    }
-
-    private fun updateCounts(status: String, countLabel: String) {
-        if (TrainerThread.countLabel != countLabel) {
-            TrainerThread.count = 0
-        }
-
-        Microbot.status = status
-        TrainerThread.countLabel = countLabel
     }
 
     fun processState(worldArea: WorldArea, worldPoint: WorldPoint, oreName: String, oreId: Int) {
@@ -100,24 +100,7 @@ class MiningTrainer(private val config: GriffinTrainerConfig) : BaseTrainer() {
     }
 
     private fun runSetupState() {
-        if (config.equipGear()) {
-            Microbot.getWalkerForKotlin().staticWalkTo(getBankLocation())
-            if (!Rs2Bank.isOpen()) {
-                Rs2Bank.openBank()
-            }
-
-            Rs2Bank.depositAll()
-            TrainerInterruptor.sleep(300, 600)
-            Rs2Bank.depositEquipment()
-            TrainerInterruptor.sleep(600, 900)
-
-            val foundItemIds = BankHelper.fetchInventoryRequirements(getInventoryRequirements())
-            Rs2Bank.closeBank()
-            TrainerInterruptor.sleepUntilTrue({ !Rs2Bank.isOpen() }, 100, 3000)
-
-            ItemHelper.equipItemIds(foundItemIds)
-        }
-
+        fetchItemRequirements()
         scriptState = ScriptState.CHECKING_AREA
     }
 
@@ -128,21 +111,27 @@ class MiningTrainer(private val config: GriffinTrainerConfig) : BaseTrainer() {
         }
 
         if (config.hopWorlds()) {
+            try {
+                val players = Microbot.getClientForKotlin().players
+                val playerCount = players
+                    .filterNotNull()
+                    .filter { otherPlayer: Player -> otherPlayer.id != player.id }
+                    .filter { otherPlayer: Player -> worldArea.contains(player.worldLocation) }
+                    .count()
 
-            val players = Microbot.getClientForKotlin().players
-            val playerCount = players
-                .filterNotNull()
-                .filter { otherPlayer: Player -> otherPlayer.id != player.id }
-                .filter { otherPlayer: Player -> worldArea.contains(player.worldLocation) }
-                .count()
+                if (config.hopWorlds() && playerCount > config.maxPlayers()) {
+                    WorldHelper.hopToWorldWithoutPlayersInArea(
+                        Rs2Player.isMember(),
+                        worldArea,
+                        config.maxPlayers(),
+                        config.maxWorldsToTry()
+                    )
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
 
-            if (config.hopWorlds() && playerCount > config.maxPlayers()) {
-                WorldHelper.hopToWorldWithoutPlayersInArea(
-                    Rs2Player.isMember(),
-                    worldArea,
-                    config.maxPlayers(),
-                    config.maxWorldsToTry()
-                )
+            } finally {
+                TrainerInterruptor.sleep(5000)
             }
         }
 

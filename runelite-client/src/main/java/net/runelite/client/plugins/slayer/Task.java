@@ -34,7 +34,7 @@ import net.runelite.api.ItemID;
 import net.runelite.api.NullItemID;
 
 @Getter
-enum Task
+public enum Task
 {
 	//<editor-fold desc="Enums">
 	ABERRANT_SPECTRES("Aberrant spectres", ItemID.ABERRANT_SPECTRE, "Spectre"),
@@ -226,7 +226,7 @@ enum Task
 	}
 
 	@Nullable
-	static Task getTask(String taskName)
+	static public Task getTask(String taskName)
 	{
 		return tasks.get(taskName.toLowerCase());
 	}

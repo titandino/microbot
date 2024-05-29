@@ -95,8 +95,9 @@ public abstract class Script implements IScript {
     }
 
     public boolean run() {
+        if (!Microbot.isLoggedIn()) return false;
         hasLeveledUp = false;
-        if (Microbot.enableAutoRunOn)
+        if (Microbot.enableAutoRunOn && Microbot.getClient().getEnergy() > 2_000)
             Rs2Player.toggleRunEnergy(true);
         if (Microbot.getClient().getMinimapZoom() > 2)
             Microbot.getClient().setMinimapZoom(2);

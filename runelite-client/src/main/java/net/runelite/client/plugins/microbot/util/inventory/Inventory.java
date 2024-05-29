@@ -243,7 +243,6 @@ public class Inventory {
             return items;
         });
     }
-
     public static Widget[] getPotions() {
         Microbot.status = "Fetching inventory potions";
         Widget inventoryWidget = getInventory();
@@ -445,9 +444,13 @@ public class Inventory {
     }
 
     public static boolean useItem(String itemName) {
+        return useItem(itemName, false);
+    }
+
+    public static boolean useItem(String itemName, boolean exact) {
         if (Rs2Bank.isOpen()) return false;
         Microbot.status = "Use inventory item " + itemName;
-        Widget item = findItem(itemName);
+        Widget item = findItem(itemName, exact);
         if (item == null) return false;
         Microbot.getMouse().click(item.getBounds().getCenterX(), item.getBounds().getCenterY());
         sleep(100, 300);
@@ -595,8 +598,12 @@ public class Inventory {
 
     public static boolean useItemAction(String itemName, String actionName) {
         Microbot.status = "Use inventory item " + itemName + " with action " + actionName;
+        System.out.println(Microbot.status);
         Widget item = findItem(itemName);
-        if (item == null) return false;
+        if (item == null) {
+            System.out.println("Couldn't find inventory item " + itemName);
+            return false;
+        }
         return Rs2Menu.doAction(actionName, new Point((int) item.getBounds().getCenterX(), (int) item.getBounds().getCenterY()));
     }
 
@@ -691,6 +698,65 @@ public class Inventory {
         VirtualKeyboard.releaseShift();
 
         return !hasItem(itemName);
+    }
+
+    public static boolean dropAll(String[] itemNames) {
+        if (!Rs2Settings.enableDropShiftSetting()) return false;
+        if (Inventory.isEmpty()) return true;
+        if (!VirtualKeyboard.isKeyPressed(KeyEvent.VK_SHIFT) || !Rs2Menu.hasAction("drop"))
+            VirtualKeyboard.holdShift();
+
+        // Fetch the inventory widget which contains the items.
+        Widget inventoryWidget = getInventory();
+        if (inventoryWidget == null) return false;
+
+        Microbot.pauseAllScripts = true;
+
+        // Loop over each slot in the inventory.
+        for (int i = 0; i < 28; i++) {
+            Widget item = inventoryWidget.getChild(i);
+            System.out.println("Got item " + (item != null ? item.getName() : "null") + " in slot " + i);
+            if (Microbot.getClientThread().runOnClientThread(() -> itemExistsInInventory(item))) {
+                System.out.println("Item exists");
+                String itemName = item.getName().split(">")[1].split("</")[0].toLowerCase();
+                // Check if the item name matches any in the provided list.
+                for (String name : itemNames) {
+                    if (itemName.contains(name.toLowerCase())) {
+                        System.out.println("Match! Dropping...");
+                        Inventory.useItemSlot(i);
+                        sleep(30, 80);
+                        break;
+                    }
+                }
+                System.out.println("Didn't match - skipping");
+            }
+        }
+
+        Microbot.pauseAllScripts = false;
+        VirtualKeyboard.releaseShift();
+
+        // Check if any items from the list still exist in the inventory.
+        for (String itemName : itemNames) {
+            if (hasItem(itemName)) {
+                return false;
+            }
+        }
+
+        return true; // Return true if all items have been successfully dropped.
+    }
+
+    public static boolean dropAll(int itemId) {
+        if (!Rs2Settings.enableDropShiftSetting()) return false;
+        if (Inventory.isEmpty()) return true;
+        while (hasItem(itemId)) {
+            if (!VirtualKeyboard.isKeyPressed(KeyEvent.VK_SHIFT) || !Rs2Menu.hasAction("drop"))
+                VirtualKeyboard.holdShift();
+            useItemAction(itemId, "drop");
+            sleep(150, 300);
+        }
+        VirtualKeyboard.releaseShift();
+
+        return !hasItem(itemId);
     }
 
     public static boolean isUsingItem() {
@@ -920,4 +986,30 @@ public class Inventory {
        return findItemInMemory(itemName, false);
     }
 
+    public static boolean hasLootingBagWithView() {
+        // NOTE - THIS FUNCTION IS FOR RUNNING WHEN YOU HAVE THE BANK OPEN
+        return Microbot.getClientThread().runOnClientThread(() -> {
+            Widget[] items = Arrays.stream(Inventory.getInventory().getDynamicChildren()).filter(Inventory::itemExistsInInventory).toArray(Widget[]::new);
+            System.out.println("Inventory items: " + items.length);
+            for (Widget widget : items) {
+                System.out.println(widget.getName() + ": " + Arrays.toString(widget.getActions()));
+            }
+            items = Arrays.stream(items)
+                    .filter(x -> Arrays.stream(x.getActions()).anyMatch(c -> c != null && c.toLowerCase().contains("view")))
+                    .filter(x -> x.getName().toLowerCase().contains("looting bag"))
+                    .toArray(Widget[]::new);
+            return items;
+        }).length > 0;
+    }
+
+    public static boolean hasClosedLootingBag() {
+        return Microbot.getClientThread().runOnClientThread(() -> {
+            Widget[] items = Arrays.stream(Inventory.getInventory().getDynamicChildren()).filter(Inventory::itemExistsInInventory).toArray(Widget[]::new);
+            items = Arrays.stream(items)
+                    .filter(x -> Arrays.stream(x.getActions()).anyMatch(c -> c != null && c.equalsIgnoreCase("open")))
+                    .filter(x -> x.getName().toLowerCase().contains("looting bag"))
+                    .toArray(Widget[]::new);
+            return items;
+        }).length > 0;
+    }
 }

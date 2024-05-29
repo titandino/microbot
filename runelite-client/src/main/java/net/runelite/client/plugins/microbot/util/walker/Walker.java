@@ -8,7 +8,6 @@ import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.staticwalker.pathfinder.*;
 import net.runelite.client.plugins.microbot.util.camera.Rs2Camera;
-import net.runelite.client.plugins.microbot.staticwalker.pathfinder.*;
 import net.runelite.client.plugins.microbot.util.math.Calculations;
 import net.runelite.client.plugins.microbot.util.walker.pathfinder.CollisionMap;
 import net.runelite.client.plugins.microbot.util.walker.pathfinder.Node;
@@ -31,8 +30,6 @@ public class Walker {
     @Getter
     public Pathfinder pathfinder;
     public PathfinderConfig pathfinderConfig;
-
-    public WorldPoint currentDestination;
 
     List<Transport> ignoreTransport = new ArrayList();
 
@@ -239,7 +236,7 @@ public class Walker {
     }
 
     public boolean walkTo(WorldPoint target) {
-        return walkTo(target, true);
+        return walkTo(target, false);
     }
 
     public boolean walkTo(net.runelite.api.NPC npc) {
@@ -303,7 +300,6 @@ public class Walker {
     }
 
     public void setupPathfinderDefaults() {
-        currentDestination = null;
         ignoreTransport = new ArrayList<>();
         pathOrigin = new ArrayList<>();
     }

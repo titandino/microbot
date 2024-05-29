@@ -54,7 +54,7 @@ public class Rs2Equipment {
 
     public static void useRingAction(JewelleryLocationEnum jewelleryLocationEnum) {
         if (!hasEquippedSlot(EquipmentInventorySlot.RING)) {
-            Microbot.status = "Amulet is missing in the equipment slot";
+            Microbot.status = "Ring is missing in the equipment slot";
             return;
         }
         widgetId = 25362456;

@@ -469,10 +469,6 @@ streak=15
 [kingdom]
 id=616
 
-[kourend_favour]
-id=246
-overlay=1
-
 [level_up]
 id=233
 skill=1
@@ -830,7 +826,7 @@ id=336
 
 [trailblazer_areas]
 id=512
-teleport=59
+teleport=66
 
 [trawler]
 id=366

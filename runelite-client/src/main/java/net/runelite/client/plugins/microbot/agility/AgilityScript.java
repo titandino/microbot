@@ -5,6 +5,7 @@ import net.runelite.api.Tile;
 import net.runelite.api.TileObject;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.widgets.Widget;
 import net.runelite.client.plugins.agility.AgilityPlugin;
 import net.runelite.client.plugins.agility.Obstacle;
 import net.runelite.client.plugins.agility.Obstacles;
@@ -13,7 +14,10 @@ import net.runelite.client.plugins.microbot.Script;
 import net.runelite.client.plugins.microbot.agility.models.AgilityObstacleModel;
 import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject;
 import net.runelite.client.plugins.microbot.util.grounditem.Rs2GroundItem;
+import net.runelite.client.plugins.microbot.util.inventory.Inventory;
 import net.runelite.client.plugins.microbot.util.models.RS2Item;
+import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
+import net.runelite.client.plugins.timers.TimersPlugin;
 
 import java.awt.*;
 import java.lang.reflect.InvocationTargetException;
@@ -22,6 +26,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static net.runelite.client.plugins.microbot.util.inventory.Inventory.eat;
+import static net.runelite.client.plugins.microbot.util.math.Random.random;
 import static net.runelite.client.plugins.worldmap.AgilityCourseLocation.GNOME_STRONGHOLD_AGILITY_COURSE;
 
 public class AgilityScript extends Script {
@@ -37,6 +43,7 @@ public class AgilityScript extends Script {
     public List<AgilityObstacleModel> faladorCourse = new ArrayList<>();
     public List<AgilityObstacleModel> seersCourse = new ArrayList<>();
     public List<AgilityObstacleModel> ardougneCourse = new ArrayList<>();
+    public List<AgilityObstacleModel> polnivCourse = new ArrayList<>();
 
 
     WorldPoint startCourse = null;
@@ -61,6 +68,8 @@ public class AgilityScript extends Script {
                 return seersCourse;
             case ARDOUGNE_ROOFTOP_COURSE:
                 return ardougneCourse;
+            case POLLNIVNEACH_ROOFTOP_COURSE:
+                return polnivCourse;
             default:
                 return canafisCourse;
         }
@@ -91,6 +100,8 @@ public class AgilityScript extends Script {
                 break;
             case ARDOUGNE_ROOFTOP_COURSE:
                 startCourse = new WorldPoint(2673, 3298, 0);
+            case POLLNIVNEACH_ROOFTOP_COURSE:
+                startCourse = new WorldPoint(3351,2961,0);
                 break;
         }
     }
@@ -107,6 +118,27 @@ public class AgilityScript extends Script {
                 final List<RS2Item> marksOfGrace = AgilityPlugin.getMarksOfGrace();
                 final LocalPoint playerLocation = Microbot.getClient().getLocalPlayer().getLocalLocation();
                 final WorldPoint playerWorldLocation = Microbot.getClient().getLocalPlayer().getWorldLocation();
+
+                // Eat food.
+                if (Microbot.getClient().getBoostedSkillLevel(Skill.HITPOINTS) > config.hitpoints()) {
+                    if (random(1, 10) == 2 && config.pauseRandomly()) {
+                        sleep(random(config.pauseMinTime(), config.pauseMaxTime()));
+                    }
+                }
+                else if (config.hitpoints() > 0) {
+                    Widget[] foods = Microbot.getClientThread().runOnClientThread(() -> Inventory.getInventoryFood());
+                    if (foods.length == 0) {
+                        return;
+                    }
+
+                    for (Widget food : foods) {
+                        eat(food);
+                        if (random(1, 10) == 2) { //double eat
+                            eat(food);
+                        }
+                        break;
+                    }
+                }
 
                 if (Microbot.isMoving()) return;
                 if (Microbot.isAnimating()) return;
@@ -161,7 +193,7 @@ public class AgilityScript extends Script {
                         AgilityObstacleModel courseObstacle = getCurrentCourse(config).get(currentObstacle);
                         final int agilityExp = Microbot.getClient().getSkillExperience(Skill.AGILITY);
                         //exception for weird objects
-                         if (Rs2GameObject.interact(courseObstacle.getObjectID())) {
+                        if (Rs2GameObject.interact(courseObstacle.getObjectID())) {
                             if (waitForAgilityObstabcleToFinish(agilityExp))
                                 break;
                         }
