@@ -50,6 +50,7 @@ class TrentAgility : Plugin() {
             if (obstacle == null)
                 obstacle = Rs2GameObject.getGameObjects().firstOrNull { it.id == ObjectID.GAP_15611 }
             if (obstacle != null && Rs2GameObject.interact(obstacle)) {
+                Global.sleep(266, 1114)
                 Global.sleepUntil({ !Rs2Player.isMoving() && !Rs2Player.isAnimating() }, 15000)
             }
         }
