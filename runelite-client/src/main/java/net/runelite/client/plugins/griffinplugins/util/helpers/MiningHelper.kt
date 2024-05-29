@@ -19,13 +19,13 @@ class MiningHelper {
             }
 
             if (objects.isEmpty()) {
-                Microbot.status = "No ${oreName} ores found"
+                Microbot.status = "No $oreName ores found"
                 return false
             }
 
-            val nearestOre = objects.minBy { gameObject: GameObject -> gameObject.worldLocation.distanceTo(player.worldLocation) }
+            val nearestOre = objects.minByOrNull { gameObject: GameObject -> gameObject.worldLocation.distanceTo(player.worldLocation) } ?: return false
             if (nearestOre.worldLocation.distanceTo(player.worldLocation) >= 2) {
-                Microbot.status = "Walking to nearest ${oreName} ore"
+                Microbot.status = "Walking to nearest $oreName ore"
                 if (!Rs2Camera.isTileOnScreen(nearestOre.localLocation)) {
                     Microbot.getWalkerForKotlin().staticWalkTo(nearestOre.worldLocation)
                 }
