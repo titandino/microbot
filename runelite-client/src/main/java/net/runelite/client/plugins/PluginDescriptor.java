@@ -31,13 +31,16 @@ import java.lang.annotation.*;
 @Target(ElementType.TYPE)
 @Documented
 public @interface PluginDescriptor {
-    String Nate = "<html>[<font color=orange>N</font>] ";
-    String Mocrosoft = "<html>[<font color=#b8f704M>M</font>] ";
-    String OG = "<html>[<font color=#FF69B4>O</font>] ";
-    String Default = "<html>[<font color=green>D</font>] ";
-    String SaCo = "<html>[<font color=#0d937b>S</font>] ";
-    String Bank = "<html>[<font color=#9900ff>B</font>] ";
-    String Forn = "<html>[<font color=#AF2B1E>F</font>] ";
+    public String Nate = "<html>[<font color=orange>N</font>] ";
+    public String Mocrosoft = "<html>[<font color=#b8f704M>M</font>] ";
+    public String OG = "<html>[<font color=#FF69B4>O</font>] ";
+    public String Default = "<html>[<font color=green>D</font>] ";
+    public String SaCo = "<html>[<font color=#0d937b>S</font>] ";
+    public String Bank = "<html>[<font color=#9900ff>B</font>] ";
+    public String Trent = "<html>[<font color=#00ff00>T</font>] ";
+    public String Forn = "<html>[<font color=#AF2B1E>F</font>] ";
+    public String Lucid = "<html>[<font color=#32CD32>L</font>] ";
+    public String xKylee = "<html><font color=\"#32CD32\">K</font>";
     String See1Duck = "<html>[<font color=#ffff1a>\uD83E\uDD86</font>] ";
     String GMason = "<html>[<font color=#0077B6>G</font>] ";
     String Pumster = "<html>[<font color=#03ff4e>P</font>] ";

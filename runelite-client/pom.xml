@@ -42,6 +42,7 @@
 		<git.dirty>false</git.dirty>
 		<shade.skip>false</shade.skip>
 		<microbot.version>1.6.7.1</microbot.version>
+		<kotlin.version>2.0.0</kotlin.version>
 	</properties>
 
 	<dependencies>
@@ -346,6 +347,24 @@
 			<version>2.13.5</version>
 			<scope>compile</scope>
 		</dependency>
+
+		<!-- KOTLIN -->
+		<dependency>
+			<groupId>org.jetbrains.kotlinx</groupId>
+			<artifactId>kotlinx-coroutines-core</artifactId>
+			<version>1.8.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.jetbrains.kotlin</groupId>
+			<artifactId>kotlin-stdlib-jdk8</artifactId>
+			<version>${kotlin.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.jetbrains.kotlin</groupId>
+			<artifactId>kotlin-test</artifactId>
+			<version>${kotlin.version}</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<dependencyManagement>
@@ -582,6 +601,32 @@
 						</goals>
 					</execution>
 				</executions>
+			</plugin>
+
+			<!-- KOTLIN -->
+			<plugin>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-maven-plugin</artifactId>
+				<version>${kotlin.version}</version>
+				<executions>
+					<execution>
+						<id>compile</id>
+						<phase>compile</phase>
+						<goals>
+							<goal>compile</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>test-compile</id>
+						<phase>test-compile</phase>
+						<goals>
+							<goal>test-compile</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<jvmTarget>1.8</jvmTarget>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>
