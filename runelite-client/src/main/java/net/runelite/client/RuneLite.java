@@ -165,6 +165,8 @@ public class RuneLite {
         validateJavaVersion();
         Locale.setDefault(Locale.ENGLISH);
 
+        args = new String[] { "--developer-mode", "--insecure-write-credentials" };
+
         final OptionParser parser = new OptionParser(false);
         parser.accepts("clean-jagex-launcher", "Enable jagex launcher"); // will remove the credentials.properties file in .runelite folder
         parser.accepts("developer-mode", "Enable developer tools");
