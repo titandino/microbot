@@ -754,14 +754,14 @@ public class Rs2Inventory {
 
     public static List<Rs2Item> getInventoryFood() {
         List<Rs2Item> items = items().stream()
-                .filter(x -> Arrays.stream(x.getInventoryActions()).anyMatch(a -> a != null && a.equalsIgnoreCase("eat")))
+                .filter(x -> x != null && x.inventoryActions != null && Arrays.stream(x.getInventoryActions()).anyMatch(a -> a != null && a.equalsIgnoreCase("eat")))
                 .collect(Collectors.toList());
         return items;
     }
 
     public static List<Rs2Item> getPotions() {
         return items().stream()
-                .filter(x -> Arrays.stream(x.getInventoryActions()).anyMatch(a -> a != null && a.equalsIgnoreCase("drink")))
+                .filter(x -> x != null && x.inventoryActions != null && Arrays.stream(x.getInventoryActions()).anyMatch(a -> a != null && a.equalsIgnoreCase("drink")))
                 .collect(Collectors.toList());
     }
 

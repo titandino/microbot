@@ -630,7 +630,7 @@ public class Rs2Bank {
      * @param amount amount to withdraw
      * @param exact  exact search based on equalsIgnoreCase
      */
-    private static void withdrawX(String name, int amount, boolean exact) {
+    public static void withdrawX(String name, int amount, boolean exact) {
         withdrawXItem(findBankItem(name, exact), amount);
     }
 
