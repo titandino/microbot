@@ -145,14 +145,12 @@ class Ingame : State() {
         }
         val unlitBrazier = Rs2GameObject.findObjectByIdAndDistance(BRAZIER_29312, 5)
         if (unlitBrazier != null && Rs2GameObject.interact(unlitBrazier, "light")) {
-            Rs2Player.waitForAnimation()
-            sleep(1500, 2500)
+            sleepUntil { Rs2GameObject.findObjectByIdAndDistance(BRAZIER_29312, 5) == null }
             return
         }
         val brokenBrazier = Rs2GameObject.findObjectByIdAndDistance(BRAZIER_29313, 5)
         if (brokenBrazier != null && Rs2GameObject.interact(brokenBrazier, "fix")) {
-            Rs2Player.waitForAnimation()
-            sleep(1500, 2500)
+            sleepUntil { Rs2GameObject.findObjectByIdAndDistance(BRAZIER_29313, 5) == null }
             return
         }
         val litBrazier = Rs2GameObject.findObjectByIdAndDistance(BURNING_BRAZIER_29314, 10)
@@ -169,7 +167,7 @@ class Ingame : State() {
             }
 
             "fletch" -> {
-                if (!Rs2Inventory.contains(ItemID.BRUMA_ROOT)) {
+                if (!Rs2Inventory.contains(ItemID.BRUMA_ROOT) || getWintertodtHealth() <= 15) {
                     task = "burn"
                     interrupted = true
                 }
