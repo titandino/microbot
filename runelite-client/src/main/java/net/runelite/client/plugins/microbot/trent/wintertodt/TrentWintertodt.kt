@@ -14,9 +14,7 @@ import net.runelite.api.events.ChatMessage
 import net.runelite.client.eventbus.Subscribe
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
-import net.runelite.client.plugins.microbot.trent.api.State
-import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
-import net.runelite.client.plugins.microbot.trent.api.sleepUntil
+import net.runelite.client.plugins.microbot.trent.api.*
 import net.runelite.client.plugins.microbot.util.Global.sleep
 import net.runelite.client.plugins.microbot.util.Global.sleepUntil
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
@@ -29,6 +27,8 @@ import net.runelite.client.plugins.microbot.util.widget.Rs2Widget
 import javax.inject.Inject
 
 private lateinit var axe: String
+
+private const val FOOD = "trout"
 
 @PluginDescriptor(
     name = PluginDescriptor.Trent + "Wintertodt",
@@ -74,13 +74,7 @@ class TrentWintertodt : Plugin() {
 }
 
 fun isWintertodtAlive(): Boolean = Rs2Widget.hasWidget("Wintertodt's Energy")
-
-fun getWintertodtHealth(): Int {
-    val healthBar = Rs2Widget.getWidget(25952276) ?: return -1
-    if (isWintertodtAlive())
-        return healthBar.text.split("\\D+".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()[1].toInt()
-    return 1
-}
+fun getWintertodtHealth(): Int = percentageTextToInt(25952276)
 
 class WintertodtScript : StateMachineScript() {
     override fun getStartState(): State {
@@ -274,20 +268,22 @@ private class PrepareForGame : State() {
             sleep(346, 642)
             return
         }
-        if (Rs2Inventory.contains("supply crate") || !Rs2Inventory.containsAll(*itemsToTake.toTypedArray()) || !Rs2Inventory.hasItemAmount("salmon", 10, false, true)) {
+        if (Rs2Inventory.contains("supply crate") || !Rs2Inventory.containsAll(*itemsToTake.toTypedArray()) || !Rs2Inventory.hasItemAmount(FOOD, 10, false, true)) {
             val chest = Rs2GameObject.findObject(29321, WorldPoint(1641, 3944, 0))
             if (chest == null && Rs2Walker.walkTo(WorldPoint(1641, 3944, 0))) {
                 sleep(1260, 5920)
                 return
             }
             if (!Rs2Bank.isOpen()) {
-                if (Rs2GameObject.interact(chest, "bank") || Rs2Walker.walkTo(WorldPoint(1641, 3944, 0)))
+                if (Rs2GameObject.interact(chest, "bank"))
                     sleepUntil(timeout = 10000) { Rs2Bank.isOpen() }
+                else
+                    Rs2Walker.walkTo(WorldPoint(1641, 3944, 0))
             } else if (Rs2Bank.isOpen()) {
                 Rs2Bank.depositAll()
                 itemsToTake.forEach { Rs2Bank.withdrawOne(it, true) }
-                Rs2Bank.withdrawX("salmon", 10, true)
-                sleepUntil { !Rs2Inventory.contains("supply crate") && Rs2Inventory.containsAll(*itemsToTake.toTypedArray()) && Rs2Inventory.hasItemAmount("salmon", 10, false, true) }
+                Rs2Bank.withdrawX(FOOD, 10, true)
+                sleepUntil { !Rs2Inventory.contains("supply crate") && Rs2Inventory.containsAll(*itemsToTake.toTypedArray()) && Rs2Inventory.hasItemAmount(FOOD, 10, false, true) }
             }
         } else {
             val door = Rs2GameObject.findObject(29322, WorldPoint(1630, 3965, 0))
@@ -305,41 +301,4 @@ private class PrepareForGame : State() {
 
 private enum class InterruptType {
     COLD, SNOWFALL, BRAZIER, INVENTORY_FULL, OUT_OF_ROOTS, FIXED_BRAZIER, LIT_BRAZIER, BRAZIER_WENT_OUT
-}
-
-private fun moveTo(x: Int, y: Int): Boolean {
-    if (Rs2Player.getWorldLocation().x == x && Rs2Player.getWorldLocation().y == y)
-        return false
-    Rs2Walker.walkFastCanvas(WorldPoint(x, y, Rs2Player.getWorldLocation().plane))
-    sleepUntil { Rs2Player.getWorldLocation().x == x && Rs2Player.getWorldLocation().y == y }
-    return true
-}
-
-private fun dodgeDangerAtPoint(dodgeLocation: WorldPoint) {
-    val currentLocation = Rs2Player.getWorldLocation()
-
-    val dx = dodgeLocation.x - currentLocation.x
-    val dy = dodgeLocation.y - currentLocation.y
-
-    val primaryDirection = when {
-        dx > 0 -> 1 to 0   // Move East
-        dx < 0 -> -1 to 0  // Move West
-        dy > 0 -> 0 to 1   // Move North
-        else -> 0 to -1    // Move South
-    }
-
-    val directions = listOf(
-        primaryDirection,   // Primary direction
-        0 to -1,            // South
-        0 to 1,             // North
-        -1 to 0,            // West
-        1 to 0              // East
-    ).distinct()           // Remove duplicates
-
-    val reachablePoints = directions.mapNotNull { (dx, dy) ->
-        val point = WorldPoint(currentLocation.x + dx, currentLocation.y + dy, currentLocation.plane)
-        if (Rs2Walker.canReach(point)) point else null
-    }
-
-    reachablePoints.randomOrNull()?.let { Rs2Walker.walkFastCanvas(it) }
 }
