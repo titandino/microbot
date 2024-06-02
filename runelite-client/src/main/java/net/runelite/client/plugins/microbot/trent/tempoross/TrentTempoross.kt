@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.microbot.trent.wintertodt
+package net.runelite.client.plugins.microbot.trent.tempoross
 
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -28,20 +28,18 @@ import net.runelite.client.plugins.microbot.util.walker.Rs2Walker
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget
 import javax.inject.Inject
 
-private lateinit var axe: String
-
 @PluginDescriptor(
-    name = PluginDescriptor.Trent + "Wintertodt",
-    description = "Wintertodt",
-    tags = ["firemaking", "wintertodt", "winter"],
+    name = PluginDescriptor.Trent + "Tempoross Solo",
+    description = "Tempoross Solo",
+    tags = ["fishing", "tempoross"],
     enabledByDefault = false
 )
-class TrentWintertodt : Plugin() {
+class TrentTempoross : Plugin() {
     @Inject
     private lateinit var client: Client
 
     private var running = false
-    private val script = WintertodtScript()
+    private val script = TemporossScript()
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun startUp() {
@@ -52,8 +50,6 @@ class TrentWintertodt : Plugin() {
     }
 
     private fun run() {
-        axe = Rs2Inventory.get("axe").name ?: return println("No axe found in inventory.")
-        println("Found $axe in inventory. Time to get going chief.")
         while (running) {
             script.loop(client)
         }
@@ -73,16 +69,16 @@ class TrentWintertodt : Plugin() {
     }
 }
 
-fun isWintertodtAlive(): Boolean = Rs2Widget.hasWidget("Wintertodt's Energy")
+fun isTemporossAlive(): Boolean = Rs2Widget.hasWidget("Wintertodt's Energy")
 
-fun getWintertodtHealth(): Int {
+fun getTemporossHealth(): Int {
     val healthBar = Rs2Widget.getWidget(25952276) ?: return -1
-    if (isWintertodtAlive())
+    if (isTemporossAlive())
         return healthBar.text.split("\\D+".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()[1].toInt()
     return 1
 }
 
-class WintertodtScript : StateMachineScript() {
+private class TemporossScript : StateMachineScript() {
     override fun getStartState(): State {
         return Root()
     }
@@ -138,7 +134,7 @@ private class Ingame : State() {
             Rs2Player.waitForWalking(8000)
             return
         }
-        if (!isWintertodtAlive() || getWintertodtHealth() <= 0) {
+        if (!isTemporossAlive() || getTemporossHealth() <= 0) {
             if (Rs2GameObject.findObjectByIdAndDistance(BRAZIER_29312, 2) == null && Rs2Walker.walkTo(WorldPoint(1621, 3998, 0)))
                 Rs2Player.waitForWalking()
             return
@@ -156,7 +152,7 @@ private class Ingame : State() {
         val litBrazier = Rs2GameObject.findObjectByIdAndDistance(BURNING_BRAZIER_29314, 10)
         when (task) {
             "chop" -> {
-                if (getWintertodtHealth() <= 15 && (Rs2Inventory.hasItemAmount(ItemID.BRUMA_ROOT, 3) || Rs2Inventory.hasItemAmount(ItemID.BRUMA_KINDLING, 3))) {
+                if (getTemporossHealth() <= 15 && (Rs2Inventory.hasItemAmount(ItemID.BRUMA_ROOT, 3) || Rs2Inventory.hasItemAmount(ItemID.BRUMA_KINDLING, 3))) {
                     task = "burn"
                     interrupted = true
                 }
@@ -167,7 +163,7 @@ private class Ingame : State() {
             }
 
             "fletch" -> {
-                if (!Rs2Inventory.contains(ItemID.BRUMA_ROOT) || getWintertodtHealth() <= 15) {
+                if (!Rs2Inventory.contains(ItemID.BRUMA_ROOT) || getTemporossHealth() <= 15) {
                     task = "burn"
                     interrupted = true
                 }
@@ -267,7 +263,7 @@ private class PrepareForGame : State() {
     }
 
     override fun loop(client: Client, script: StateMachineScript) {
-        val itemsToTake = mutableListOf(axe, "knife", "hammer")
+        val itemsToTake = mutableListOf("knife", "hammer")
         if (!Rs2Equipment.hasEquipped(ItemID.BRUMA_TORCH))
             itemsToTake.add("tinderbox")
         if (Rs2Player.eatAt(85)) {
@@ -280,10 +276,9 @@ private class PrepareForGame : State() {
                 sleep(1260, 5920)
                 return
             }
-            if (!Rs2Bank.isOpen()) {
-                if (Rs2GameObject.interact(chest, "bank") || Rs2Walker.walkTo(WorldPoint(1641, 3944, 0)))
-                    sleepUntil(timeout = 10000) { Rs2Bank.isOpen() }
-            } else if (Rs2Bank.isOpen()) {
+            if (!Rs2Bank.isOpen() && Rs2GameObject.interact(chest, "bank"))
+                sleepUntil(timeout = 10000) { Rs2Bank.isOpen() }
+            else if (Rs2Bank.isOpen()) {
                 Rs2Bank.depositAll()
                 itemsToTake.forEach { Rs2Bank.withdrawOne(it, true) }
                 Rs2Bank.withdrawX("salmon", 10, true)
