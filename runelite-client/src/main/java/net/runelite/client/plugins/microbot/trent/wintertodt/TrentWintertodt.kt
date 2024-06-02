@@ -121,6 +121,8 @@ class Ingame : State() {
             }
             if (Rs2GameObject.interact(door, "enter"))
                 sleepUntil(timeout = 10000) { client.localPlayer.worldLocation.regionID == 6461 }
+            else
+                Rs2Walker.walkTo(WorldPoint(1630, 3965, 0))
             return
         }
         if (Rs2Player.eatAt(43)) {
@@ -154,7 +156,7 @@ class Ingame : State() {
             return
         }
         val litBrazier = Rs2GameObject.findObjectByIdAndDistance(BURNING_BRAZIER_29314, 10)
-        when(task) {
+        when (task) {
             "chop" -> {
                 if (getWintertodtHealth() <= 15 && (Rs2Inventory.hasItemAmount(ItemID.BRUMA_ROOT, 3) || Rs2Inventory.hasItemAmount(ItemID.BRUMA_KINDLING, 3))) {
                     task = "burn"
@@ -165,12 +167,14 @@ class Ingame : State() {
                     interrupted = true
                 }
             }
+
             "fletch" -> {
                 if (!Rs2Inventory.contains(ItemID.BRUMA_ROOT)) {
                     task = "burn"
                     interrupted = true
                 }
             }
+
             "burn" -> {
                 if (!Rs2Inventory.contains(ItemID.BRUMA_ROOT) && !Rs2Inventory.contains(ItemID.BRUMA_KINDLING)) {
                     task = "chop"
@@ -180,7 +184,7 @@ class Ingame : State() {
         }
         if (!interrupted && (System.currentTimeMillis() - lastAction) < 5000)
             return
-        when(task) {
+        when (task) {
             "chop" -> {
                 if (moveTo(1619, 3989))
                     return
@@ -190,6 +194,7 @@ class Ingame : State() {
                     Rs2Player.waitForAnimation(2500)
                 }
             }
+
             "fletch" -> {
                 fletching = false
                 if (Rs2Inventory.use(ItemID.KNIFE) && Rs2Inventory.use(ItemID.BRUMA_ROOT)) {
@@ -198,6 +203,7 @@ class Ingame : State() {
                     sleepUntil(timeout = 4000) { fletching }
                 }
             }
+
             "burn" -> {
                 if (moveTo(1619, 3998))
                     return
@@ -208,10 +214,6 @@ class Ingame : State() {
                 }
             }
         }
-    }
-
-    internal enum class InterruptType {
-        COLD, SNOWFALL, BRAZIER, INVENTORY_FULL, OUT_OF_ROOTS, FIXED_BRAZIER, LIT_BRAZIER, BRAZIER_WENT_OUT
     }
 
     override fun eventReceived(client: Client, eventObject: Any) {
@@ -259,44 +261,6 @@ class Ingame : State() {
     }
 }
 
-fun moveTo(x: Int, y: Int): Boolean {
-    if (Rs2Player.getWorldLocation().x == x && Rs2Player.getWorldLocation().y == y)
-        return false
-    Rs2Walker.walkFastCanvas(WorldPoint(x, y, Rs2Player.getWorldLocation().plane))
-    sleepUntil { Rs2Player.getWorldLocation().x == x && Rs2Player.getWorldLocation().y == y }
-    return true
-}
-
-fun dodgeDangerAtPoint(dodgeLocation: WorldPoint) {
-    val currentLocation = Rs2Player.getWorldLocation()
-
-    val dx = dodgeLocation.x - currentLocation.x
-    val dy = dodgeLocation.y - currentLocation.y
-
-    val primaryDirection = when {
-        dx > 0 -> 1 to 0   // Move East
-        dx < 0 -> -1 to 0  // Move West
-        dy > 0 -> 0 to 1   // Move North
-        else -> 0 to -1    // Move South
-    }
-
-    val directions = listOf(
-        primaryDirection,   // Primary direction
-        0 to -1,            // South
-        0 to 1,             // North
-        -1 to 0,            // West
-        1 to 0              // East
-    ).distinct()           // Remove duplicates
-
-    val reachablePoints = directions.mapNotNull { (dx, dy) ->
-        val point = WorldPoint(currentLocation.x + dx, currentLocation.y + dy, currentLocation.plane)
-        if (Rs2Walker.canReach(point)) point else null
-    }
-
-    reachablePoints.randomOrNull()?.let { Rs2Walker.walkFastCanvas(it) }
-}
-
-
 class PrepareForGame : State() {
     override fun checkNext(client: Client): State? {
         if (client.localPlayer.worldLocation.regionID == 6462)
@@ -334,6 +298,49 @@ class PrepareForGame : State() {
             }
             if (Rs2GameObject.interact(door, "enter"))
                 sleepUntil(timeout = 10000) { client.localPlayer.worldLocation.regionID == 6462 }
+            else
+                Rs2Walker.walkTo(WorldPoint(1630, 3965, 0))
         }
     }
+}
+
+internal enum class InterruptType {
+    COLD, SNOWFALL, BRAZIER, INVENTORY_FULL, OUT_OF_ROOTS, FIXED_BRAZIER, LIT_BRAZIER, BRAZIER_WENT_OUT
+}
+
+fun moveTo(x: Int, y: Int): Boolean {
+    if (Rs2Player.getWorldLocation().x == x && Rs2Player.getWorldLocation().y == y)
+        return false
+    Rs2Walker.walkFastCanvas(WorldPoint(x, y, Rs2Player.getWorldLocation().plane))
+    sleepUntil { Rs2Player.getWorldLocation().x == x && Rs2Player.getWorldLocation().y == y }
+    return true
+}
+
+fun dodgeDangerAtPoint(dodgeLocation: WorldPoint) {
+    val currentLocation = Rs2Player.getWorldLocation()
+
+    val dx = dodgeLocation.x - currentLocation.x
+    val dy = dodgeLocation.y - currentLocation.y
+
+    val primaryDirection = when {
+        dx > 0 -> 1 to 0   // Move East
+        dx < 0 -> -1 to 0  // Move West
+        dy > 0 -> 0 to 1   // Move North
+        else -> 0 to -1    // Move South
+    }
+
+    val directions = listOf(
+        primaryDirection,   // Primary direction
+        0 to -1,            // South
+        0 to 1,             // North
+        -1 to 0,            // West
+        1 to 0              // East
+    ).distinct()           // Remove duplicates
+
+    val reachablePoints = directions.mapNotNull { (dx, dy) ->
+        val point = WorldPoint(currentLocation.x + dx, currentLocation.y + dy, currentLocation.plane)
+        if (Rs2Walker.canReach(point)) point else null
+    }
+
+    reachablePoints.randomOrNull()?.let { Rs2Walker.walkFastCanvas(it) }
 }
