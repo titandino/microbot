@@ -248,8 +248,11 @@ private class Ingame : State() {
             InterruptType.INVENTORY_FULL, InterruptType.OUT_OF_ROOTS, InterruptType.BRAZIER_WENT_OUT -> true
             else -> false
         }
-        if (needsResume)
+        if (needsResume) {
             interrupted = true
+            if (task == "fletch")
+                sleep(600, 710)
+        }
     }
 }
 
