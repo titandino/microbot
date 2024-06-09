@@ -28,7 +28,7 @@ import javax.inject.Inject
 
 private lateinit var axe: String
 
-private const val FOOD = "trout"
+private const val FOOD = "salmon"
 
 @PluginDescriptor(
     name = PluginDescriptor.Trent + "Wintertodt",

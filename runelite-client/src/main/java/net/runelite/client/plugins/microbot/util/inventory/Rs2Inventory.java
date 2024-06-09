@@ -2064,7 +2064,8 @@ public class Rs2Inventory {
             String[] actions = itemWidget != null && itemWidget.getActions() != null ?
                     itemWidget.getActions() :
                     rs2Item.getInventoryActions();
-
+            if (actions == null)
+                return;
             identifier = indexOfIgnoreCase(stripColTags(actions), action) + 1;
         }
 

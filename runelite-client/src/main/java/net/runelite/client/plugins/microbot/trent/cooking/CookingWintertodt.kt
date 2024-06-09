@@ -13,12 +13,11 @@ import net.runelite.client.plugins.microbot.util.Global.sleepUntil
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
 import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
-import net.runelite.client.plugins.microbot.util.keyboard.Rs2Keyboard
 import net.runelite.client.plugins.microbot.util.math.Random
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget
 import javax.inject.Inject
 
-const val RAW_ITEM = "raw trout"
+const val RAW_ITEM = "raw salmon"
 
 @PluginDescriptor(
     name = PluginDescriptor.Trent + "Cook Wintertodt",
