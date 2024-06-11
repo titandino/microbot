@@ -6,6 +6,9 @@ import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.globval.enums.InterfaceTab;
 import net.runelite.client.plugins.microbot.util.Global;
+import net.runelite.client.plugins.microbot.util.menu.NewMenuEntry;
+import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
+import net.runelite.client.plugins.microbot.util.player.Rs2Player;
 import net.runelite.client.plugins.microbot.util.tabs.Rs2Tab;
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget;
 
@@ -127,4 +130,9 @@ public class Rs2Combat {
         if (Microbot.getClient().getLocalPlayer().getInteracting().getCombatLevel() < 1) return false;
         return Microbot.getClient().getLocalPlayer().isInteracting() || Microbot.getClient().getLocalPlayer().getAnimation() != -1;
     }
+
+    public static boolean inCombatNotBraindamaged() {
+        return Rs2Npc.getNpcsForPlayer().stream().anyMatch(npc -> npc.getInteracting() == Microbot.getClient().getLocalPlayer());
+    }
+
 }
