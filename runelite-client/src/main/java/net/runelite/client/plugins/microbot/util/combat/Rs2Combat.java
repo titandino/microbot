@@ -7,6 +7,9 @@ import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.globval.enums.InterfaceTab;
 import net.runelite.client.plugins.microbot.util.Global;
+import net.runelite.client.plugins.microbot.util.menu.NewMenuEntry;
+import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
+import net.runelite.client.plugins.microbot.util.player.Rs2Player;
 import net.runelite.client.plugins.microbot.util.magic.Rs2CombatSpells;
 import net.runelite.client.plugins.microbot.util.magic.Rs2Magic;
 import net.runelite.client.plugins.microbot.util.tabs.Rs2Tab;
@@ -48,7 +51,7 @@ public class Rs2Combat {
         if (combatSpell == null) return false;
         if (!Rs2Magic.canCast(combatSpell.getMagicAction())) return false;
         if (Rs2Magic.getCurrentAutoCastSpell() == combatSpell && Microbot.getVarbitValue(Varbits.DEFENSIVE_CASTING_MODE) == (useDefensiveCast ? 1 : 0)) return true;
-        
+
         Rs2Tab.switchToCombatOptionsTab();
         sleepUntil(() -> Rs2Tab.getCurrentTab() == InterfaceTab.COMBAT);
 
@@ -58,10 +61,10 @@ public class Rs2Combat {
 
         Rs2Widget.clickWidget(autoCastWidget);
         sleepUntil(() -> Rs2Widget.isWidgetVisible(201, 1));
-        
+
         Widget autoCastOptions = Rs2Widget.getWidget(201, 1);
         if (autoCastOptions == null) return false;
-        
+
         Widget spellSprite = Rs2Widget.findWidget(combatSpell.getMagicAction().getSprite(), List.of(autoCastOptions));
         if (spellSprite == null) return false;
 
@@ -166,4 +169,9 @@ public class Rs2Combat {
         if (Microbot.getClient().getLocalPlayer().getInteracting().getCombatLevel() < 1) return false;
         return Microbot.getClient().getLocalPlayer().isInteracting() || Microbot.getClient().getLocalPlayer().getAnimation() != -1;
     }
+
+    public static boolean inCombatNotBraindamaged() {
+        return Rs2Npc.getNpcsForPlayer().stream().anyMatch(npc -> npc.getInteracting() == Microbot.getClient().getLocalPlayer());
+    }
+
 }
