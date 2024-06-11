@@ -2,6 +2,9 @@ package net.runelite.client.plugins.microbot.trent.api
 
 import net.runelite.api.coords.WorldPoint
 import net.runelite.client.plugins.microbot.util.Global
+import net.runelite.client.plugins.microbot.util.Global.sleep
+import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
+import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.player.Rs2Player
 import net.runelite.client.plugins.microbot.util.walker.Rs2Walker
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget
@@ -50,4 +53,20 @@ fun dodgeDangerAtPoint(dodgeLocation: WorldPoint) {
 fun percentageTextToInt(widgetId: Int): Int {
     val widget = Rs2Widget.getWidget(widgetId) ?: return -1
     return try { widget.text.split("\\D+".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()[1].toInt() } catch(e: Throwable) { -1 }
+}
+
+fun bankAt(objectId: Int, tile: WorldPoint): Boolean {
+    val chest = Rs2GameObject.findObject(objectId, tile)
+    if (chest == null && Rs2Walker.walkTo(tile)) {
+        sleep(1260, 5920)
+        return false
+    }
+    if (!Rs2Bank.isOpen()) {
+        if (Rs2GameObject.interact(chest, "bank"))
+            sleepUntil(timeout = 10000) { Rs2Bank.isOpen() }
+        else
+            Rs2Walker.walkTo(tile)
+        return false
+    } else
+        return true
 }
