@@ -30,6 +30,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static net.runelite.api.MenuAction.CC_OP_LOW_PRIORITY;
 import static net.runelite.client.plugins.microbot.util.Global.sleep;
 import static net.runelite.client.plugins.microbot.util.Global.sleepUntil;
 
@@ -425,7 +426,7 @@ public class Rs2Inventory {
         for (Rs2Item item :
                 items().stream().filter(x -> x.id == id).collect(Collectors.toList())) {
             if (item == null) continue;
-            invokeMenu(item, "Drop");
+            Microbot.doInvoke(new NewMenuEntry(item.slot, 9764864, CC_OP_LOW_PRIORITY.getId(), 7, item.id, item.name), new Rectangle(0, 0, 1, 1));
             sleep(300, 600);
         }
         return true;
@@ -441,7 +442,7 @@ public class Rs2Inventory {
         for (Rs2Item item :
                 items().stream().filter(x -> Arrays.stream(ids).anyMatch(id -> id == x.id)).collect(Collectors.toList())) {
             if (item == null) continue;
-            invokeMenu(item, "Drop");
+            Microbot.doInvoke(new NewMenuEntry(item.slot, 9764864, CC_OP_LOW_PRIORITY.getId(), 7, item.id, item.name), new Rectangle(0, 0, 1, 1));
             sleep(300, 600);
         }
         return true;
@@ -473,8 +474,17 @@ public class Rs2Inventory {
         for (Rs2Item item :
                 items().stream().filter(x -> Arrays.stream(names).anyMatch(name -> name.equalsIgnoreCase(x.name))).collect(Collectors.toList())) {
             if (item == null) continue;
-            invokeMenu(item, "Drop");
+            Microbot.doInvoke(new NewMenuEntry(item.slot, 9764864, CC_OP_LOW_PRIORITY.getId(), 7, item.id, item.name), new Rectangle(0, 0, 1, 1));
             sleep(300, 600);
+        }
+        return true;
+    }
+
+    public static boolean dropAll(int minTime, int maxTime, String... names) {
+        for (Rs2Item item : items().stream().filter(x -> Arrays.stream(names).anyMatch(name -> name.equalsIgnoreCase(x.name))).collect(Collectors.toList())) {
+            if (item == null) continue;
+            Microbot.doInvoke(new NewMenuEntry(item.slot, 9764864, CC_OP_LOW_PRIORITY.getId(), 7, item.id, item.name), new Rectangle(0, 0, 1, 1));
+            sleep(minTime, maxTime);
         }
         return true;
     }
@@ -489,8 +499,8 @@ public class Rs2Inventory {
         for (Rs2Item item :
                 items().stream().filter(predicate).collect(Collectors.toList())) {
             if (item == null) continue;
-            invokeMenu(item, "Drop");
-            sleep(150, 300);
+            Microbot.doInvoke(new NewMenuEntry(item.slot, 9764864, CC_OP_LOW_PRIORITY.getId(), 7, item.id, item.name), new Rectangle(0, 0, 1, 1));
+            sleep(300, 600);
         }
         return true;
     }
