@@ -636,7 +636,7 @@ public class Rs2GameObject {
             if (object == null) continue;
             if (Rs2Player.getWorldLocation().distanceTo(object.getWorldLocation()) < distance) {
                 if (Rs2Player.getWorldLocation().getPlane() != object.getPlane()) continue;
-                if (object instanceof GroundObject && !Rs2Walker.canReach(object.getWorldLocation()))
+                if (object instanceof GroundObject && !Rs2Walker.canReach(object.getWorldLocation(), 1, 1))
                     continue;
 
                 //exceptions if the pathsize needs to be bigger
