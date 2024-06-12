@@ -365,6 +365,12 @@
 			<version>${kotlin.version}</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>net.runelite</groupId>
+			<artifactId>runelite-api</artifactId>
+			<version>1.10.32-SNAPSHOT</version>
+			<scope>compile</scope>
+		</dependency>
 	</dependencies>
 
 	<dependencyManagement>
