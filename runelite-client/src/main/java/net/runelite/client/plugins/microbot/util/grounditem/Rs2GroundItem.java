@@ -32,7 +32,7 @@ import static net.runelite.client.plugins.microbot.util.Global.sleepUntil;
 @Slf4j
 public class Rs2GroundItem {
 
-    private static boolean interact(RS2Item rs2Item, String action) {
+    public static boolean interact(RS2Item rs2Item, String action) {
         if (rs2Item == null) return false;
         try {
             interact(new InteractModel(rs2Item.getTileItem().getId(), rs2Item.getTile().getWorldLocation(), rs2Item.getItem().getName()), action);
