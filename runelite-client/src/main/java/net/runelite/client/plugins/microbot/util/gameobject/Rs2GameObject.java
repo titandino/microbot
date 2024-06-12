@@ -524,7 +524,7 @@ public class Rs2GameObject {
             if (object == null) continue;
             if (Rs2Player.getWorldLocation().distanceTo(object.getWorldLocation()) < distance || tileObject == null) {
                 if (Rs2Player.getWorldLocation().getPlane() != object.getPlane()) continue;
-                if (object instanceof GroundObject && !Rs2Walker.canReach(object.getWorldLocation()))
+                if (object instanceof GroundObject && !Rs2Walker.canReach(object.getWorldLocation(), 1, 1))
                     continue;
 
                 if (object instanceof GameObject && !Rs2Walker.canReach(object.getWorldLocation(), ((GameObject) object).sizeX(), ((GameObject) object).sizeY()))
