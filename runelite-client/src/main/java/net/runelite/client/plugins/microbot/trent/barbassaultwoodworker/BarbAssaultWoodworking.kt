@@ -93,8 +93,8 @@ class BarbAssaultWoodworking : Plugin() {
     private lateinit var config: BarbAssaultWoodworkingConfig
 
     @Provides
-    fun provideConfig(configManager: ConfigManager): MWintertodtConfig {
-        return configManager.getConfig(MWintertodtConfig::class.java)
+    fun provideConfig(configManager: ConfigManager): BarbAssaultWoodworkingConfig {
+        return configManager.getConfig(BarbAssaultWoodworkingConfig::class.java)
     }
 
     @Inject
