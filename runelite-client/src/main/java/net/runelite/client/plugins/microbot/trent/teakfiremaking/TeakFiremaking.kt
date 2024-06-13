@@ -70,7 +70,7 @@ private val START_TILES = arrayOf(WorldPoint(2335, 3049,0), WorldPoint(2334, 304
 
 private class Woodcut : State() {
     override fun checkNext(client: Client): State? {
-        if (Rs2Inventory.isFull() || (Rs2GameObject.findObject(9036, WorldPoint(2335, 3048, 0)) == null && Rs2Inventory.contains(ItemID.TEAK_LOGS)))
+        if (Rs2Inventory.isFull() || (Rs2GameObject.findObject(9036, WorldPoint(2335, 3048, 0)) == null && Rs2Inventory.count(ItemID.TEAK_LOGS) >= 10))
             return Firemake()
         return null
     }
