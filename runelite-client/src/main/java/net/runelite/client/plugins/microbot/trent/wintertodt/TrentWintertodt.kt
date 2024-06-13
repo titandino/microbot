@@ -28,7 +28,8 @@ import javax.inject.Inject
 
 private lateinit var axe: String
 
-private const val FOOD = "salmon"
+private const val FOOD = "cake"
+private const val FOOD_AMOUNT = 3
 
 @PluginDescriptor(
     name = PluginDescriptor.Trent + "Wintertodt",
@@ -119,7 +120,7 @@ private class Ingame : State() {
                 Rs2Walker.walkTo(WorldPoint(1630, 3965, 0))
             return
         }
-        if (Rs2Player.eatAt(43)) {
+        if (Rs2Player.eatAt(50)) {
             sleep(346, 642)
             return
         }
@@ -267,11 +268,11 @@ private class PrepareForGame : State() {
         val itemsToTake = mutableListOf(axe, "knife", "hammer")
         if (!Rs2Equipment.hasEquipped(ItemID.BRUMA_TORCH))
             itemsToTake.add("tinderbox")
-        if (Rs2Player.eatAt(85)) {
+        if (Rs2Player.eatAt(70)) {
             sleep(346, 642)
             return
         }
-        if (Rs2Inventory.contains("supply crate") || !Rs2Inventory.containsAll(*itemsToTake.toTypedArray()) || !Rs2Inventory.hasItemAmount(FOOD, 10, false, true)) {
+        if (Rs2Inventory.contains("supply crate") || !Rs2Inventory.containsAll(*itemsToTake.toTypedArray()) || !Rs2Inventory.hasItemAmount(FOOD, FOOD_AMOUNT, false, true)) {
             val chest = Rs2GameObject.findObject(29321, WorldPoint(1641, 3944, 0))
             if (chest == null && Rs2Walker.walkTo(WorldPoint(1641, 3944, 0))) {
                 sleep(1260, 5920)
@@ -285,8 +286,12 @@ private class PrepareForGame : State() {
             } else if (Rs2Bank.isOpen()) {
                 Rs2Bank.depositAll()
                 itemsToTake.forEach { Rs2Bank.withdrawOne(it, true) }
-                Rs2Bank.withdrawX(FOOD, 10, true)
-                sleepUntil { !Rs2Inventory.contains("supply crate") && Rs2Inventory.containsAll(*itemsToTake.toTypedArray()) && Rs2Inventory.hasItemAmount(FOOD, 10, false, true) }
+                if (FOOD.lowercase() == "cake" && Rs2Bank.hasItem(ItemID.SLICE_OF_CAKE))
+                    Rs2Bank.withdrawOne(ItemID.SLICE_OF_CAKE)
+                if (FOOD.lowercase() == "cake" && Rs2Bank.hasItem(ItemID._23_CAKE))
+                    Rs2Bank.withdrawOne(ItemID._23_CAKE)
+                Rs2Bank.withdrawX(FOOD, FOOD_AMOUNT, true)
+                sleepUntil { !Rs2Inventory.contains("supply crate") && Rs2Inventory.containsAll(*itemsToTake.toTypedArray()) && Rs2Inventory.hasItemAmount(FOOD, FOOD_AMOUNT, false, true) }
             }
         } else {
             val door = Rs2GameObject.findObject(29322, WorldPoint(1630, 3965, 0))
