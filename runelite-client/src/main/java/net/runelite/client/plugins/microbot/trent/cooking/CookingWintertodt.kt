@@ -17,7 +17,7 @@ import net.runelite.client.plugins.microbot.util.math.Random
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget
 import javax.inject.Inject
 
-const val RAW_ITEM = "raw salmon"
+const val RAW_ITEM = "raw anchovies"
 
 @PluginDescriptor(
     name = PluginDescriptor.Trent + "Cook Wintertodt",
