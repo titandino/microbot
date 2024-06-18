@@ -1,36 +1,36 @@
-package net.runelite.client.plugins.microbot.trent.cooking
+package net.runelite.client.plugins.microbot.trent.wcguild
 
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import net.runelite.api.Client
+import net.runelite.api.coords.WorldPoint
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
 import net.runelite.client.plugins.microbot.trent.api.State
 import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
+import net.runelite.client.plugins.microbot.trent.api.bankAt
 import net.runelite.client.plugins.microbot.trent.api.sleepUntil
-import net.runelite.client.plugins.microbot.util.Global.sleepUntil
+import net.runelite.client.plugins.microbot.util.Global
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
 import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
 import net.runelite.client.plugins.microbot.util.math.Random
-import net.runelite.client.plugins.microbot.util.widget.Rs2Widget
+import net.runelite.client.plugins.microbot.util.player.Rs2Player
 import javax.inject.Inject
 
-const val RAW_ITEM = "raw lobster"
-
 @PluginDescriptor(
-    name = PluginDescriptor.Trent + "Cook Wintertodt",
-    description = "Cooks food at wintertodt",
-    tags = ["cooking"],
+    name = PluginDescriptor.Trent + "WC Guild",
+    description = "Chops and banks logs in WC guild",
+    tags = ["woodcutting"],
     enabledByDefault = false
 )
-class CookingWintertodt : Plugin() {
+class WCGuild : Plugin() {
     @Inject
     private lateinit var client: Client
 
     private var running = false
-    private val script = CookingWintertodtScript()
+    private val script = WCGuildScript()
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun startUp() {
@@ -51,7 +51,7 @@ class CookingWintertodt : Plugin() {
     }
 }
 
-class CookingWintertodtScript : StateMachineScript() {
+class WCGuildScript : StateMachineScript() {
     override fun getStartState(): State {
         return Root()
     }
@@ -63,23 +63,21 @@ private class Root : State() {
     }
 
     override fun loop(client: Client, script: StateMachineScript) {
-        if (!Rs2Inventory.contains(RAW_ITEM)) {
-            if (!Rs2Bank.isOpen()) {
-                if (Rs2GameObject.interact(29321, "bank"))
-                    sleepUntil(timeout = 10000) { Rs2Bank.isOpen() }
-            } else {
+        if (Rs2Inventory.isFull()) {
+            if (bankAt(28861, WorldPoint(1592, 3475, 0))) {
                 Rs2Bank.depositAll()
-                Rs2Bank.withdrawAll(RAW_ITEM)
-                sleepUntil { Rs2Inventory.contains(RAW_ITEM) }
+                Global.sleepUntil { Rs2Inventory.isEmpty() }
                 Rs2Bank.closeBank()
-                sleepUntil { !Rs2Bank.isOpen() }
+                Global.sleepUntil { !Rs2Bank.isOpen() }
             }
             return
         }
-        if (Rs2Inventory.useUnNotedItemOnObject(RAW_ITEM, 29300)) {
-            sleepUntil { Rs2Widget.getWidget(17694734) != null }
-            if (Rs2Widget.clickWidget(17694734))
-                sleepUntil(timeout = Random.random(85232, 96739)) { !Rs2Inventory.contains(RAW_ITEM) }
+        val tree = Rs2GameObject.findObjectById(10822)
+        tree?.let {
+            if (Rs2GameObject.interact(it, "chop down")) {
+                Rs2Player.waitForAnimation()
+                sleepUntil(timeout = Random.random(78592, 221592)) { Rs2GameObject.findObject(tree.id, tree.worldLocation) == null }
+            }
         }
     }
 }

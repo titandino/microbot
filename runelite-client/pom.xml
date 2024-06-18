@@ -376,7 +376,13 @@
             <artifactId>kotlin-stdlib-jdk8</artifactId>
             <version>${kotlin.version}</version>
         </dependency>
-    </dependencies>
+		<dependency>
+			<groupId>net.runelite</groupId>
+			<artifactId>runelite-api</artifactId>
+			<version>1.10.33-SNAPSHOT</version>
+			<scope>compile</scope>
+		</dependency>
+	</dependencies>
 
 	<dependencyManagement>
 		<dependencies>
