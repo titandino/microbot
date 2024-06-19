@@ -90,6 +90,7 @@ private class Root : State() {
         }
         if (Rs2Npc.interact(fishingSpot, "lure")) {
             val loc = WorldPoint(fishingSpot.worldLocation.x, fishingSpot.worldLocation.y, fishingSpot.worldLocation.plane)
+            sleepUntil(100, 15000) { !Rs2Player.isWalking() }
             Rs2Player.waitForAnimation()
             sleepUntil(100, Random.random(60500, 125020)) { (Rs2Npc.getNpcByIndex(fishingSpot.index) != null && !Rs2Npc.getNpcByIndex(fishingSpot.index).worldLocation.equals(loc)) || Rs2Inventory.isFull() || !Rs2Player.isAnimating() }
         } else
