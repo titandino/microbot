@@ -76,7 +76,7 @@ private class Root : State() {
         tree?.let {
             if (Rs2GameObject.interact(it, "chop down")) {
                 Rs2Player.waitForAnimation()
-                sleepUntil(timeout = Random.random(78592, 221592)) { Rs2GameObject.findObject(tree.id, tree.worldLocation) == null }
+                sleepUntil(timeout = Random.random(78592, 221592)) { !Rs2Player.isAnimating() || Rs2GameObject.findObject(tree.id, tree.worldLocation) == null }
             }
         }
     }
