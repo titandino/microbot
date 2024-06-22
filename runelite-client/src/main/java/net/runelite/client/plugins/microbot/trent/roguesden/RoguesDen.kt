@@ -121,7 +121,7 @@ private class Lobby : State() {
     }
 
     override fun loop(client: Client, script: StateMachineScript) {
-        if (client.energy < 3000) return
+        if (client.energy < 5000) return
 
         if (!Rs2Inventory.isEmpty()) {
             if (bankAt(26707, WorldPoint(3039, 4969, 1))) {
