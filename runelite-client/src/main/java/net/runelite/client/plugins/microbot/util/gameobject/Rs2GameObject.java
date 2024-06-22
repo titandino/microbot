@@ -894,6 +894,7 @@ public class Rs2GameObject {
         tileObjects.addAll(getGameObjects());
         tileObjects.addAll(getGroundObjects());
         tileObjects.addAll(getWallObjects());
+        tileObjects.addAll(getDecorationObjects());
 
         return tileObjects;
     }

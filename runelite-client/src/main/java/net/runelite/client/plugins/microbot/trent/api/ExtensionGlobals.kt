@@ -1,5 +1,6 @@
 package net.runelite.client.plugins.microbot.trent.api
 
+import net.runelite.api.TileObject
 import net.runelite.api.coords.WorldPoint
 import net.runelite.client.plugins.microbot.util.Global
 import net.runelite.client.plugins.microbot.util.Global.sleep
@@ -69,4 +70,8 @@ fun bankAt(objectId: Int, tile: WorldPoint): Boolean {
         return false
     } else
         return true
+}
+
+fun findTileObject(id: Int, tile: WorldPoint): TileObject? {
+    return Rs2GameObject.getAll().firstOrNull { it.id == id && it.worldLocation == tile }
 }
