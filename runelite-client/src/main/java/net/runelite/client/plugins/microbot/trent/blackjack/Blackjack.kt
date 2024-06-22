@@ -132,7 +132,7 @@ private class Root : State() {
                         if (npc.getAnimation() != 838)
                             sleepUntil(timeout = 600) { npc.getAnimation() == 838 }
                     }
-                    
+
                     XP_DROP = client.getSkillExperience(Skill.THIEVING)
                     XP_DROP_START_TIME = System.currentTimeMillis()
                     // 360ms is good.370ms starts to miss.350ms decent. 350~365
