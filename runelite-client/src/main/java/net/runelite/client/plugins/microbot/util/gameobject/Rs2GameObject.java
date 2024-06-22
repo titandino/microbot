@@ -1077,6 +1077,7 @@ public static GameObject findReachableObject(String objectName, boolean exact, i
         tileObjects.addAll(getGameObjects());
         tileObjects.addAll(getGroundObjects());
         tileObjects.addAll(getWallObjects());
+        tileObjects.addAll(getDecorationObjects());
 
         return tileObjects;
     }

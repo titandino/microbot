@@ -855,6 +855,7 @@ public class Rs2Inventory {
      */
     public static boolean hasItemAmount(int id, int amount, boolean stackable) {
         Rs2Item item = get(id);
+        if (item == null) return false;
         return stackable ? item.quantity >= amount : items().stream().filter(x -> x.id == id).count() >= amount;
     }
 

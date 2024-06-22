@@ -18,6 +18,8 @@ import net.runelite.client.plugins.microbot.util.widget.Rs2Widget;
 import java.util.List;
 
 import static net.runelite.client.plugins.microbot.Microbot.log;
+import java.util.Arrays;
+
 import static net.runelite.client.plugins.microbot.util.Global.sleepUntil;
 import static net.runelite.client.plugins.microbot.util.Global.sleepUntilTrue;
 
@@ -171,7 +173,7 @@ public class Rs2Combat {
     }
 
     public static boolean inCombatNotBraindamaged() {
-        return Rs2Npc.getNpcsForPlayer().stream().anyMatch(npc -> npc.getInteracting() == Microbot.getClient().getLocalPlayer());
+        return Rs2Npc.getNpcsForPlayer().stream().anyMatch(npc -> Arrays.asList(npc.getComposition().getActions()).contains("Attack") && npc.getInteracting() == Microbot.getClient().getLocalPlayer());
     }
 
 }

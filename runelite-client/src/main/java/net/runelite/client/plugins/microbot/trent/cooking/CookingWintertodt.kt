@@ -6,6 +6,7 @@ import kotlinx.coroutines.launch
 import net.runelite.api.Client
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
+import net.runelite.client.plugins.microbot.Microbot
 import net.runelite.client.plugins.microbot.trent.api.State
 import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
 import net.runelite.client.plugins.microbot.trent.api.sleepUntil
@@ -42,7 +43,8 @@ class CookingWintertodt : Plugin() {
 
     private fun run() {
         while (running) {
-            script.loop(client)
+            if (!script.loop(client))
+                running = false
         }
     }
 
@@ -69,6 +71,10 @@ private class Root : State() {
                     sleepUntil(timeout = 10000) { Rs2Bank.isOpen() }
             } else {
                 Rs2Bank.depositAll()
+                if (!Rs2Bank.hasBankItem(RAW_ITEM, 1)) {
+                    script.stop()
+                    return
+                }
                 Rs2Bank.withdrawAll(RAW_ITEM)
                 sleepUntil { Rs2Inventory.contains(RAW_ITEM) }
                 Rs2Bank.closeBank()
