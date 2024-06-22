@@ -25,6 +25,7 @@
 package net.runelite.api.coords;
 
 import lombok.Getter;
+import lombok.Value;
 import net.runelite.api.*;
 
 import java.util.ArrayList;
@@ -34,6 +35,7 @@ import java.util.function.Predicate;
 /**
  * Represents an area on the world.
  */
+@Value
 public class WorldArea
 {
 	/**
