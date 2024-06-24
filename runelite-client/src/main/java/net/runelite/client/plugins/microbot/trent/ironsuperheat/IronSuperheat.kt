@@ -120,7 +120,7 @@ private class Root : State() {
     }
 
     fun mineRock(vararg rockIds: Int) {
-        val rock = Rs2GameObject.findObject(rockIds)
+        val rock = Rs2GameObject.getGameObjectsWithinDistance(6, WorldPoint(3759, 3822, 0)).filter { rockIds.contains(it.id) }.firstOrNull()
         if (rock == null) {
             if (Rs2Walker.walkTo(WorldPoint(3759, 3822, 0)))
                 sleep(2500, 5520)
