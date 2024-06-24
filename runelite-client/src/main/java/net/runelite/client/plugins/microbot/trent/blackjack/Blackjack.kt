@@ -16,6 +16,7 @@ import net.runelite.client.plugins.microbot.util.Global.sleep
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
 import net.runelite.client.plugins.microbot.util.math.Random
 import net.runelite.client.plugins.microbot.util.npc.Rs2Npc
+import net.runelite.client.plugins.microbot.util.walker.Rs2Walker
 import javax.inject.Inject
 
 @PluginDescriptor(
@@ -34,6 +35,7 @@ class Blackjacker : Plugin() {
     @OptIn(DelicateCoroutinesApi::class)
     override fun startUp() {
         if (client.localPlayer != null) {
+            BANDIT = null
             running = true
             PREVIOUS_HP = client.getBoostedSkillLevel(Skill.HITPOINTS)
             GlobalScope.launch { run() }
@@ -80,6 +82,8 @@ private var END_TIME = 0L
 private var PREVIOUS_ACTION_TIME = 0L
 private var STATE = "BLACKJACK"
 
+private var BANDIT: NPC? = null
+
 private class Root : State() {
     override fun checkNext(client: Client): State? {
         return null
@@ -90,7 +94,8 @@ private class Root : State() {
             sleep(1000)
             return
         }
-        val npc = Rs2Npc.getNpc(737) ?: return
+        if (BANDIT == null || !Rs2Walker.canReach(BANDIT!!.worldLocation))
+            BANDIT = Rs2Npc.getNpc(737) ?: return
 
         START_TIME = System.currentTimeMillis()
 
@@ -103,7 +108,7 @@ private class Root : State() {
                 }
             }
         }
-        handlePlayerHit(client, npc)
+        handlePlayerHit(client, BANDIT!!)
         if (client.getBoostedSkillLevel(Skill.HITPOINTS) <= 11 || !Rs2Inventory.hasItem(WINE)) {
             if (Rs2Inventory.hasItem(WINE)) {
                 sleep(120, 240)
@@ -119,7 +124,7 @@ private class Root : State() {
                     XP_DROP_START_TIME = System.currentTimeMillis()
                     KNOCKOUT_XP_DROP = client.getSkillExperience(Skill.THIEVING)
                     if (System.currentTimeMillis() > (PREVIOUS_ACTION_TIME + Random.random(500, 700)) || !KNOCKOUT) {
-                        Rs2Npc.interact(npc, "Knock-Out")
+                        Rs2Npc.interact(BANDIT!!, "Knock-Out")
                     }
                     PREVIOUS_ACTION_TIME = System.currentTimeMillis()
                     KNOCKOUT = true
@@ -129,8 +134,8 @@ private class Root : State() {
                 }
                 if (BLACKJACK_CYCLE <= 2) {
                     if (KNOCKOUT && !FIRST_HIT) {
-                        if (npc.getAnimation() != 838)
-                            sleepUntil(timeout = 600) { npc.getAnimation() == 838 }
+                        if (BANDIT!!.getAnimation() != 838)
+                            sleepUntil(timeout = 600) { BANDIT!!.getAnimation() == 838 }
                     }
 
                     XP_DROP = client.getSkillExperience(Skill.THIEVING)
@@ -139,8 +144,8 @@ private class Root : State() {
                     if ((PREVIOUS_ACTION_TIME + 1140 + PICKPOCKET_MIN_DELAY) > System.currentTimeMillis()) {
                         sleep(((PREVIOUS_ACTION_TIME + 840 + Random.random(PICKPOCKET_MIN_DELAY, PICKPOCKET_MAX_DELAY)) - System.currentTimeMillis()).toInt())
                     }
-                    if (npc.getAnimation() == 838) {
-                        Rs2Npc.interact(npc, "Pickpocket")
+                    if (BANDIT!!.getAnimation() == 838) {
+                        Rs2Npc.interact(BANDIT!!, "Pickpocket")
                         KNOCKOUT = false
                         sleepUntil(timeout = 1000) { XP_DROP < client.getSkillExperience(Skill.THIEVING) }
                     } else {
@@ -153,8 +158,8 @@ private class Root : State() {
                     ++BLACKJACK_CYCLE
                     return
                 }
-                if (npc.getAnimation() == 838)
-                    sleepUntil(timeout = 800) { npc.getAnimation() != 838 }
+                if (BANDIT!!.getAnimation() == 838)
+                    sleepUntil(timeout = 800) { BANDIT!!.getAnimation() != 838 }
                 sleep(120, 180)
                 BLACKJACK_CYCLE = 0
             }

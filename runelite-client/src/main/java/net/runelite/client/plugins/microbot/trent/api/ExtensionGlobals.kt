@@ -56,14 +56,14 @@ fun percentageTextToInt(widgetId: Int): Int {
     return try { widget.text.split("\\D+".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()[1].toInt() } catch(e: Throwable) { -1 }
 }
 
-fun bankAt(objectId: Int, tile: WorldPoint): Boolean {
+fun bankAt(objectId: Int, tile: WorldPoint, option: String = "bank"): Boolean {
     val chest = Rs2GameObject.findObject(objectId, tile)
     if (chest == null && Rs2Walker.walkTo(tile)) {
         sleep(1260, 5920)
         return false
     }
     if (!Rs2Bank.isOpen()) {
-        if (Rs2GameObject.interact(chest, "bank"))
+        if (Rs2GameObject.interact(chest, option))
             sleepUntil(timeout = 10000) { Rs2Bank.isOpen() }
         else
             Rs2Walker.walkTo(tile)

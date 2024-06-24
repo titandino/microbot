@@ -258,6 +258,17 @@ public class Rs2Magic {
         alch(highAlch, item, sleepMin, sleepMax);
     }
 
+    public static void superheat(Rs2Item item, int sleepMin, int sleepMax) {
+        sleepUntil(() -> {
+            Rs2Tab.switchToMagicTab();
+            sleep(35, 122);
+            return Rs2Tab.getCurrentTab() == InterfaceTab.MAGIC;
+        });
+        Widget superheat = Rs2Widget.findWidget(MagicAction.SUPERHEAT_ITEM.getName());
+        if (superheat.getSpriteId() != 36) return;
+        alch(superheat, item, sleepMin, sleepMax);
+    }
+
     private static void lowAlch(Rs2Item item, int sleepMin, int sleepMax) {
         sleepUntil(() -> {
             Rs2Tab.switchToMagicTab();
