@@ -4,6 +4,7 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import net.runelite.api.Client
+import net.runelite.api.ItemID
 import net.runelite.api.coords.WorldPoint
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
@@ -12,16 +13,22 @@ import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
 import net.runelite.client.plugins.microbot.trent.api.bankAt
 import net.runelite.client.plugins.microbot.trent.api.sleepUntil
 import net.runelite.client.plugins.microbot.util.Global
+import net.runelite.client.plugins.microbot.util.Global.sleep
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
 import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
-import net.runelite.client.plugins.microbot.util.inventory.Rs2Item
 import net.runelite.client.plugins.microbot.util.magic.Rs2Magic
 import net.runelite.client.plugins.microbot.util.math.Random
 import net.runelite.client.plugins.microbot.util.player.Rs2Player
 import net.runelite.client.plugins.microbot.util.walker.Rs2Walker
-import net.runelite.client.plugins.microbot.util.widget.Rs2Widget
 import javax.inject.Inject
+
+private enum class Metal(vararg val materials: Pair<Int, Int>) {
+    IRON(ItemID.IRON_ORE to 1),
+    STEEL(ItemID.IRON_ORE to 1, ItemID.COAL to 2),
+}
+
+private val metalToMake = Metal.STEEL
 
 @PluginDescriptor(
     name = PluginDescriptor.Trent + "Iron Superheater",
@@ -67,29 +74,61 @@ private class Root : State() {
     }
 
     override fun loop(client: Client, script: StateMachineScript) {
-        val iron = Rs2Inventory.get(440)
-        if (iron != null) {
-            Rs2Magic.superheat(iron, 50, 126)
-            Rs2Player.waitForAnimation()
-            return
+        if (superheat()) return
+        if (bank()) return
+        mine()
+    }
+
+    fun superheat(): Boolean {
+        metalToMake.materials.forEach { ore ->
+            if (!Rs2Inventory.hasItemAmount(ore.first, ore.second))
+                return false
         }
+        val targetOre = Rs2Inventory.get(metalToMake.materials[0].first)
+        if (targetOre != null) {
+            Rs2Magic.superheat(targetOre, 15, 63)
+            Rs2Player.waitForAnimation()
+            return true
+        }
+        return false
+    }
+
+    fun bank(): Boolean {
         if (Rs2Inventory.isFull()) {
             if (bankAt(31427, WorldPoint(3742, 3805, 0), "use")) {
-                Rs2Bank.depositAll(2351)
-                Global.sleepUntil { Rs2Inventory.emptySlotCount() >= 25 }
+                Rs2Bank.depositAll()
+                Rs2Bank.withdrawAll("nature rune")
+                Global.sleepUntil { Rs2Inventory.emptySlotCount() >= 10 }
                 Rs2Bank.closeBank()
                 Global.sleepUntil { !Rs2Bank.isOpen() }
             }
-            return
+            return true
         }
-        val rock = Rs2GameObject.findObject(intArrayOf(11364, 11365))
+        return false
+    }
+
+    fun mine() {
+        when (metalToMake) {
+            Metal.IRON -> mineRock(11364, 11365)
+            Metal.STEEL -> {
+                if (!Rs2Inventory.contains(ItemID.IRON_ORE))
+                    mineRock(11364, 11365)
+                else
+                    mineRock(11366, 11367)
+            }
+        }
+    }
+
+    fun mineRock(vararg rockIds: Int) {
+        val rock = Rs2GameObject.findObject(rockIds)
         if (rock == null) {
-            Rs2Walker.walkTo(WorldPoint(3759, 3822, 0))
+            if (Rs2Walker.walkTo(WorldPoint(3759, 3822, 0)))
+                sleep(2500, 5520)
             return
         }
         if (Rs2GameObject.interact(rock, "mine")) {
-            Rs2Player.waitForAnimation()
-            sleepUntil(timeout = Random.random(3523, 6528)) { !Rs2Player.isAnimating() || Rs2GameObject.findObject(rock.id, rock.worldLocation) == null }
+            Rs2Player.waitForAnimation(Random.random(15338, 22932))
+            sleepUntil(timeout = Random.random(6632, 12662)) { !Rs2Player.isAnimating() || Rs2GameObject.findObject(rock.id, rock.worldLocation) == null }
         }
     }
 }
