@@ -91,12 +91,12 @@ public class AttackStyleScript extends Script {
     }
 
     private void changeAttackStyle(PlayerAssistConfig config,WidgetInfo componentToDisplay) {
-        if (Rs2Tab.getCurrentTab() != InterfaceTab.COMBAT) {
-            Rs2Tab.switchToCombatOptionsTab();
-            sleepUntil(() -> Rs2Tab.getCurrentTab() == InterfaceTab.COMBAT, 2000);
-        }
-        log.info("Changing Attack Style to: {}", attackStyleToTrain);
-        Rs2Combat.setAttackStyle(componentToDisplay);
+//        if (Rs2Tab.getCurrentTab() != InterfaceTab.COMBAT) {
+//            Rs2Tab.switchToCombatOptionsTab();
+//            sleepUntil(() -> Rs2Tab.getCurrentTab() == InterfaceTab.COMBAT, 2000);
+//        }
+//        log.info("Changing Attack Style to: {}", attackStyleToTrain);
+//        Rs2Combat.setAttackStyle(componentToDisplay);
     }
 
     // has any of the skills leveled up
