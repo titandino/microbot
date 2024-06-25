@@ -4,6 +4,7 @@ import com.google.inject.Provides
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import lombok.AllArgsConstructor
 import net.runelite.api.Client
 import net.runelite.client.config.*
 import net.runelite.client.plugins.Plugin
@@ -13,9 +14,10 @@ import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
 import net.runelite.client.plugins.microbot.wintertodt.MWintertodtConfig
 import javax.inject.Inject
 
+@AllArgsConstructor
 enum class ProcessingTask {
-    Firemake,
-    Fletch
+    FIREMAKE,
+    FLETCH
 }
 
 @ConfigGroup("barbassaultwoodworker")
@@ -33,7 +35,7 @@ interface BarbAssaultWoodworkingConfig : Config {
             description = "Task",
             position = 1
         )
-        const val TASK_SECTION = "Task"
+        const val TASK_SECTION = "task"
     }
 
     @ConfigItem(
@@ -79,7 +81,7 @@ interface BarbAssaultWoodworkingConfig : Config {
         position = 1,
         section = TASK_SECTION
     )
-    fun task(): ProcessingTask = ProcessingTask.Firemake
+    fun task(): ProcessingTask = ProcessingTask.FIREMAKE
 }
 
 @PluginDescriptor(
