@@ -30,6 +30,14 @@ private enum class Metal(vararg val materials: Pair<Int, Int>) {
 
 private val metalToMake = Metal.STEEL
 
+//mining guild
+private val rockPoint = WorldPoint(3022, 9721, 0)
+private const val rockRadius = 8
+
+//fossil camp
+//private val rockPoint = WorldPoint(3759, 3822, 0)
+//private const val rockRadius = 6
+
 @PluginDescriptor(
     name = PluginDescriptor.Trent + "Iron Superheater",
     description = "Mines iron and superheats it",
@@ -95,7 +103,9 @@ private class Root : State() {
 
     fun bank(): Boolean {
         if (Rs2Inventory.isFull()) {
-            if (bankAt(31427, WorldPoint(3742, 3805, 0), "use")) {
+            //fossil camp: bankAt(31427, WorldPoint(3742, 3805, 0), "use")
+            //mining guild: bankAt(31427, WorldPoint(3742, 3805, 0), "use")
+            if (bankAt(4483, WorldPoint(3012, 9718, 0), "use")) {
                 Rs2Bank.depositAll()
                 Rs2Bank.withdrawAll("nature rune")
                 Global.sleepUntil { Rs2Inventory.emptySlotCount() >= 10 }
@@ -120,9 +130,9 @@ private class Root : State() {
     }
 
     fun mineRock(vararg rockIds: Int) {
-        val rock = Rs2GameObject.getGameObjectsWithinDistance(6, WorldPoint(3759, 3822, 0)).filter { rockIds.contains(it.id) }.firstOrNull()
+        val rock = Rs2GameObject.getGameObjectsWithinDistance(rockRadius, rockPoint).firstOrNull { rockIds.contains(it.id) }
         if (rock == null) {
-            if (Rs2Walker.walkTo(WorldPoint(3759, 3822, 0)))
+            if (Rs2Walker.walkTo(rockPoint))
                 sleep(2500, 5520)
             return
         }
