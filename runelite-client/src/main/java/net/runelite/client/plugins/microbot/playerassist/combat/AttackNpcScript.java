@@ -65,7 +65,7 @@ public class AttackNpcScript extends Script {
                                 && x.getWorldLocation().distanceTo(config.centerLocation()) < config.attackRadius()
                                 && (x.getInteracting() == null || x.getInteracting() == Microbot.getClient().getLocalPlayer())
                                 && x.getAnimation() == -1
-                                && npcsToAttack.get().stream().anyMatch(n -> n.equalsIgnoreCase(x.getName())))
+                                && npcsToAttack.get().stream().anyMatch(n -> x.getId() != 1273 && n.equalsIgnoreCase(x.getName())))
                         .collect(Collectors.toList());
                 if (PlayerAssistPlugin.getCooldown() > 0) return;
                 if (Rs2Combat.inCombat()) {
