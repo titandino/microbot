@@ -6,9 +6,12 @@ import kotlinx.coroutines.launch
 import net.runelite.api.Client
 import net.runelite.api.NPC
 import net.runelite.api.Skill
+import net.runelite.api.events.HitsplatApplied
+import net.runelite.client.eventbus.Subscribe
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
 import net.runelite.client.plugins.microbot.Microbot
+import net.runelite.client.plugins.microbot.blackjack.BlackJackScript
 import net.runelite.client.plugins.microbot.trent.api.State
 import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
 import net.runelite.client.plugins.microbot.trent.api.sleepUntil
@@ -51,6 +54,19 @@ class Blackjacker : Plugin() {
     override fun shutDown() {
         running = false
     }
+
+    @Subscribe
+    fun onHitsplatApplied(event: HitsplatApplied) {
+        if (event.hitsplat.isMine) {
+            if (PLAYER_HIT == 0 || client.getSkillExperience(Skill.THIEVING) > HITSPLAT_XP || KNOCKOUT_PASSED) {
+                FIRST_HIT = true
+                HITSPLAT_XP = client.getSkillExperience(Skill.THIEVING)
+                PLAYER_HIT = 0
+                KNOCKOUT_PASSED = false
+            }
+            PLAYER_HIT++
+        }
+    }
 }
 
 class BlackjacketScript : StateMachineScript() {
@@ -71,6 +87,7 @@ private var KNOCKOUT_PASSED = false
 private var PLAYER_HIT = 0
 private var PREVIOUS_HP = 0
 private var HITSPLAT_HP = 0
+private var HITSPLAT_XP = 0
 private var KNOCKOUT_XP_DROP = 0
 private var XP_DROP = 0
 private var BLACKJACK_CYCLE = 0
@@ -109,7 +126,7 @@ private class Root : State() {
             }
         }
         handlePlayerHit(client, BANDIT!!)
-        if (client.getBoostedSkillLevel(Skill.HITPOINTS) <= 11 || !Rs2Inventory.hasItem(WINE)) {
+        if (client.getBoostedSkillLevel(Skill.HITPOINTS) <= 31 || !Rs2Inventory.hasItem(WINE)) {
             if (Rs2Inventory.hasItem(WINE)) {
                 sleep(120, 240)
                 Rs2Inventory.interact(WINE, "drink")
@@ -134,8 +151,8 @@ private class Root : State() {
                 }
                 if (BLACKJACK_CYCLE <= 2) {
                     if (KNOCKOUT && !FIRST_HIT) {
-                        if (BANDIT!!.getAnimation() != 838)
-                            sleepUntil(timeout = 600) { BANDIT!!.getAnimation() == 838 }
+                        if (BANDIT!!.getAnimation() != 838 && BANDIT!!.overheadText != "Zzzzzz")
+                            sleepUntil(timeout = 600) { BANDIT!!.getAnimation() == 838 || BANDIT!!.overheadText == "Zzzzzz" }
                     }
 
                     XP_DROP = client.getSkillExperience(Skill.THIEVING)
@@ -144,7 +161,7 @@ private class Root : State() {
                     if ((PREVIOUS_ACTION_TIME + 1140 + PICKPOCKET_MIN_DELAY) > System.currentTimeMillis()) {
                         sleep(((PREVIOUS_ACTION_TIME + 840 + Random.random(PICKPOCKET_MIN_DELAY, PICKPOCKET_MAX_DELAY)) - System.currentTimeMillis()).toInt())
                     }
-                    if (BANDIT!!.getAnimation() == 838) {
+                    if (BANDIT!!.getAnimation() == 838 || BANDIT!!.overheadText == "Zzzzzz" ) {
                         Rs2Npc.interact(BANDIT!!, "Pickpocket")
                         KNOCKOUT = false
                         sleepUntil(timeout = 1000) { XP_DROP < client.getSkillExperience(Skill.THIEVING) }
@@ -158,8 +175,8 @@ private class Root : State() {
                     ++BLACKJACK_CYCLE
                     return
                 }
-                if (BANDIT!!.getAnimation() == 838)
-                    sleepUntil(timeout = 800) { BANDIT!!.getAnimation() != 838 }
+                if (BANDIT!!.getAnimation() == 838 || BANDIT!!.overheadText == "Zzzzzz")
+                    sleepUntil(timeout = 800) { BANDIT!!.getAnimation() != 838 || BANDIT!!.overheadText == "Arghh my head." }
                 sleep(120, 180)
                 BLACKJACK_CYCLE = 0
             }
@@ -172,8 +189,8 @@ fun handlePlayerHit(client: Client, npc: NPC) {
     if (PLAYER_HIT >= 1) {
         var j = 0
         val i = Random.random(2, 3)
-        var c = 120
-        if (PLAYER_HIT == 1 && FIRST_HIT) {
+        var c = Random.random(96, 127)
+        if ((PLAYER_HIT == 1 && FIRST_HIT) || npc.overheadText == "I'll kill you for that!") {
             if ((HIT_REACT_START_TIME + HIT_REACT_TIME) > System.currentTimeMillis()) {
                 sleep(60, ((HIT_REACT_START_TIME + HIT_REACT_TIME) - System.currentTimeMillis()).toInt())
             }
