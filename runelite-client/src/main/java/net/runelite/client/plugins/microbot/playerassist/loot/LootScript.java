@@ -47,7 +47,7 @@ public class LootScript extends Script {
                     config.minFreeSlots(),
                     config.toggleDelayedLooting(),
                     config.toggleOnlyLootMyItems(),
-                    "arrow"
+                    "arrow", " bolts"
             );
             if (Rs2GroundItem.lootItemsBasedOnNames(arrowParams)) {
                 Microbot.pauseAllScripts = false;
