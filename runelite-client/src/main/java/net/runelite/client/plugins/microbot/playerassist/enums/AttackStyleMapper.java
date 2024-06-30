@@ -11,6 +11,8 @@ public class AttackStyleMapper {
      * @return The corresponding AttackStyle enum.
      */
     public static AttackStyle mapToAttackStyle(String style) {
+        if (style == null)
+            return AttackStyle.MELEE;
         // Convert style to lowercase for case-insensitive matching
         String lowerCaseStyle = style.toLowerCase();
 

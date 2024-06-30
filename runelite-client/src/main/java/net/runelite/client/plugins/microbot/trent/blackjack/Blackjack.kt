@@ -11,7 +11,6 @@ import net.runelite.client.eventbus.Subscribe
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
 import net.runelite.client.plugins.microbot.Microbot
-import net.runelite.client.plugins.microbot.blackjack.BlackJackScript
 import net.runelite.client.plugins.microbot.trent.api.State
 import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
 import net.runelite.client.plugins.microbot.trent.api.sleepUntil
@@ -33,7 +32,7 @@ class Blackjacker : Plugin() {
     private lateinit var client: Client
 
     private var running = false
-    private val script = BlackjacketScript()
+    private val script = BlackjackerScript()
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun startUp() {
@@ -69,17 +68,21 @@ class Blackjacker : Plugin() {
     }
 }
 
-class BlackjacketScript : StateMachineScript() {
+class BlackjackerScript : StateMachineScript() {
     override fun getStartState(): State {
         return Root()
     }
 }
 
+//private const val BANDIT_ID = 737 //level 41
+//private const val BANDIT_ID = 735 //level 56
+private const val BANDIT_ID = 3550 //menaphite
+
 private var WINE = 1993
 
 private var HIT_REACT_TIME = 110
-private var PICKPOCKET_MIN_DELAY = 200
-private var PICKPOCKET_MAX_DELAY = 365
+private var PICKPOCKET_MIN_DELAY = 210
+private var PICKPOCKET_MAX_DELAY = 352
 
 private var FIRST_HIT = false
 private var KNOCKOUT = false
@@ -112,7 +115,7 @@ private class Root : State() {
             return
         }
         if (BANDIT == null || !Rs2Walker.canReach(BANDIT!!.worldLocation))
-            BANDIT = Rs2Npc.getNpc(737) ?: return
+            BANDIT = Rs2Npc.getNpc(BANDIT_ID) ?: return
 
         START_TIME = System.currentTimeMillis()
 
@@ -131,12 +134,14 @@ private class Root : State() {
                 sleep(120, 240)
                 Rs2Inventory.interact(WINE, "drink")
                 sleep(120, 240)
-            } else
+            } else {
                 sleep(58285, 5000000)
+            }
         }
         when (STATE) {
             "BLACKJACK" -> {
                 if (BLACKJACK_CYCLE == 0) {
+                    println("knockout")
                     PREVIOUS_HP = client.getBoostedSkillLevel(Skill.HITPOINTS)
                     XP_DROP_START_TIME = System.currentTimeMillis()
                     KNOCKOUT_XP_DROP = client.getSkillExperience(Skill.THIEVING)
@@ -150,26 +155,34 @@ private class Root : State() {
                     return
                 }
                 if (BLACKJACK_CYCLE <= 2) {
+                    println("cycle: " + BLACKJACK_CYCLE)
                     if (KNOCKOUT && !FIRST_HIT) {
-                        if (BANDIT!!.getAnimation() != 838 && BANDIT!!.overheadText != "Zzzzzz")
+                        if (BANDIT!!.getAnimation() != 838 && BANDIT!!.overheadText != "Zzzzzz") {
+                            println("wait for zzz")
                             sleepUntil(timeout = 600) { BANDIT!!.getAnimation() == 838 || BANDIT!!.overheadText == "Zzzzzz" }
+                        }
                     }
 
                     XP_DROP = client.getSkillExperience(Skill.THIEVING)
                     XP_DROP_START_TIME = System.currentTimeMillis()
                     // 360ms is good.370ms starts to miss.350ms decent. 350~365
                     if ((PREVIOUS_ACTION_TIME + 1140 + PICKPOCKET_MIN_DELAY) > System.currentTimeMillis()) {
-                        sleep(((PREVIOUS_ACTION_TIME + 840 + Random.random(PICKPOCKET_MIN_DELAY, PICKPOCKET_MAX_DELAY)) - System.currentTimeMillis()).toInt())
+                        val time = ((PREVIOUS_ACTION_TIME + 840 + Random.random(PICKPOCKET_MIN_DELAY, PICKPOCKET_MAX_DELAY)) - System.currentTimeMillis()).toInt()
+                        println("wait action time $time")
+                        if (time > 0)
+                            sleep(time)
                     }
                     if (BANDIT!!.getAnimation() == 838 || BANDIT!!.overheadText == "Zzzzzz" ) {
                         Rs2Npc.interact(BANDIT!!, "Pickpocket")
                         KNOCKOUT = false
+                        println("wait xp drop")
                         sleepUntil(timeout = 1000) { XP_DROP < client.getSkillExperience(Skill.THIEVING) }
                     } else {
                         sleep(90, 140)
                         BLACKJACK_CYCLE = 0
                         return
                     }
+                    println("next")
                     PREVIOUS_ACTION_TIME = System.currentTimeMillis()
                     END_TIME = System.currentTimeMillis()
                     ++BLACKJACK_CYCLE
@@ -189,7 +202,7 @@ fun handlePlayerHit(client: Client, npc: NPC) {
     if (PLAYER_HIT >= 1) {
         var j = 0
         val i = Random.random(2, 3)
-        var c = Random.random(96, 127)
+        var c = Random.random(123, 130)
         if ((PLAYER_HIT == 1 && FIRST_HIT) || npc.overheadText == "I'll kill you for that!") {
             if ((HIT_REACT_START_TIME + HIT_REACT_TIME) > System.currentTimeMillis()) {
                 sleep(60, ((HIT_REACT_START_TIME + HIT_REACT_TIME) - System.currentTimeMillis()).toInt())
@@ -206,11 +219,11 @@ fun handlePlayerHit(client: Client, npc: NPC) {
         }
         val hasStars = client.localPlayer.hasSpotAnim(245)
         if (!hasStars) {
-            if (PLAYER_HIT <= 1 || client.getSkillExperience(Skill.THIEVING) > HITSPLAT_HP) {
+            if (PLAYER_HIT <= 1 || client.getSkillExperience(Skill.THIEVING) > HITSPLAT_XP) {
                 PLAYER_HIT = 0
             } else {
                 PLAYER_HIT = 0
-                STATE = "RUN_AWAY"
+                //STATE = "RUN_AWAY"
                 KNOCKOUT = false
                 BLACKJACK_CYCLE = 0
             }
