@@ -258,7 +258,13 @@ public class Rs2GroundItem {
 
 
     public static boolean lootItemBasedOnValue(LootingParameters params) {
-        Predicate<GroundItem> filter = groundItem -> groundItem.getGePrice() > params.getMinValue() && groundItem.getGePrice() < params.getMaxValue() &&
+        Predicate<GroundItem> filter = groundItem ->
+                groundItem.getLocation().distanceTo(Rs2Player.getWorldLocation()) < 12 &&
+                (groundItem.getItemId() != 995 && groundItem.isStackable() && groundItem.getGePrice() > 3) ||
+                groundItem.getName().equalsIgnoreCase("brimstone key") ||
+                groundItem.getName().equalsIgnoreCase("dragon defender") ||
+                ((groundItem.getHaPrice() > params.getMinValue() && groundItem.getHaPrice() < params.getMaxValue()) ||
+                (groundItem.getGePrice() > params.getMinValue() && groundItem.getGePrice() < params.getMaxValue())) &&
                 groundItem.getLocation().distanceTo(Microbot.getClient().getLocalPlayer().getWorldLocation()) < params.getRange() &&
                 (!params.isAntiLureProtection() || groundItem.getOwnership() != OWNERSHIP_GROUP) &&
                 (!params.isAntiLureProtection() || groundItem.getOwnership() != OWNERSHIP_OTHER);
