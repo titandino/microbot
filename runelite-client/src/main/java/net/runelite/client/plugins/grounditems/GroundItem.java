@@ -68,7 +68,7 @@ public class GroundItem
 	boolean hidden;
 	Color color;
 
-	int getHaPrice()
+	public int getHaPrice()
 	{
 		return haPrice * quantity;
 	}
