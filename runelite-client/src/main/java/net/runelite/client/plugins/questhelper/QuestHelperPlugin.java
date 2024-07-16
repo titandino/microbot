@@ -95,7 +95,7 @@ import net.runelite.client.ui.components.colorpicker.ColorPickerManager;
 import net.runelite.client.util.Text;
 
 @PluginDescriptor(
-	name = "Quest Helper",
+	name = "Micro Quest Helper",
 	description = "Helps you with questing",
 	tags = { "quest", "helper", "overlay" }
 )
