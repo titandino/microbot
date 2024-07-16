@@ -1,0 +1,4 @@
+#!/bin/bash
+source /home/$USER/.sdkman/bin/sdkman-init.sh
+sdk use java 11.0.23-tem
+java -Duser.home=/home/$USER/.local/share/bolt-launcher -ea -jar ./runelite-client/target/microbot-*.jar
