@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.microbot.trent.fishing
+package net.runelite.client.plugins.microbot.trent.shiloriverfish
 
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
