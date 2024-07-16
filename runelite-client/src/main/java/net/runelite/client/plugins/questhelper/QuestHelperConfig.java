@@ -45,11 +45,11 @@ import net.runelite.client.config.ConfigSection;
 import net.runelite.client.config.Range;
 import net.runelite.client.util.Text;
 
-@ConfigGroup("questhelper")
+@ConfigGroup("mquesthelper")
 public interface QuestHelperConfig extends Config
 {
-	String QUEST_HELPER_GROUP = "questhelper";
-	String QUEST_BACKGROUND_GROUP = "questhelpervars";
+	String QUEST_HELPER_GROUP = "mquesthelper";
+	String QUEST_BACKGROUND_GROUP = "mquesthelpervars";
 
 	enum QuestOrdering implements Comparator<QuestHelper>
 	{

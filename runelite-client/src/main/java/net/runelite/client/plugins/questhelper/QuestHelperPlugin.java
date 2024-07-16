@@ -378,7 +378,7 @@ public class QuestHelperPlugin extends Plugin
 	@Subscribe
 	public void onCommandExecuted(CommandExecuted commandExecuted)
 	{
-		if (developerMode && commandExecuted.getCommand().equals("questhelperdebug"))
+		if (developerMode && commandExecuted.getCommand().equals("mquesthelperdebug"))
 		{
 			if (commandExecuted.getArguments().length == 0 ||
 				(Arrays.stream(commandExecuted.getArguments()).toArray()[0]).equals("disable"))
