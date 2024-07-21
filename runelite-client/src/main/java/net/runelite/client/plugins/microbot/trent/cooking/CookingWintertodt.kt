@@ -18,7 +18,7 @@ import net.runelite.client.plugins.microbot.util.math.Random
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget
 import javax.inject.Inject
 
-const val RAW_ITEM = "raw lobster"
+const val RAW_ITEM = "raw monkfish"
 
 @PluginDescriptor(
     name = PluginDescriptor.Trent + "Cook Wintertodt",
@@ -67,7 +67,7 @@ private class Root : State() {
     override fun loop(client: Client, script: StateMachineScript) {
         if (!Rs2Inventory.contains(RAW_ITEM)) {
             if (!Rs2Bank.isOpen()) {
-                if (Rs2GameObject.interact(29321, "bank"))
+                if (Rs2GameObject.interact(21301, "bank"))
                     sleepUntil(timeout = 10000) { Rs2Bank.isOpen() }
             } else {
                 Rs2Bank.depositAll()
@@ -82,7 +82,7 @@ private class Root : State() {
             }
             return
         }
-        if (Rs2Inventory.useUnNotedItemOnObject(RAW_ITEM, 29300)) {
+        if (Rs2Inventory.useUnNotedItemOnObject(RAW_ITEM, 21302)) {
             sleepUntil { Rs2Widget.getWidget(17694734) != null }
             if (Rs2Widget.clickWidget(17694734))
                 sleepUntil(timeout = Random.random(85232, 96739)) { !Rs2Inventory.contains(RAW_ITEM) }
