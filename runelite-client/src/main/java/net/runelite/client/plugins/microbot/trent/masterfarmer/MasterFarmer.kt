@@ -21,18 +21,23 @@ import net.runelite.client.plugins.microbot.util.player.Rs2Player
 import net.runelite.client.plugins.microbot.util.walker.Rs2Walker
 import javax.inject.Inject
 
+enum class Target(val targetId: Int, val numFood: Int, val thievingTile: WorldPoint, val bankTarget: Pair<Int, WorldPoint>) {
+    MASTER_FARMER(5730, 7, WorldPoint(3080, 3250, 0), 10355 to WorldPoint(3091, 3245, 0)),
+    KNIGHT_OF_ARDOUGNE(11936, 25, WorldPoint(2654, 3308, 0), 10355 to WorldPoint(2656, 3286, 0))
+}
+
 @PluginDescriptor(
-    name = PluginDescriptor.Trent + "Master Farmer",
-    description = "Thieves master farmer in Draynor",
+    name = PluginDescriptor.Trent + "Pickpocketer",
+    description = "Pickpockets stuff",
     tags = ["thieving"],
     enabledByDefault = false
 )
-class MasterFarmer : Plugin() {
+class Pickpocketer : Plugin() {
     @Inject
     private lateinit var client: Client
 
     private var running = false
-    private val script = MasterFarmerScript()
+    private val script = PickpocketerScript()
 
     @OptIn(DelicateCoroutinesApi::class)
     override fun startUp() {
@@ -53,13 +58,14 @@ class MasterFarmer : Plugin() {
     }
 }
 
-class MasterFarmerScript : StateMachineScript() {
+class PickpocketerScript : StateMachineScript() {
     override fun getStartState(): State {
         return Root()
     }
 }
 
-private val THIEVING_TILE = WorldPoint(3080, 3250, 0)
+private val TARGET = Target.KNIGHT_OF_ARDOUGNE
+private var POUCHES_TO_OPEN = 25
 
 private class Root : State() {
     override fun checkNext(client: Client): State? {
@@ -67,26 +73,32 @@ private class Root : State() {
     }
 
     override fun loop(client: Client, script: StateMachineScript) {
-        if (Rs2Player.eatAt(70)) {
+        if (Rs2Player.eatAt(43)) {
             Rs2Player.waitForAnimation()
             return
         }
-        if (Rs2Inventory.isFull() || !Rs2Inventory.contains("salmon")) {
-            if (bankAt(10355, WorldPoint(3091, 3245, 0))) {
+        if (Rs2Inventory.isFull() || !Rs2Inventory.contains("trout")) {
+            if (bankAt(TARGET.bankTarget.first, TARGET.bankTarget.second)) {
                 Rs2Bank.depositAll()
-                Rs2Bank.withdrawX("salmon", 10)
-                Global.sleepUntil { Rs2Inventory.hasItemAmount("salmon", 10) }
+                Rs2Bank.withdrawX("trout", TARGET.numFood)
+                Global.sleepUntil { Rs2Inventory.hasItemAmount("trout", TARGET.numFood) }
                 Rs2Bank.closeBank()
                 Global.sleepUntil { !Rs2Bank.isOpen() }
             }
             return
         }
-        val farmer = Rs2Npc.getNpc(5730)
-        if (farmer == null && !Rs2Walker.walkTo(THIEVING_TILE, 1)) {
-            Rs2Walker.walkFastCanvas(THIEVING_TILE)
+        if (Rs2Inventory.hasItemAmount("coin pouch", POUCHES_TO_OPEN)) {
+            Rs2Inventory.interact("coin pouch", "open-all")
+            Global.sleepUntil { !Rs2Inventory.hasItemAmount("coin pouch", POUCHES_TO_OPEN) }
+            POUCHES_TO_OPEN = random(22, 27)
             return
         }
-        if (Rs2Npc.interact(farmer, "pickpocket")) {
+        val npc = Rs2Npc.getNpc(TARGET.targetId)
+        if (npc == null && !Rs2Walker.walkTo(TARGET.thievingTile, 1)) {
+            Rs2Player.waitForWalking()
+            return
+        }
+        if (Rs2Npc.interact(npc, "pickpocket")) {
             sleep(453, 722)
             if (random(0, 263) == 0)
                 sleep(5332, 10692)
