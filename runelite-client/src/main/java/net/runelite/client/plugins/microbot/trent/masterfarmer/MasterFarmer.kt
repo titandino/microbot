@@ -21,9 +21,9 @@ import net.runelite.client.plugins.microbot.util.player.Rs2Player
 import net.runelite.client.plugins.microbot.util.walker.Rs2Walker
 import javax.inject.Inject
 
-enum class Target(val targetId: Int, val numFood: Int, val thievingTile: WorldPoint, val bankTarget: Pair<Int, WorldPoint>) {
-    MASTER_FARMER(5730, 7, WorldPoint(3080, 3250, 0), 10355 to WorldPoint(3091, 3245, 0)),
-    KNIGHT_OF_ARDOUGNE(11936, 25, WorldPoint(2654, 3308, 0), 10355 to WorldPoint(2656, 3286, 0))
+enum class Target(val targetName: String, val numFood: Int, val thievingTile: WorldPoint, val bankTarget: Pair<Int, WorldPoint>) {
+    MASTER_FARMER("master farmer", 7, WorldPoint(3080, 3250, 0), 10355 to WorldPoint(3091, 3245, 0)),
+    KNIGHT_OF_ARDOUGNE("knight of ardougne", 25, WorldPoint(2654, 3308, 0), 10355 to WorldPoint(2656, 3286, 0))
 }
 
 @PluginDescriptor(
@@ -93,7 +93,7 @@ private class Root : State() {
             POUCHES_TO_OPEN = random(22, 27)
             return
         }
-        val npc = Rs2Npc.getNpc(TARGET.targetId)
+        val npc = Rs2Npc.getNpc(TARGET.targetName)
         if (npc == null && !Rs2Walker.walkTo(TARGET.thievingTile, 1)) {
             Rs2Player.waitForWalking()
             return
