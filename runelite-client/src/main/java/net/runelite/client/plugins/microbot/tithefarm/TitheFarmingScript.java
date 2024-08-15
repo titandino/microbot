@@ -345,8 +345,8 @@ public class TitheFarmingScript extends Script {
 
         // Helper method to validate inventory items
         private void validateInventory() {
-            if (!Rs2Inventory.hasItem(ItemID.SEED_DIBBER) || !Rs2Inventory.hasItem(ItemID.SPADE)) {
-                Microbot.showMessage("You need a seed dibber and a spade in your inventory!");
+            if (!Rs2Inventory.hasItem(ItemID.SPADE)) {
+                Microbot.showMessage("You need a seed dibber (or barbarian planting) and a spade in your inventory!");
                 shutdown();
             }
             if (!Rs2Inventory.hasItemAmount("watering can", WATERING_CANS_AMOUNT) && !Rs2Inventory.hasItem(ItemID.GRICOLLERS_CAN)) {
