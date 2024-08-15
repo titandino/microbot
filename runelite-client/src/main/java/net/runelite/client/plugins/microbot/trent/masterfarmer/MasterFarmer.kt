@@ -22,7 +22,7 @@ import net.runelite.client.plugins.microbot.util.walker.Rs2Walker
 import javax.inject.Inject
 
 enum class Target(val targetName: String, val numFood: Int, val thievingTile: WorldPoint, val bankTarget: Pair<Int, WorldPoint>) {
-    MASTER_FARMER("master farmer", 7, WorldPoint(3080, 3250, 0), 10355 to WorldPoint(3091, 3245, 0)),
+    MASTER_FARMER("master farmer", 2, WorldPoint(3080, 3250, 0), 10355 to WorldPoint(3091, 3245, 0)),
     KNIGHT_OF_ARDOUGNE("knight of ardougne", 25, WorldPoint(2654, 3308, 0), 10355 to WorldPoint(2656, 3286, 0))
 }
 
@@ -64,7 +64,7 @@ class PickpocketerScript : StateMachineScript() {
     }
 }
 
-private val TARGET = Target.KNIGHT_OF_ARDOUGNE
+private val TARGET = Target.MASTER_FARMER
 private var POUCHES_TO_OPEN = 25
 
 private class Root : State() {
