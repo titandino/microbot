@@ -60,7 +60,7 @@ class ButterflyerScript : StateMachineScript() {
     }
 }
 
-val butterflies = setOf("Snowy knight", "Sapphire glacialis")
+val butterflies = setOf("Snowy knight", "Sapphire glacialis", "Sunlight Moth", "Moonlight moth")
 var lastInteracted: NPC? = null
 
 private class Root : State() {
@@ -69,11 +69,15 @@ private class Root : State() {
     }
 
     override fun loop(client: Client, script: StateMachineScript) {
-        val npc = Rs2Npc.getNpcs().filter { butterflies.contains(it.name) }.findFirst()
-        if (npc.isEmpty && !Rs2Walker.walkTo(WorldPoint(1436, 3241, 0), 5)) {
-            Rs2Player.waitForWalking()
-            return
-        }
+        val npc = Rs2Npc.getNpcs().filter {
+            butterflies.contains(it.name)
+        }.filter {
+            Rs2Walker.canReach(it.worldLocation, -2, -2)
+        }.findFirst()
+        //if (npc.isEmpty && !Rs2Walker.walkTo(WorldPoint(1436, 3241, 0), 5)) {
+        //    Rs2Player.waitForWalking()
+        //    return
+        //}
         if (npc.isEmpty) return
         if (lastInteracted != null && Rs2Player.isInteracting()) {
             val distCurr = lastInteracted?.getLocalLocation()?.distanceTo(Rs2Player.getLocalLocation()) ?: 0
