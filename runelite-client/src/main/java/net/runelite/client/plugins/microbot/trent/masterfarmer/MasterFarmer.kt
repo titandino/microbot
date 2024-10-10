@@ -64,8 +64,8 @@ class PickpocketerScript : StateMachineScript() {
     }
 }
 
-private val TARGET = Target.MASTER_FARMER
-private var POUCHES_TO_OPEN = 25
+private val TARGET = Target.KNIGHT_OF_ARDOUGNE
+private var POUCHES_TO_OPEN = 40
 
 private class Root : State() {
     override fun checkNext(client: Client): State? {
