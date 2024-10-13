@@ -1030,7 +1030,7 @@ public class Rs2Inventory {
 
     public static List<Rs2Item> getInventoryFood() {
         List<Rs2Item> items = items().stream()
-                .filter(x -> x != null && x.getInventoryActions() != null && Arrays.stream(x.getInventoryActions()).anyMatch(a -> a != null && a.equalsIgnoreCase("eat")))
+                .filter(x -> x != null && (x.id == 1993 || x.getInventoryActions() != null && Arrays.stream(x.getInventoryActions()).anyMatch(a -> a != null && a.equalsIgnoreCase("eat"))))
                 .collect(Collectors.toList());
         return items;
     }

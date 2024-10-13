@@ -417,7 +417,11 @@ public class Rs2Npc {
      * @return list of npcs
      */
     public static List<NPC> getNpcsInLineOfSight(String name) {
-        return getNpcs().filter(npc -> hasLineOfSight(npc) && npc.getName().equalsIgnoreCase(name)).collect(Collectors.toList());
+        return getNpcsInLineOfSight(name, false);
+    }
+
+    public static List<NPC> getNpcsInLineOfSight(String name, boolean exact) {
+        return getNpcs().filter(npc -> hasLineOfSight(npc) && ((!exact && npc.getName().toLowerCase().contains(name.toLowerCase())) || npc.getName().equalsIgnoreCase(name))).collect(Collectors.toList());
     }
 
 

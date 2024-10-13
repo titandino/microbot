@@ -23,7 +23,8 @@ import javax.inject.Inject
 
 enum class Target(val targetName: String, val numFood: Int, val thievingTile: WorldPoint, val bankTarget: Pair<Int, WorldPoint>) {
     MASTER_FARMER("master farmer", 2, WorldPoint(3080, 3250, 0), 10355 to WorldPoint(3091, 3245, 0)),
-    KNIGHT_OF_ARDOUGNE("knight of ardougne", 25, WorldPoint(2654, 3308, 0), 10355 to WorldPoint(2656, 3286, 0))
+    KNIGHT_OF_ARDOUGNE("knight of ardougne", 25, WorldPoint(2654, 3308, 0), 10355 to WorldPoint(2656, 3286, 0)),
+    HERO("hero", 2, WorldPoint(2630, 3291, 0), 10355 to WorldPoint(2656, 3286, 0))
 }
 
 @PluginDescriptor(
@@ -64,8 +65,9 @@ class PickpocketerScript : StateMachineScript() {
     }
 }
 
-private val TARGET = Target.KNIGHT_OF_ARDOUGNE
+private val TARGET = Target.HERO
 private var POUCHES_TO_OPEN = 40
+private val FOOD_NAME = "jug of wine"
 
 private class Root : State() {
     override fun checkNext(client: Client): State? {
@@ -77,11 +79,16 @@ private class Root : State() {
             Rs2Player.waitForAnimation()
             return
         }
-        if (Rs2Inventory.isFull() || !Rs2Inventory.contains("trout")) {
+        if (Rs2Inventory.contains(1935)) {
+            Rs2Inventory.drop(1935)
+            Global.sleepUntil { !Rs2Inventory.contains(1935) }
+            return
+        }
+        if (Rs2Inventory.isFull() || (!Rs2Inventory.contains(FOOD_NAME) && !Rs2Inventory.contains(1993))) {
             if (bankAt(TARGET.bankTarget.first, TARGET.bankTarget.second)) {
                 Rs2Bank.depositAll()
-                Rs2Bank.withdrawX("trout", TARGET.numFood)
-                Global.sleepUntil { Rs2Inventory.hasItemAmount("trout", TARGET.numFood) }
+                Rs2Bank.withdrawX(FOOD_NAME, TARGET.numFood)
+                Global.sleepUntil { Rs2Inventory.hasItemAmount(FOOD_NAME, TARGET.numFood) }
                 Rs2Bank.closeBank()
                 Global.sleepUntil { !Rs2Bank.isOpen() }
             }
@@ -93,8 +100,8 @@ private class Root : State() {
             POUCHES_TO_OPEN = random(22, 27)
             return
         }
-        val npc = Rs2Npc.getNpc(TARGET.targetName)
-        if (npc == null && !Rs2Walker.walkTo(TARGET.thievingTile, 1)) {
+        val npc = Rs2Npc.getNpcsInLineOfSight(TARGET.targetName).filter { it.worldLocation.distanceTo(Rs2Player.getWorldLocation()) <= 5 }.firstOrNull()
+        if (npc == null && !Rs2Walker.walkTo(TARGET.thievingTile, 4)) {
             Rs2Player.waitForWalking()
             return
         }
