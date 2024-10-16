@@ -864,8 +864,8 @@ public class Rs2Bank {
      * @param name     item name
      * @param amount   amount to withdraw
      */
-    public static void withdrawX(boolean checkInv, String name, int amount) {
-        withdrawX(checkInv, name, amount, false);
+    public static boolean withdrawX(boolean checkInv, String name, int amount) {
+        return withdrawX(checkInv, name, amount, false);
     }
 
     /**
@@ -899,8 +899,8 @@ public class Rs2Bank {
      * @param amount amount to withdraw
      * @param exact  exact search based on equalsIgnoreCase
      */
-    public static void withdrawX(String name, int amount, boolean exact) {
-        withdrawXItem(findBankItem(name, exact), amount);
+    public static boolean withdrawX(String name, int amount, boolean exact) {
+        return withdrawXItem(findBankItem(name, exact), amount);
     }
 
     /**
