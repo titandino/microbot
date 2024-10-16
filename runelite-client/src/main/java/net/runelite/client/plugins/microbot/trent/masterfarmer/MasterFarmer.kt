@@ -100,7 +100,7 @@ private class Root : State() {
             POUCHES_TO_OPEN = random(22, 27)
             return
         }
-        val npc = Rs2Npc.getNpcsInLineOfSight(TARGET.targetName).filter { it.worldLocation.distanceTo(Rs2Player.getWorldLocation()) <= 5 }.firstOrNull()
+        val npc = Rs2Npc.getNpcsInLineOfSight(TARGET.targetName, if (TARGET == Target.HERO) true else false).filter { it.worldLocation.distanceTo(Rs2Player.getWorldLocation()) <= 5 }.firstOrNull()
         if (npc == null && !Rs2Walker.walkTo(TARGET.thievingTile, 4)) {
             Rs2Player.waitForWalking()
             return
