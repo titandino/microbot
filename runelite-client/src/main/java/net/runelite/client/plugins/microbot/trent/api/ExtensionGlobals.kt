@@ -58,7 +58,7 @@ fun percentageTextToInt(widgetId: Int): Int {
 
 fun bankAt(objectId: Int, tile: WorldPoint, option: String = "bank"): Boolean {
     val chest = Rs2GameObject.findObject(objectId, tile)
-    if (chest == null && Rs2Walker.walkTo(tile)) {
+    if ((chest == null || chest.worldLocation.distanceTo(Rs2Player.getWorldLocation()) > 10) && Rs2Walker.walkTo(tile)) {
         sleep(1260, 5920)
         return false
     }

@@ -1,4 +1,4 @@
-package net.runelite.client.plugins.microbot.trent.masterfarmer
+package net.runelite.client.plugins.microbot.trent.pickpocketer
 
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -13,7 +13,6 @@ import net.runelite.client.plugins.microbot.trent.api.bankAt
 import net.runelite.client.plugins.microbot.util.Global
 import net.runelite.client.plugins.microbot.util.Global.sleep
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
-import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
 import net.runelite.client.plugins.microbot.util.math.Random.random
 import net.runelite.client.plugins.microbot.util.npc.Rs2Npc
