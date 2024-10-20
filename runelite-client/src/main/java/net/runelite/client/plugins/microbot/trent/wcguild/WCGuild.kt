@@ -72,7 +72,7 @@ private class Root : State() {
             }
             return
         }
-        val tree = Rs2GameObject.findObjectByName("magic tree")
+        val tree = Rs2GameObject.get("Yew tree", true)
         tree?.let {
             if (Rs2GameObject.interact(it, "chop down")) {
                 Rs2Player.waitForAnimation()
