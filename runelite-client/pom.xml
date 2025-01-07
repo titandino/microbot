@@ -43,7 +43,6 @@
 		<shade.skip>false</shade.skip>
 		<microbot.version>1.6.7.1</microbot.version>
 		<kotlin.version>2.0.0</kotlin.version>
-		<lombok.version>1.18.20</lombok.version>
 	</properties>
 
 	<dependencies>
@@ -608,7 +607,7 @@
 					</execution>
 				</executions>
 				<configuration>
-					<jvmTarget>1.8</jvmTarget>
+					<jvmTarget>11</jvmTarget>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -637,17 +636,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<source>1.8</source>
-					<target>1.8</target>
-					<annotationProcessorPaths>
-						<annotationProcessorPath>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-							<version>${lombok.version}</version>
-						</annotationProcessorPath>
-					</annotationProcessorPaths>
-				</configuration>
                 <executions>
                     <execution>
                         <id>default-compile</id>
