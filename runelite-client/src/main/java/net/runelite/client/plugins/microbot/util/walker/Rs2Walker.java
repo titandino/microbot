@@ -2632,9 +2632,22 @@ public class Rs2Walker {
             }
             sleepUntil(() -> !Rs2Player.isMoving() && !Rs2Widget.isHidden(ComponentID.FAIRY_RING_TELEPORT_BUTTON), 10000);
 
-            rotateSlotToDesiredRotation(SLOT_ONE, Rs2Widget.getWidget(SLOT_ONE).getRotationY(), getDesiredRotation(transport.getDisplayInfo().charAt(0)), SLOT_ONE_ACW_ROTATION, SLOT_ONE_CW_ROTATION);
-            rotateSlotToDesiredRotation(SLOT_TWO, Rs2Widget.getWidget(SLOT_TWO).getRotationY(), getDesiredRotation(transport.getDisplayInfo().charAt(1)), SLOT_TWO_ACW_ROTATION, SLOT_TWO_CW_ROTATION);
-            rotateSlotToDesiredRotation(SLOT_THREE, Rs2Widget.getWidget(SLOT_THREE).getRotationY(), getDesiredRotation(transport.getDisplayInfo().charAt(2)), SLOT_THREE_ACW_ROTATION, SLOT_THREE_CW_ROTATION);
+            if (Rs2Widget.isHidden(ComponentID.FAIRY_RING_TELEPORT_BUTTON)) {
+                log.warn("Fairy ring interface did not open (interrupted by combat?). Retrying next iteration.");
+                return false;
+            }
+
+            Widget slotOne = Rs2Widget.getWidget(SLOT_ONE);
+            Widget slotTwo = Rs2Widget.getWidget(SLOT_TWO);
+            Widget slotThree = Rs2Widget.getWidget(SLOT_THREE);
+            if (slotOne == null || slotTwo == null || slotThree == null) {
+                log.warn("Fairy ring slot widget(s) are null; interface may have closed unexpectedly.");
+                return false;
+            }
+
+            rotateSlotToDesiredRotation(SLOT_ONE, slotOne.getRotationY(), getDesiredRotation(transport.getDisplayInfo().charAt(0)), SLOT_ONE_ACW_ROTATION, SLOT_ONE_CW_ROTATION);
+            rotateSlotToDesiredRotation(SLOT_TWO, slotTwo.getRotationY(), getDesiredRotation(transport.getDisplayInfo().charAt(1)), SLOT_TWO_ACW_ROTATION, SLOT_TWO_CW_ROTATION);
+            rotateSlotToDesiredRotation(SLOT_THREE, slotThree.getRotationY(), getDesiredRotation(transport.getDisplayInfo().charAt(2)), SLOT_THREE_ACW_ROTATION, SLOT_THREE_CW_ROTATION);
             Rs2Widget.clickWidget(ComponentID.FAIRY_RING_TELEPORT_BUTTON);
         }
 
