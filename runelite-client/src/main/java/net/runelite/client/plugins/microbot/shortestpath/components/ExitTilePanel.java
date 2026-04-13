@@ -1,10 +1,9 @@
 package net.runelite.client.plugins.microbot.shortestpath.components;
 
-import net.runelite.api.GameObject;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.shortestpath.ShortestPathPlugin;
-import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject;
+import net.runelite.client.plugins.microbot.api.tileobject.models.Rs2TileObjectModel;
 import net.runelite.client.ui.ColorScheme;
 
 import javax.swing.*;
@@ -54,7 +53,13 @@ public class ExitTilePanel extends JPanel {
     }
 
     public void detectTile() {
-        GameObject exitPortal = Rs2GameObject.getGameObject(POH_EXIT_PORTAL);
+        // Use the tile-object cache rather than Rs2GameObject.getGameObject, which routes
+        // through Rs2Player.getWorldLocation() as a scene anchor and fails inside POH
+        // instances (the template-mapped player location is not in the loaded scene).
+        Rs2TileObjectModel exitPortal = Microbot.getRs2TileObjectCache()
+                .query()
+                .withId(POH_EXIT_PORTAL)
+                .nearest();
         if (exitPortal == null) {
             Microbot.log("Failed to find exit portal");
         } else {

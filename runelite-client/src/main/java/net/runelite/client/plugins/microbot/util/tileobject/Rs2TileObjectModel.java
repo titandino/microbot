@@ -169,7 +169,20 @@ public class Rs2TileObjectModel implements TileObject {
      * @return true if the interaction was successful, false otherwise
      */
     public boolean click(String action) {
-        if (Rs2Player.getWorldLocation().distanceTo(getWorldLocation()) > 51) {
+        // See Rs2GameObject.clickObject for rationale: use LocalPoint-based distance in POH /
+        // any instance because Rs2Player.getWorldLocation() returns an overworld-template tile.
+        net.runelite.api.coords.LocalPoint playerLocal = Microbot.getClient().getLocalPlayer() != null
+                ? Microbot.getClient().getLocalPlayer().getLocalLocation() : null;
+        net.runelite.api.coords.LocalPoint objectLocal = getLocalLocation();
+        boolean tooFar;
+        if (playerLocal != null && objectLocal != null && objectLocal.isInScene()) {
+            int dx = playerLocal.getSceneX() - objectLocal.getSceneX();
+            int dy = playerLocal.getSceneY() - objectLocal.getSceneY();
+            tooFar = Math.max(Math.abs(dx), Math.abs(dy)) > 51;
+        } else {
+            tooFar = Rs2Player.getWorldLocation().distanceTo(getWorldLocation()) > 51;
+        }
+        if (tooFar) {
             Microbot.log("Object with id " + getId() + " is not close enough to interact with. Walking to the object....");
             Rs2Walker.walkTo(getWorldLocation());
             return false;

@@ -1361,6 +1361,18 @@ public class Rs2Walker {
 
             WorldPoint start = Microbot.getClient().getTopLevelWorldView().isInstance() ?
                     WorldPoint.fromLocalInstance(Microbot.getClient(), Rs2Player.getLocalLocation()) : Rs2Player.getWorldLocation();
+            // POH fix: when inside a POH instance, the raw instance-template tile doesn't match
+            // any registered POH transport origin (PohPanel registers them keyed to the exit
+            // portal tile). Remap the pathfinder start to the configured exit portal so the
+            // pathfinder can consider all POH teleports as step 0.
+            if (Microbot.getClient().getTopLevelWorldView().isInstance()) {
+                WorldPoint exitPortal = net.runelite.client.plugins.microbot.shortestpath.PohPanel.getExitPortalTile();
+                if (exitPortal != null) {
+                    Microbot.log("[Walker] In POH instance — remapping pathfinder start " + start
+                            + " -> exit portal " + exitPortal);
+                    start = exitPortal;
+                }
+            }
             ShortestPathPlugin.setLastLocation(start);
             final Pathfinder pathfinder = ShortestPathPlugin.getPathfinder();
             if (ShortestPathPlugin.isStartPointSet() && pathfinder != null) {
@@ -1452,26 +1464,48 @@ public class Rs2Walker {
      */
     private static boolean handleTransports(List<WorldPoint> path, int indexOfStartPoint) {
         Set<Transport> transports = ShortestPathPlugin.getTransports().getOrDefault(path.get(indexOfStartPoint), new HashSet<>());
-        log.debug("Found transports: {}", transports.stream().map(Transport::getDisplayInfo).collect(Collectors.joining(", ")));
+        log.info("[Walker] handleTransports at {}: {} candidates — {}", path.get(indexOfStartPoint),
+                transports.size(),
+                transports.stream().map(Transport::getDisplayInfo).collect(Collectors.joining(", ")));
+        // When the player is inside a POH instance, the player's raw world-location plane is
+        // the instance-template plane and has no relationship to the POH-transport origin plane.
+        // Skip the plane guard in that case so POH transports can actually be considered.
+        boolean inPohInstance = Microbot.getClient().getTopLevelWorldView().getScene().isInstance()
+                && net.runelite.client.plugins.microbot.shortestpath.PohPanel.getExitPortalTile() != null;
         for (Transport transport : transports) {
             Collection<WorldPoint> worldPointCollections;
             //in some cases the getOrigin is null, for teleports that start the player location
             if (transport.getOrigin() == null) {
                 worldPointCollections = Collections.singleton(null);
+            } else if (inPohInstance && transport.getType() == TransportType.POH) {
+                // POH fix: when the player is inside a POH instance, the transport's exit-portal
+                // origin is an overworld tile that doesn't map into the player's instance chunks,
+                // so toLocalInstance() returns an empty collection and the inner loop never runs.
+                // Pass the origin through directly so the per-i dispatch below can execute.
+                worldPointCollections = Collections.singleton(transport.getOrigin());
             } else {
                 worldPointCollections = WorldPoint.toLocalInstance(Microbot.getClient().getTopLevelWorldView(), transport.getOrigin());
             }
-            log.debug("Considering transport: {}", transport.getDisplayInfo());
+            log.info("[Walker] Considering transport: {} (type={}, origin={}, wpCount={})",
+                    transport.getDisplayInfo(), transport.getType(), transport.getOrigin(), worldPointCollections.size());
             for (WorldPoint origin : worldPointCollections) {
-                if (transport.getOrigin() != null && Rs2Player.getWorldLocation().getPlane() != transport.getOrigin().getPlane()) {
+                if (!inPohInstance && transport.getOrigin() != null && Rs2Player.getWorldLocation().getPlane() != transport.getOrigin().getPlane()) {
                     continue;
                 }
 
                 for (int i = indexOfStartPoint; i < path.size(); i++) {
-                    if (origin != null && origin.getPlane() != Rs2Player.getWorldLocation().getPlane())
+                    if (!inPohInstance && origin != null && origin.getPlane() != Rs2Player.getWorldLocation().getPlane()) {
+                        if (i == indexOfStartPoint) log.info("[Walker] skip {} (i={}): plane mismatch", transport.getDisplayInfo(), i);
                         continue;
-                    if (path.stream().noneMatch(x -> x.equals(transport.getDestination()))) continue;
-                    if (TransportType.isTeleport(transport.getType()) && Rs2Player.getWorldLocation().distanceTo(transport.getDestination()) < 3) continue;
+                    }
+                    if (path.stream().noneMatch(x -> x.equals(transport.getDestination()))) {
+                        if (i == indexOfStartPoint) log.info("[Walker] skip {} (i={}): destination {} not in path", transport.getDisplayInfo(), i, transport.getDestination());
+                        continue;
+                    }
+                    if (TransportType.isTeleport(transport.getType()) && Rs2Player.getWorldLocation().distanceTo(transport.getDestination()) < 3) {
+                        if (i == indexOfStartPoint) log.info("[Walker] skip {} (i={}): already near destination", transport.getDisplayInfo(), i);
+                        continue;
+                    }
 
                     // we don't need to check for teleportation_item & teleportation_spell as they will be set on the first tile
                     if (!TransportType.isTeleport(transport.getType())) {
@@ -1483,9 +1517,18 @@ public class Rs2Walker {
                                 .filter(f -> path.get(f).equals(transport.getDestination()))
                                 .findFirst()
                                 .orElse(-1);
+                        if (i == indexOfStartPoint) {
+                            log.info("[Walker] filter4 {}: indexOfOrigin={}, indexOfDestination={}, pathSize={}, originInPath={}, destInPath={}",
+                                    transport.getDisplayInfo(), indexOfOrigin, indexOfDestination, path.size(),
+                                    indexOfOrigin != -1, indexOfDestination != -1);
+                        }
                         if (indexOfDestination == -1) continue;
                         if (indexOfOrigin == -1) continue;
                         if (indexOfDestination < indexOfOrigin) continue;
+                    }
+                    if (i == indexOfStartPoint) {
+                        log.info("[Walker] reached pre-dispatch for {}: i={}, path[i]={}, origin={}, equalsOrigin={}",
+                                transport.getDisplayInfo(), i, path.get(i), origin, path.get(i).equals(origin));
                     }
 
                     if (path.get(i).equals(origin)) {
@@ -1536,9 +1579,12 @@ public class Rs2Walker {
                         }
                     }
 
-                    log.debug("Handling {} transport: {}", transport.getType(), transport.getDisplayInfo());
+                    log.info("[Walker] Handling {} transport: {} (i={}, path[i]={}, origin={})",
+                            transport.getType(), transport.getDisplayInfo(), i, path.get(i), origin);
                     if (transport.getType() == TransportType.POH) {
-                        if (handlePohTransport(transport)) {
+                        boolean pohResult = handlePohTransport(transport);
+                        log.info("[Walker] handlePohTransport({}) returned {}", transport.getDisplayInfo(), pohResult);
+                        if (pohResult) {
                             sleepUntil(() -> Rs2Player.getWorldLocation().distanceTo(transport.getDestination()) < OFFSET, 10000);
                             break;
                         }
@@ -2174,16 +2220,35 @@ public class Rs2Walker {
         // Get Transport Information
         String displayInfo = transport.getDisplayInfo();
         int objectId = transport.getObjectId();
-        if (displayInfo == null || displayInfo.isEmpty()) return false;
+        log.info("[Walker] handleSpiritTree: displayInfo={}, objectId={}", displayInfo, objectId);
+        if (displayInfo == null || displayInfo.isEmpty()) {
+            log.info("[Walker] handleSpiritTree: displayInfo empty, returning false");
+            return false;
+        }
 
         if (!Rs2Widget.isWidgetVisible(ComponentID.ADVENTURE_LOG_CONTAINER)) {
             TileObject spiritTree = Rs2GameObject.findObjectById(objectId);
-            if (!Rs2GameObject.interact(spiritTree, "Travel")) {
+            log.info("[Walker] handleSpiritTree: findObjectById({}) returned {}",
+                    objectId, spiritTree != null ? "non-null @ " + spiritTree.getWorldLocation() : "NULL");
+            if (spiritTree == null) {
+                // POH fix: handleSpiritTree's findObjectById uses the transport's objectId
+                // which is keyed from the TSV. Inside a POH the spirit tree is a different
+                // object id than the overworld TSV expects. Fall back to the PohTeleports
+                // helper which knows the full set of POH spirit-tree ids.
+                spiritTree = PohTeleports.getSpiritTree();
+                log.info("[Walker] handleSpiritTree: POH fallback getSpiritTree() returned {}",
+                        spiritTree != null ? "non-null @ " + spiritTree.getWorldLocation() : "NULL");
+            }
+            boolean interactResult = Rs2GameObject.interact(spiritTree, "Travel");
+            log.info("[Walker] handleSpiritTree: interact(spiritTree, Travel) returned {}", interactResult);
+            if (!interactResult) {
                 return false;
             }
         }
 
-        return interactWithAdventureLog(transport);
+        boolean result = interactWithAdventureLog(transport);
+        log.info("[Walker] handleSpiritTree: interactWithAdventureLog returned {}", result);
+        return result;
     }
 
     private static boolean handleMinigameTeleport(Transport transport) {
