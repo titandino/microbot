@@ -14,9 +14,11 @@ import net.runelite.client.plugins.microbot.util.equipment.Rs2Equipment;
 import net.runelite.client.plugins.microbot.util.inventory.Rs2ItemModel;
 import net.runelite.client.plugins.microbot.util.magic.Rs2CombatSpells;
 import net.runelite.client.plugins.microbot.util.magic.Rs2Magic;
+import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
 import net.runelite.client.plugins.microbot.util.tabs.Rs2Tab;
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -241,5 +243,9 @@ public class Rs2Combat {
         int[] weaponStyleStructs = Microbot.getEnum(weaponStyleEnum).getIntVals();
         StructComposition attackStylesStruct = Microbot.getStructComposition(weaponStyleStructs[attackStyleVarbit]);
         return attackStylesStruct.getStringValue(ParamID.ATTACK_STYLE_NAME);
+    }
+
+    public static boolean inCombatNotBraindamaged() {
+        return Rs2Npc.getNpcsForPlayer().anyMatch(npc -> Arrays.asList(npc.getComposition().getActions()).contains("Attack") && npc.getInteracting() == Microbot.getClient().getLocalPlayer());
     }
 }

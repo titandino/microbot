@@ -7,6 +7,11 @@
          <trust group="net.runelite"/>
          <trust group="net.runelite.arn"/>
          <trust group="org.ow2.asm"/>
+         <trust group="org.jetbrains"/>
+         <trust group="org.jetbrains.kotlin"/>
+         <trust group="org.jetbrains.kotlinx"/>
+         <trust group="org.jetbrains.intellij.deps"/>
+         <trust group="com.google.code.gson"/>
          <trust file=".*-javadoc[.]jar" regex="true"/>
          <trust file=".*-sources[.]jar" regex="true"/>
       </trusted-artifacts>
