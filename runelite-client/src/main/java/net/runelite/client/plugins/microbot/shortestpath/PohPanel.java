@@ -165,6 +165,17 @@ public class PohPanel extends PluginPanel {
      *         and the value is a set of `Transport` instances representing the available
      *         methods of transportation to the inside of PoH.
      */
+    /**
+     * The user-configured POH exit-portal tile. All POH transports registered by this panel
+     * (Portal Nexus, Jewellery Box, Fairy Ring, Spirit Tree, etc.) use this tile as their
+     * transport origin, so callers that need to start a pathfinder search from inside a POH
+     * must remap their current location to this tile.
+     */
+    public static WorldPoint getExitPortalTile() {
+        if (instance == null || instance.tilePanel == null) return null;
+        return instance.tilePanel.getTile();
+    }
+
     public static Map<WorldPoint, Set<Transport>> getTransportsToPoh() {
         HouseLocation location = HouseLocation.getHouseLocation();
         Map<WorldPoint, Set<Transport>> transportMap = new HashMap<>();

@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -104,6 +105,49 @@ public class ClientThreadGuardrailTest
 		"runelite-client", "src", "test", "resources", "threadsafety", "client-thread-guardrail-baseline.txt");
 
 	private static final String REGENERATE_BASELINE_PROPERTY = "microbot.guardrail.regenerate-baseline";
+
+	/**
+	 * API classes/packages whose methods are inherently thread-safe and should
+	 * never be flagged as client-thread violations.
+	 *
+	 * <p><b>Full-class exemptions</b> — every method is safe:</p>
+	 * <ul>
+	 *   <li>{@code net/runelite/api/Point} — {@code @Value} immutable canvas coordinate</li>
+	 *   <li>{@code net/runelite/api/MenuAction} — Java enum ({@code ordinal()}, {@code getId()})</li>
+	 * </ul>
+	 *
+	 * <p><b>Conditional package exemption</b> — safe unless the method accepts
+	 * a live game parameter ({@code Client}, {@code WorldView}, {@code Scene}):</p>
+	 * <ul>
+	 *   <li>{@code net/runelite/api/coords/} — {@code @Value} types (WorldPoint, LocalPoint,
+	 *       WorldArea). Pure getters and math are safe; factory methods like
+	 *       {@code WorldPoint.fromLocal(Client, ...)} are <em>not</em> exempt because they
+	 *       dereference live client/scene state.</li>
+	 * </ul>
+	 *
+	 * <p><b>Criteria for adding new exemptions:</b></p>
+	 * <ol>
+	 *   <li>The class must be a true value type ({@code @Value}), enum, or pure-function utility.</li>
+	 *   <li>None of its methods may read or mutate live game state (tile data, widget trees,
+	 *       entity lists, scene graph).</li>
+	 *   <li>If only <em>some</em> methods are safe, use the conditional-package approach with
+	 *       {@link #LIVE_GAME_PARAM_PATTERN} to exclude unsafe ones.</li>
+	 * </ol>
+	 */
+	private static final Set<String> THREAD_SAFE_FULL_CLASSES = Set.of(
+		"net/runelite/api/Point",
+		"net/runelite/api/MenuAction"
+	);
+
+	private static final String COORDS_PACKAGE_PREFIX = "net/runelite/api/coords/";
+
+	/**
+	 * Pattern matching parameter types that indicate a coords method accesses
+	 * live game state and should NOT be exempt.  Matched against the
+	 * pretty-printed parameter list (e.g. {@code "(Client, LocalPoint): WorldPoint"}).
+	 */
+	private static final Pattern LIVE_GAME_PARAM_PATTERN = Pattern.compile(
+		"\\b(Client|WorldView|Scene)\\b");
 
 	private enum Category
 	{
@@ -297,13 +341,46 @@ public class ClientThreadGuardrailTest
 			}
 			for (String inv : f.rlApiInvocations)
 			{
-				if (inferredListMethods.contains(inv))
+				if (inferredListMethods.contains(inv) && !isThreadSafeApiMethod(inv))
 				{
 					violations.add(f.fullyQualified() + "  ->  " + apiInvocationToReadable(inv));
 				}
 			}
 		}
 		return violations;
+	}
+
+	/**
+	 * Returns {@code true} when the given inferred-list API method is known to
+	 * be thread-safe and should not generate a violation.
+	 *
+	 * <p>The key format is {@code "net/runelite/api/coords/WorldPoint#distanceTo(WorldPoint): int"}.
+	 *
+	 * @see #THREAD_SAFE_FULL_CLASSES
+	 * @see #COORDS_PACKAGE_PREFIX
+	 * @see #LIVE_GAME_PARAM_PATTERN
+	 */
+	private static boolean isThreadSafeApiMethod(String inv)
+	{
+		int hash = inv.indexOf('#');
+		if (hash < 0)
+		{
+			return false;
+		}
+		String owner = inv.substring(0, hash);
+
+		if (THREAD_SAFE_FULL_CLASSES.contains(owner))
+		{
+			return true;
+		}
+
+		if (owner.startsWith(COORDS_PACKAGE_PREFIX))
+		{
+			String signature = inv.substring(hash + 1);
+			return !LIVE_GAME_PARAM_PATTERN.matcher(signature).find();
+		}
+
+		return false;
 	}
 
 	private static String apiInvocationToReadable(String inv)

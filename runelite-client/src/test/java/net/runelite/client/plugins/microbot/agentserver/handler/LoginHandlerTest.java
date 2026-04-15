@@ -174,11 +174,16 @@ public class LoginHandlerTest {
 	}
 
 	@Test
-	public void testOptionsReturns204ForCors() throws IOException {
-		HttpURLConnection conn = openConnection("/login");
-		conn.setRequestMethod("OPTIONS");
-		assertEquals(204, conn.getResponseCode());
-		assertEquals("*", conn.getHeaderField("Access-Control-Allow-Origin"));
+	public void testRejectsCrossOriginRequests() throws IOException, InterruptedException {
+		java.net.http.HttpClient hc = java.net.http.HttpClient.newHttpClient();
+		java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
+				.uri(java.net.URI.create("http://127.0.0.1:" + port + "/login"))
+				.header("Origin", "https://evil.example.com")
+				.GET()
+				.build();
+		java.net.http.HttpResponse<String> resp = hc.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+		assertEquals(403, resp.statusCode());
+		assertTrue(resp.headers().firstValue("Access-Control-Allow-Origin").isEmpty());
 	}
 
 	// ==========================================
@@ -351,19 +356,19 @@ public class LoginHandlerTest {
 	}
 
 	// ==========================================
-	// CORS headers
+	// Security: no CORS wildcard
 	// ==========================================
 
 	@Test
-	public void testCorsHeadersOnGet() throws IOException {
+	public void testNoCorsWildcardOnGet() throws IOException {
 		HttpURLConnection conn = openConnection("/login");
 		conn.setRequestMethod("GET");
 		conn.getResponseCode();
-		assertEquals("*", conn.getHeaderField("Access-Control-Allow-Origin"));
+		assertNull(conn.getHeaderField("Access-Control-Allow-Origin"));
 	}
 
 	@Test
-	public void testCorsHeadersOnPost() throws IOException {
+	public void testNoCorsWildcardOnPost() throws IOException {
 		HttpURLConnection conn = openConnection("/login");
 		conn.setRequestMethod("POST");
 		conn.setRequestProperty("Content-Type", "application/json");
@@ -372,7 +377,7 @@ public class LoginHandlerTest {
 			os.write("{}".getBytes(StandardCharsets.UTF_8));
 		}
 		conn.getResponseCode();
-		assertEquals("*", conn.getHeaderField("Access-Control-Allow-Origin"));
+		assertNull(conn.getHeaderField("Access-Control-Allow-Origin"));
 	}
 
 	// ==========================================

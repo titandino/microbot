@@ -670,7 +670,11 @@ public class Rs2GameObject {
     public static TileObject getTileObject(Predicate<TileObject> predicate, WorldPoint anchor, int distance) {
         LocalPoint anchorLocal = localPointFromWorldSafe(anchor);
         if (anchorLocal == null) {
-            return null;
+            // POH fix: see Rs2GameObject.getGameObject(Predicate, WorldPoint, int).
+            if (Microbot.getClient() != null && Microbot.getClient().getLocalPlayer() != null) {
+                anchorLocal = Microbot.getClient().getLocalPlayer().getLocalLocation();
+            }
+            if (anchorLocal == null) return null;
         }
         return getTileObject(predicate, anchorLocal, Rs2LocalPoint.worldToLocalDistance(distance));
     }
@@ -722,7 +726,13 @@ public class Rs2GameObject {
     public static List<TileObject> getTileObjects(Predicate<TileObject> predicate, WorldPoint anchor, int distance) {
         LocalPoint anchorLocal = LocalPoint.fromWorld(Microbot.getClient().getTopLevelWorldView(), anchor);
         if (anchorLocal == null) {
-            return Collections.emptyList();
+            // POH fix: Rs2Player.getWorldLocation() returns the template tile inside a POH
+            // instance; fall back to the player's real LocalLocation so scene-wide queries
+            // (findObjectById used by handleSpiritTree, etc.) still work.
+            if (Microbot.getClient().getLocalPlayer() != null) {
+                anchorLocal = Microbot.getClient().getLocalPlayer().getLocalLocation();
+            }
+            if (anchorLocal == null) return Collections.emptyList();
         }
         return getTileObjects(predicate, anchorLocal, Rs2LocalPoint.worldToLocalDistance(distance));
     }
@@ -854,7 +864,17 @@ public class Rs2GameObject {
     public static GameObject getGameObject(Predicate<GameObject> predicate, WorldPoint anchor, int distance) {
         LocalPoint anchorLocal = localPointFromWorldSafe(anchor);
         if (anchorLocal == null) {
-            return null;
+            // POH fix: inside a POH instance, the default anchor passed in by the convenience
+            // overloads is Rs2Player.getWorldLocation(), which returns the overworld-template
+            // tile. That tile isn't in the loaded scene so localPointFromWorldSafe yields null
+            // and every callsite (PohTeleports.getSpiritTree, getFairyRings, NexusPortal
+            // detection, JewelleryBoxType.getObject, ExitTilePanel.detectTile, etc.) silently
+            // returns null even when the object is clearly in scene. Fall back to the player's
+            // actual LocalLocation, which is always valid for the current scene.
+            if (Microbot.getClient() != null && Microbot.getClient().getLocalPlayer() != null) {
+                anchorLocal = Microbot.getClient().getLocalPlayer().getLocalLocation();
+            }
+            if (anchorLocal == null) return null;
         }
         return getGameObject(predicate, anchorLocal, Rs2LocalPoint.worldToLocalDistance(distance));
     }
@@ -906,7 +926,12 @@ public class Rs2GameObject {
     public static List<GameObject> getGameObjects(Predicate<GameObject> predicate, WorldPoint anchor, int distance) {
         LocalPoint anchorLocal = LocalPoint.fromWorld(Microbot.getClient().getTopLevelWorldView(), anchor);
         if (anchorLocal == null) {
-            return Collections.emptyList();
+            // POH fix: fall back to player's real LocalLocation when the world anchor doesn't
+            // map into the current scene (happens inside POH instances).
+            if (Microbot.getClient().getLocalPlayer() != null) {
+                anchorLocal = Microbot.getClient().getLocalPlayer().getLocalLocation();
+            }
+            if (anchorLocal == null) return Collections.emptyList();
         }
         return getGameObjects(predicate, anchorLocal, Rs2LocalPoint.worldToLocalDistance(distance));
     }
@@ -1028,7 +1053,10 @@ public class Rs2GameObject {
     public static GroundObject getGroundObject(Predicate<GroundObject> predicate, WorldPoint anchor, int distance) {
         LocalPoint anchorLocal = localPointFromWorldSafe(anchor);
         if (anchorLocal == null) {
-            return null;
+            if (Microbot.getClient() != null && Microbot.getClient().getLocalPlayer() != null) {
+                anchorLocal = Microbot.getClient().getLocalPlayer().getLocalLocation();
+            }
+            if (anchorLocal == null) return null;
         }
         return getGroundObject(predicate, anchorLocal, Rs2LocalPoint.worldToLocalDistance(distance));
     }
@@ -1080,7 +1108,10 @@ public class Rs2GameObject {
     public static List<GroundObject> getGroundObjects(Predicate<GroundObject> predicate, WorldPoint anchor, int distance) {
         LocalPoint anchorLocal = LocalPoint.fromWorld(Microbot.getClient().getTopLevelWorldView(), anchor);
         if (anchorLocal == null) {
-            return Collections.emptyList();
+            if (Microbot.getClient().getLocalPlayer() != null) {
+                anchorLocal = Microbot.getClient().getLocalPlayer().getLocalLocation();
+            }
+            if (anchorLocal == null) return Collections.emptyList();
         }
         return getGroundObjects(predicate, anchorLocal, Rs2LocalPoint.worldToLocalDistance(distance));
     }
@@ -1210,7 +1241,10 @@ public class Rs2GameObject {
     public static WallObject getWallObject(Predicate<WallObject> predicate, WorldPoint anchor, int distance) {
         LocalPoint anchorLocal = localPointFromWorldSafe(anchor);
         if (anchorLocal == null) {
-            return null;
+            if (Microbot.getClient() != null && Microbot.getClient().getLocalPlayer() != null) {
+                anchorLocal = Microbot.getClient().getLocalPlayer().getLocalLocation();
+            }
+            if (anchorLocal == null) return null;
         }
         return getWallObject(predicate, anchorLocal, Rs2LocalPoint.worldToLocalDistance(distance));
     }
@@ -1262,7 +1296,10 @@ public class Rs2GameObject {
     public static List<WallObject> getWallObjects(Predicate<WallObject> predicate, WorldPoint anchor, int distance) {
         LocalPoint anchorLocal = localPointFromWorldSafe(anchor);
         if (anchorLocal == null) {
-            return Collections.emptyList();
+            if (Microbot.getClient() != null && Microbot.getClient().getLocalPlayer() != null) {
+                anchorLocal = Microbot.getClient().getLocalPlayer().getLocalLocation();
+            }
+            if (anchorLocal == null) return Collections.emptyList();
         }
         return getWallObjects(predicate, anchorLocal, Rs2LocalPoint.worldToLocalDistance(distance));
     }
@@ -1392,7 +1429,10 @@ public class Rs2GameObject {
     public static DecorativeObject getDecorativeObject(Predicate<DecorativeObject> predicate, WorldPoint anchor, int distance) {
         LocalPoint anchorLocal = localPointFromWorldSafe(anchor);
         if (anchorLocal == null) {
-            return null;
+            if (Microbot.getClient() != null && Microbot.getClient().getLocalPlayer() != null) {
+                anchorLocal = Microbot.getClient().getLocalPlayer().getLocalLocation();
+            }
+            if (anchorLocal == null) return null;
         }
         return getDecorativeObject(predicate, anchorLocal, Rs2LocalPoint.worldToLocalDistance(distance));
     }
@@ -1444,7 +1484,10 @@ public class Rs2GameObject {
     public static List<DecorativeObject> getDecorativeObjects(Predicate<DecorativeObject> predicate, WorldPoint anchor, int distance) {
         LocalPoint anchorLocal = localPointFromWorldSafe(anchor);
         if (anchorLocal == null) {
-            return Collections.emptyList();
+            if (Microbot.getClient() != null && Microbot.getClient().getLocalPlayer() != null) {
+                anchorLocal = Microbot.getClient().getLocalPlayer().getLocalLocation();
+            }
+            if (anchorLocal == null) return Collections.emptyList();
         }
         return getDecorativeObjects(predicate, anchorLocal, Rs2LocalPoint.worldToLocalDistance(distance));
     }
@@ -1730,7 +1773,22 @@ public class Rs2GameObject {
 
     public static boolean clickObject(TileObject object, String action) {
         if (object == null) return false;
-        if (Rs2Player.getWorldLocation().distanceTo(object.getWorldLocation()) > 51) {
+        // Use LocalPoint-based distance when the object is in the current scene (e.g. inside a
+        // POH instance, where Rs2Player.getWorldLocation() returns the overworld-template tile
+        // and distanceTo() against an instance world point yields Integer.MAX_VALUE, falsely
+        // triggering the "not close enough" path).
+        LocalPoint playerLocal = Microbot.getClient().getLocalPlayer() != null
+                ? Microbot.getClient().getLocalPlayer().getLocalLocation() : null;
+        LocalPoint objectLocal = object.getLocalLocation();
+        boolean tooFar;
+        if (playerLocal != null && objectLocal != null && objectLocal.isInScene()) {
+            int dx = playerLocal.getSceneX() - objectLocal.getSceneX();
+            int dy = playerLocal.getSceneY() - objectLocal.getSceneY();
+            tooFar = Math.max(Math.abs(dx), Math.abs(dy)) > 51;
+        } else {
+            tooFar = Rs2Player.getWorldLocation().distanceTo(object.getWorldLocation()) > 51;
+        }
+        if (tooFar) {
             Microbot.log("Object with id " + object.getId() + " is not close enough to interact with. Walking to the object....");
             Rs2Walker.walkTo(object.getWorldLocation());
             return false;

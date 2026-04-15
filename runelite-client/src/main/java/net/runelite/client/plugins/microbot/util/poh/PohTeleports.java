@@ -45,7 +45,14 @@ public class PohTeleports {
      * @return
      */
     public static boolean isInHouse() {
-        return Rs2Player.IsInInstance() && Rs2GameObject.getGameObject(ObjectID.POH_EXIT_PORTAL) != null;
+        if (!Rs2Player.IsInInstance()) return false;
+        // Use the tile-object cache rather than Rs2GameObject.getGameObject; the latter
+        // routes through Rs2Player.getWorldLocation() as a scene anchor which returns the
+        // overworld-template tile inside a POH instance and breaks the scene lookup.
+        return Microbot.getRs2TileObjectCache()
+                .query()
+                .withId(ObjectID.POH_EXIT_PORTAL)
+                .nearest() != null;
     }
 
     /**
@@ -150,7 +157,7 @@ public class PohTeleports {
      */
     public static boolean usePortalNexus(NexusPortal nexusPortal) {
         //TODO: Add config here to inform the user if the teleport is a wilderness teleport
-        GameObject portal = Rs2GameObject.getGameObject(NexusPortal.PORTAL_IDS);
+        GameObject portal = findPohObjectAnywhere(NexusPortal.PORTAL_IDS);
         if (getPortalNexusInterface() == null) {
             if (portal != null) {
                 Rs2GameObject.interact(portal, "Teleport Menu");
@@ -239,5 +246,38 @@ public class PohTeleports {
 
     public static boolean isSpiritTree(TileObject tileObject) {
         return SPIRIT_TREE_IDS.contains(tileObject.getId());
+    }
+
+    /**
+     * Scans the entire loaded scene for any GameObject matching the given ids, bypassing the
+     * {@link Rs2Player#getWorldLocation()} anchor that breaks every Rs2GameObject search when
+     * the player is in a POH instance.
+     *
+     * <p>Inside a POH, {@code Rs2Player.getWorldLocation()} returns the overworld-template tile
+     * (e.g. (1877, 7052, 1)), which isn't present in the actual loaded scene grid, so any
+     * search routed through that anchor converts to a null LocalPoint and returns nothing
+     * even when the object is plainly visible. This helper walks the raw
+     * {@code Scene.getTiles()[][][]} structure directly on the client thread, which is always
+     * valid regardless of instance.</p>
+     */
+    private static GameObject findPohObjectAnywhere(Integer[] ids) {
+        java.util.Set<Integer> idSet = java.util.Arrays.stream(ids).collect(java.util.stream.Collectors.toSet());
+        return Microbot.getClientThread().runOnClientThreadOptional(() -> {
+            net.runelite.api.Client client = Microbot.getClient();
+            if (client == null) return null;
+            net.runelite.api.Scene scene = client.getTopLevelWorldView().getScene();
+            net.runelite.api.Tile[][][] tiles = scene.getTiles();
+            for (net.runelite.api.Tile[][] plane : tiles) {
+                for (net.runelite.api.Tile[] row : plane) {
+                    for (net.runelite.api.Tile tile : row) {
+                        if (tile == null) continue;
+                        for (GameObject go : tile.getGameObjects()) {
+                            if (go != null && idSet.contains(go.getId())) return go;
+                        }
+                    }
+                }
+            }
+            return null;
+        }).orElse(null);
     }
 }

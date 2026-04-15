@@ -733,7 +733,26 @@ public class ShortestPathPlugin extends Plugin implements KeyListener {
                 start = pathfinder.getStart();
                 lastLocation = WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation());
             } else {
-                start = WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation());
+                WorldPoint rawStart = WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation());
+                // When the player is inside a POH instance, the raw instance-template tile
+                // (e.g. (1941,7052,3)) doesn't match any registered POH transport origin — the
+                // POH transports are keyed to PohPanel.instance.tilePanel.getTile() (the exit
+                // portal). Without this remap the pathfinder never considers any POH teleport
+                // and the walker tight-loops on null LocalPoint canvas-walks.
+                //
+                // We gate on "in an instance AND the POH panel has an exit-portal tile
+                // configured". PohTeleports.isInHouse() is too strict — it additionally
+                // requires POH_EXIT_PORTAL to be currently loaded in the scene, which fails
+                // on larger houses where the portal is out of render range.
+                WorldPoint exitPortal = PohPanel.getExitPortalTile();
+                boolean inInstance = client.getTopLevelWorldView().getScene().isInstance();
+                if (exitPortal != null && inInstance) {
+                    Microbot.log("[ShortestPath] In POH instance — remapping pathfinder start "
+                            + rawStart + " -> exit portal " + exitPortal);
+                    start = exitPortal;
+                } else {
+                    start = rawStart;
+                }
                 lastLocation = start;
             }
             final Set<WorldPoint> destinations = new HashSet<>(targets);

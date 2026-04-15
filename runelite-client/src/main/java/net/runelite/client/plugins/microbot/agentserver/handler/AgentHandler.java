@@ -13,16 +13,24 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 @Slf4j
 public abstract class AgentHandler implements HttpHandler {
 
 	private static final int MAX_BODY_SIZE = 16 * 1024;
+	private static final String AUTH_HEADER = "X-Agent-Token";
+
+	private static volatile Supplier<String> tokenSupplier = () -> null;
 
 	protected final Gson gson;
 
 	protected AgentHandler(Gson gson) {
 		this.gson = gson;
+	}
+
+	public static void setTokenSupplier(Supplier<String> supplier) {
+		tokenSupplier = supplier != null ? supplier : () -> null;
 	}
 
 	public abstract String getPath();
@@ -31,13 +39,26 @@ public abstract class AgentHandler implements HttpHandler {
 
 	@Override
 	public void handle(HttpExchange exchange) throws IOException {
-		exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
-		exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-		exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type");
-
-		if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
-			exchange.sendResponseHeaders(204, -1);
+		if (exchange.getRequestHeaders().getFirst("Origin") != null) {
+			sendJson(exchange, 403, errorResponse("Cross-origin requests are not permitted"));
 			return;
+		}
+
+		String host = exchange.getRequestHeaders().getFirst("Host");
+		if (host == null || !isLoopbackHost(host)) {
+			sendJson(exchange, 403, errorResponse("Invalid Host header"));
+			return;
+		}
+
+		String expected = tokenSupplier.get();
+		if (expected != null && !expected.isEmpty()) {
+			String provided = exchange.getRequestHeaders().getFirst(AUTH_HEADER);
+			if (provided == null || !constantTimeEquals(expected, provided)) {
+				Map<String, Object> err = errorResponse("auth");
+				err.put("hint", "set " + AUTH_HEADER + " header; token is in the Agent Server plugin config or ~/.microbot/agent-token");
+				sendJson(exchange, 401, err);
+				return;
+			}
 		}
 
 		try {
@@ -57,6 +78,30 @@ public abstract class AgentHandler implements HttpHandler {
 				log.debug("Client disconnected before error response could be sent for {}", exchange.getRequestURI());
 			}
 		}
+	}
+
+	private static boolean isLoopbackHost(String hostHeader) {
+		String h = hostHeader.trim();
+		if (h.startsWith("[")) {
+			int end = h.indexOf(']');
+			if (end < 0) return false;
+			String ip = h.substring(1, end);
+			return "::1".equals(ip) || "0:0:0:0:0:0:0:1".equalsIgnoreCase(ip);
+		}
+		int colon = h.indexOf(':');
+		String name = colon >= 0 ? h.substring(0, colon) : h;
+		return "127.0.0.1".equals(name) || "localhost".equalsIgnoreCase(name);
+	}
+
+	private static boolean constantTimeEquals(String a, String b) {
+		byte[] ab = a.getBytes(StandardCharsets.UTF_8);
+		byte[] bb = b.getBytes(StandardCharsets.UTF_8);
+		if (ab.length != bb.length) return false;
+		int diff = 0;
+		for (int i = 0; i < ab.length; i++) {
+			diff |= ab[i] ^ bb[i];
+		}
+		return diff == 0;
 	}
 
 	protected static boolean isClientDisconnect(Throwable t) {
@@ -122,7 +167,17 @@ public abstract class AgentHandler implements HttpHandler {
 	}
 
 	protected Map<String, Object> readJsonBody(HttpExchange exchange) throws IOException {
-		byte[] bodyBytes = exchange.getRequestBody().readAllBytes();
+		String cl = exchange.getRequestHeaders().getFirst("Content-Length");
+		if (cl != null) {
+			try {
+				long advertised = Long.parseLong(cl.trim());
+				if (advertised > MAX_BODY_SIZE) {
+					throw new IllegalArgumentException("Request body too large");
+				}
+			} catch (NumberFormatException ignored) {
+			}
+		}
+		byte[] bodyBytes = exchange.getRequestBody().readNBytes(MAX_BODY_SIZE + 1);
 		if (bodyBytes.length > MAX_BODY_SIZE) {
 			throw new IllegalArgumentException("Request body too large");
 		}
