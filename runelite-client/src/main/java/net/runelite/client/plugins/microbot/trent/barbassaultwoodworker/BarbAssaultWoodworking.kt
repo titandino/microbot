@@ -11,7 +11,6 @@ import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
 import net.runelite.client.plugins.microbot.trent.api.State
 import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
-import net.runelite.client.plugins.microbot.wintertodt.MWintertodtConfig
 import javax.inject.Inject
 
 @AllArgsConstructor

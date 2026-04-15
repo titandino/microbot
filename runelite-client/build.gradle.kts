@@ -67,12 +67,6 @@ kotlin {
 }
 
 tasks.named<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>("compileKotlin") {
-    exclude("**/trent/ardystalls/**")
-    exclude("**/trent/barbassaultplankgatherer/**")
-    exclude("**/trent/barbassaultwoodworker/**")
-    exclude("**/trent/ironsuperheat/**")
-    exclude("**/trent/roguesden/**")
-    exclude("**/trent/wintertodt/**")
 }
 
 tasks.register<JavaExec>("run") {

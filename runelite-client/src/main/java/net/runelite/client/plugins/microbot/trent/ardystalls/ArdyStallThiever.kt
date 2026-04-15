@@ -71,7 +71,7 @@ private class Root : State() {
             return
         }
         if (Rs2Inventory.contains("chocolate slice", "bread")) {
-            Rs2Inventory.dropAll(650, 820, "chocolate slice", "bread")
+            Rs2Inventory.dropAll("chocolate slice", "bread")
             return
         }
         if (Rs2Inventory.isFull()) {
