@@ -76,9 +76,14 @@ tasks.register<JavaExec>("runDebug") {
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("net.runelite.client.RuneLite")
 
-    // same JVM args you need normally
+    // Point user.home at the Bolt launcher profile so RuneLite reads
+    // credentials.properties (and writes jagexcache/random.dat) there
+    // instead of the real $HOME/.runelite.
+    val boltHome = System.getProperty("user.home") + "/.local/share/bolt-launcher"
+
     jvmArgs(
         "-Dfile.encoding=UTF-8",
+        "-Duser.home=$boltHome",
         // JDWP agent for debugger
         "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005"
     )
