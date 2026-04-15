@@ -24,7 +24,7 @@ public enum InterfaceTab {
     SETTINGS("Settings", VarbitID.STONE_OPTIONS1_KEY, 11),
     MUSIC("Music Player", VarbitID.STONE_MUSIC_KEY, 13),
     LOGOUT("Logout", VarbitID.STONE_LOGOUT_KEY, 10),
-    CHAT("Chat Channel", VarbitID.STONE_CLANCHAT_KEY, 11),
+    CHAT("Chat Channel", VarbitID.STONE_CLANCHAT_KEY, 7),
     ACC_MAN("Account Management", VarbitID.STONE_ACCOUNT_KEY, 8),
     EMOTES("Emotes", VarbitID.STONE_OPTIONS2_KEY, 12),
     // bogus widget info
