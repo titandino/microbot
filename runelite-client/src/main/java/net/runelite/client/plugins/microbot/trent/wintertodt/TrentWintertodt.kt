@@ -266,7 +266,7 @@ private class PrepareForGame : State() {
 
     override fun loop(client: Client, script: StateMachineScript) {
         val itemsToTake = mutableListOf(axe, "knife", "hammer")
-        if (!Rs2Equipment.hasEquipped(ItemID.BRUMA_TORCH))
+        if (!Rs2Equipment.isWearing(ItemID.BRUMA_TORCH))
             itemsToTake.add("tinderbox")
         if (Rs2Player.eatAt(70)) {
             sleep(346, 642)
