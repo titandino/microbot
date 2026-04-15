@@ -338,26 +338,19 @@ public class Rs2Settings
 	public static boolean disableWorldSwitcherConfirmation(boolean closeInterface) {
 		if (!isWorldSwitcherConfirmationEnabled()) return true;
 
-		if (!openSettings()) return false;
+		// Use the settings search bar instead of hardcoding param0. Indices in the
+		// Warnings tab shift whenever Jagex adds/removes a setting (the March 2026
+		// level-up dropdown change broke the old hardcoded param0=35), so look up
+		// the toggle by label and invoke it via the widget's own action.
+		Widget toggle = openSettingsSearch("world switcher confirmation", "Toggle");
+		if (toggle == null)
+		{
+			closeSettingsMenu();
+			return false;
+		}
 
-		if (!switchToSettingsTab("Warnings")) return false;
-
-		sleepGaussian(800, 100);
-		Widget widget = Rs2Widget.getWidget(SETTINGS_CLICKABLE);
-		if (widget == null) return false;
-
-		// MenuEntryImpl(getOption=Toggle, getTarget=, getIdentifier=1, getType=CC_OP, getParam0=35, getParam1=8781844, getItemId=-1, isForceLeftClick=false, getWorldViewId=-1, isDeprioritized=false)
-		NewMenuEntry menuEntry = new NewMenuEntry()
-				.option("Toggle")
-				.target("")
-				.identifier(1)
-				.type(MenuAction.CC_OP)
-				.param0(35)
-				.param1(widget.getId())
-				.forceLeftClick(false)
-				;
-		Microbot.doInvoke(menuEntry, Rs2UiHelper.getDefaultRectangle());
-		boolean success = sleepUntil(() -> !isWorldSwitcherConfirmationEnabled());
+		Rs2Widget.clickWidget(toggle);
+		boolean success = sleepUntil(() -> !isWorldSwitcherConfirmationEnabled(), 3000);
 
 		if (closeInterface)
 		{
