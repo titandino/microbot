@@ -167,19 +167,24 @@ public class ScreenshotHandlerTest {
 	}
 
 	@Test
-	public void testOptionsReturns204ForCors() throws IOException {
-		HttpURLConnection conn = openConnection("/screenshot");
-		conn.setRequestMethod("OPTIONS");
-		assertEquals(204, conn.getResponseCode());
-		assertEquals("*", conn.getHeaderField("Access-Control-Allow-Origin"));
+	public void testRejectsCrossOriginRequests() throws IOException, InterruptedException {
+		java.net.http.HttpClient hc = java.net.http.HttpClient.newHttpClient();
+		java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
+				.uri(java.net.URI.create("http://127.0.0.1:" + port + "/screenshot"))
+				.header("Origin", "https://evil.example.com")
+				.GET()
+				.build();
+		java.net.http.HttpResponse<String> resp = hc.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+		assertEquals(403, resp.statusCode());
+		assertTrue(resp.headers().firstValue("Access-Control-Allow-Origin").isEmpty());
 	}
 
 	@Test
-	public void testCorsHeadersOnGet() throws IOException {
+	public void testNoCorsWildcardOnGet() throws IOException {
 		HttpURLConnection conn = openConnection("/screenshot");
 		conn.setRequestMethod("GET");
 		conn.getResponseCode();
-		assertEquals("*", conn.getHeaderField("Access-Control-Allow-Origin"));
+		assertNull(conn.getHeaderField("Access-Control-Allow-Origin"));
 	}
 
 	@Test

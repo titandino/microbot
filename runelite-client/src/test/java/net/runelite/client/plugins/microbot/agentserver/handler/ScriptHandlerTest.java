@@ -15,7 +15,11 @@ import java.io.OutputStream;
 import java.lang.reflect.Type;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -68,11 +72,57 @@ public class ScriptHandlerTest {
 	}
 
 	@Test
-	public void testOptionsReturns204ForCors() throws IOException {
-		HttpURLConnection conn = openConnection("/scripts");
-		conn.setRequestMethod("OPTIONS");
-		assertEquals(204, conn.getResponseCode());
-		assertEquals("*", conn.getHeaderField("Access-Control-Allow-Origin"));
+	public void testRejectsCrossOriginRequests() throws IOException, InterruptedException {
+		HttpClient client = HttpClient.newHttpClient();
+		HttpRequest req = HttpRequest.newBuilder()
+				.uri(URI.create("http://127.0.0.1:" + port + "/scripts"))
+				.header("Origin", "https://evil.example.com")
+				.GET()
+				.build();
+		HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+		assertEquals(403, resp.statusCode());
+		assertTrue("CORS wildcard must not be emitted",
+				resp.headers().firstValue("Access-Control-Allow-Origin").isEmpty());
+	}
+
+	@Test
+	public void testRejectsAttackerHostHeader() throws IOException {
+		try (java.net.Socket sock = new java.net.Socket("127.0.0.1", port)) {
+			sock.getOutputStream().write(
+					("GET /scripts HTTP/1.1\r\n" +
+							"Host: attacker.example.com\r\n" +
+							"Connection: close\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+			String statusLine = new java.io.BufferedReader(
+					new java.io.InputStreamReader(sock.getInputStream(), StandardCharsets.UTF_8)).readLine();
+			assertNotNull(statusLine);
+			assertTrue("expected 403 status, got: " + statusLine, statusLine.startsWith("HTTP/1.1 403"));
+		}
+	}
+
+	@Test
+	public void testRejectsMissingTokenWhenConfigured() throws IOException {
+		AgentHandler.setTokenSupplier(() -> "expected-token");
+		try {
+			HttpURLConnection conn = openConnection("/scripts");
+			conn.setRequestMethod("GET");
+			assertEquals(401, conn.getResponseCode());
+		} finally {
+			AgentHandler.setTokenSupplier(null);
+		}
+	}
+
+	@Test
+	public void testAcceptsValidToken() throws IOException {
+		AgentHandler.setTokenSupplier(() -> "expected-token");
+		try {
+			HttpURLConnection conn = openConnection("/scripts");
+			conn.setRequestMethod("GET");
+			conn.setRequestProperty("X-Agent-Token", "expected-token");
+			assertNotEquals(401, conn.getResponseCode());
+			assertNotEquals(403, conn.getResponseCode());
+		} finally {
+			AgentHandler.setTokenSupplier(null);
+		}
 	}
 
 	// ==========================================
@@ -279,19 +329,19 @@ public class ScriptHandlerTest {
 	}
 
 	// ==========================================
-	// CORS headers
+	// Security headers (CORS wildcard must NOT be present)
 	// ==========================================
 
 	@Test
-	public void testCorsHeadersPresentOnGet() throws IOException {
+	public void testNoCorsWildcardOnGet() throws IOException {
 		HttpURLConnection conn = openConnection("/scripts/results?className=x");
 		conn.setRequestMethod("GET");
 		conn.getResponseCode();
-		assertEquals("*", conn.getHeaderField("Access-Control-Allow-Origin"));
+		assertNull(conn.getHeaderField("Access-Control-Allow-Origin"));
 	}
 
 	@Test
-	public void testCorsHeadersPresentOnPost() throws IOException {
+	public void testNoCorsWildcardOnPost() throws IOException {
 		HttpURLConnection conn = openConnection("/scripts/results");
 		conn.setRequestMethod("POST");
 		conn.setRequestProperty("Content-Type", "application/json");
@@ -300,7 +350,7 @@ public class ScriptHandlerTest {
 			os.write(GSON.toJson(Map.of("className", "x", "ok", true)).getBytes(StandardCharsets.UTF_8));
 		}
 		conn.getResponseCode();
-		assertEquals("*", conn.getHeaderField("Access-Control-Allow-Origin"));
+		assertNull(conn.getHeaderField("Access-Control-Allow-Origin"));
 	}
 
 	// ==========================================

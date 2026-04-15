@@ -7,15 +7,24 @@ import com.sun.net.httpserver.HttpServer;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.microbot.agentserver.handler.*;
 import net.runelite.client.ui.DrawManager;
 
 import javax.inject.Inject;
+import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -26,13 +35,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 		name = PluginDescriptor.Mocrosoft + "Agent Server",
 		description = "HTTP server for AI agent communication - exposes widget inspection, game interaction, and state endpoints",
 		tags = {"agent", "ai", "server", "automation"},
-		enabledByDefault = true
+		enabledByDefault = false
 )
 @Slf4j
 public class AgentServerPlugin extends Plugin {
 
 	@Inject
 	private AgentServerConfig config;
+
+	@Inject
+	private ConfigManager configManager;
 
 	@Inject
 	private Client client;
@@ -56,6 +68,9 @@ public class AgentServerPlugin extends Plugin {
 		int maxResults = config.maxResults();
 
 		stopServer();
+
+		String token = ensureAuthToken();
+		AgentHandler.setTokenSupplier(() -> configManager.getConfiguration(AgentServerConfig.GROUP, AgentServerConfig.KEY_TOKEN));
 
 		executor = Executors.newFixedThreadPool(4, new ThreadFactory() {
 			private final AtomicInteger count = new AtomicInteger(1);
@@ -105,18 +120,108 @@ public class AgentServerPlugin extends Plugin {
 			server.createContext(handler.getPath(), handler);
 		}
 
-		shutdownHook = new Thread(this::stopServer, "AgentServer-Shutdown");
+		shutdownHook = new Thread(() -> {
+			stopServer();
+			deleteTokenFile();
+		}, "AgentServer-Shutdown");
 		Runtime.getRuntime().addShutdownHook(shutdownHook);
 		server.start();
-		log.info("Agent server started on port {} with {} endpoints", port, handlers.size());
+		Path tokenFile = writeTokenFile(token);
+		log.info("Agent server started on 127.0.0.1:{} with {} endpoints (auth enabled, token {})",
+				port, handlers.size(), tokenFile != null ? "at " + tokenFile : "file unavailable");
+	}
+
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event) {
+		if (!AgentServerConfig.GROUP.equals(event.getGroup()) || !AgentServerConfig.KEY_TOKEN.equals(event.getKey())) {
+			return;
+		}
+		String value = event.getNewValue();
+		if (value == null || value.isEmpty()) {
+			log.warn("Agent server auth token was cleared; regenerating to keep auth enforced");
+			writeTokenFile(ensureAuthToken());
+			return;
+		}
+		writeTokenFile(value);
+	}
+
+	private String ensureAuthToken() {
+		String existing = configManager.getConfiguration(AgentServerConfig.GROUP, AgentServerConfig.KEY_TOKEN);
+		if (existing != null && !existing.isEmpty()) {
+			return existing;
+		}
+		String generated = UUID.randomUUID().toString().replace("-", "");
+		configManager.setConfiguration(AgentServerConfig.GROUP, AgentServerConfig.KEY_TOKEN, generated);
+		return generated;
+	}
+
+	private Path writeTokenFile(String token) {
+		try {
+			Path dir = Paths.get(System.getProperty("user.home"), ".microbot");
+			Files.createDirectories(dir);
+			Path file = dir.resolve("agent-token");
+
+			boolean posix = java.nio.file.FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
+
+			java.util.Set<java.nio.file.OpenOption> opts = new java.util.HashSet<>();
+			opts.add(java.nio.file.StandardOpenOption.CREATE);
+			opts.add(java.nio.file.StandardOpenOption.WRITE);
+			opts.add(java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
+
+			java.nio.file.attribute.FileAttribute<?>[] attrs = posix
+					? new java.nio.file.attribute.FileAttribute<?>[]{
+							PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------"))}
+					: new java.nio.file.attribute.FileAttribute<?>[0];
+
+			if (posix && Files.exists(file)) {
+				try {
+					Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-------"));
+				} catch (IOException ignored) {
+				}
+			}
+
+			try (java.nio.channels.SeekableByteChannel ch = Files.newByteChannel(file, opts, attrs)) {
+				ch.write(java.nio.ByteBuffer.wrap(token.getBytes(StandardCharsets.UTF_8)));
+			}
+
+			if (posix) {
+				try {
+					Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-------"));
+				} catch (IOException ignored) {
+				}
+			} else {
+				try {
+					file.toFile().setReadable(false, false);
+					file.toFile().setWritable(false, false);
+					file.toFile().setReadable(true, true);
+					file.toFile().setWritable(true, true);
+				} catch (SecurityException ignored) {
+				}
+			}
+			return file;
+		} catch (IOException e) {
+			log.warn("Could not write agent token file: {}", e.getMessage());
+			return null;
+		}
 	}
 
 	@Override
 	protected void shutDown() throws Exception {
 		stopServer();
+		deleteTokenFile();
+	}
+
+	private void deleteTokenFile() {
+		try {
+			Path file = Paths.get(System.getProperty("user.home"), ".microbot", "agent-token");
+			Files.deleteIfExists(file);
+		} catch (IOException e) {
+			log.debug("Could not delete agent token file: {}", e.getMessage());
+		}
 	}
 
 	private synchronized void stopServer() {
+		AgentHandler.setTokenSupplier(null);
 		if (server != null) {
 			server.stop(0);
 			server = null;
