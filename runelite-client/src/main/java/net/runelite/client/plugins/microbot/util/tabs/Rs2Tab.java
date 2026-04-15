@@ -11,6 +11,10 @@ import net.runelite.client.plugins.microbot.globval.enums.InterfaceTab;
 import net.runelite.client.plugins.microbot.util.keyboard.Rs2Keyboard;
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
 import static net.runelite.client.plugins.microbot.util.Global.sleepUntil;
 
 @Slf4j
@@ -18,56 +22,26 @@ public class Rs2Tab {
     private static final int TAB_SWITCH_SCRIPT = 915;
     private static volatile InterfaceTab cachedTab = InterfaceTab.NOTHING_SELECTED;
 
+    // Derived from InterfaceTab.varcIntIndex — single source of truth.
+    public static final Map<Integer, InterfaceTab> INDEX_TO_TAB;
+    static {
+        Map<Integer, InterfaceTab> map = new HashMap<>();
+        for (InterfaceTab tab : InterfaceTab.values()) {
+            if (tab.getVarcIntIndex() < 0) continue;
+            InterfaceTab existing = map.put(tab.getVarcIntIndex(), tab);
+            if (existing != null) {
+                throw new ExceptionInInitializerError(
+                        "Duplicate varcIntIndex " + tab.getVarcIntIndex()
+                                + " for " + existing + " and " + tab);
+            }
+        }
+        INDEX_TO_TAB = Collections.unmodifiableMap(map);
+    }
+
     public static void onVarClientIntChanged(VarClientIntChanged event) {
         if (event.getIndex() != VarClientID.TOPLEVEL_PANEL) return;
         int value = Microbot.getClient().getVarcIntValue(VarClientID.TOPLEVEL_PANEL);
-        switch (value) {
-            case 0:
-                cachedTab = InterfaceTab.COMBAT;
-                break;
-            case 1:
-                cachedTab = InterfaceTab.SKILLS;
-                break;
-            case 2:
-                cachedTab = InterfaceTab.QUESTS;
-                break;
-            case 3:
-                cachedTab = InterfaceTab.INVENTORY;
-                break;
-            case 4:
-                cachedTab = InterfaceTab.EQUIPMENT;
-                break;
-            case 5:
-                cachedTab = InterfaceTab.PRAYER;
-                break;
-            case 6:
-                cachedTab = InterfaceTab.MAGIC;
-                break;
-            case 7:
-                cachedTab = InterfaceTab.CHAT;
-                break;
-            case 8:
-                cachedTab = InterfaceTab.ACC_MAN;
-                break;
-            case 9:
-                cachedTab = InterfaceTab.FRIENDS;
-                break;
-            case 10:
-                cachedTab = InterfaceTab.LOGOUT;
-                break;
-            case 11:
-                cachedTab = InterfaceTab.SETTINGS;
-                break;
-            case 12:
-                cachedTab = InterfaceTab.EMOTES;
-                break;
-            case 13:
-                cachedTab = InterfaceTab.MUSIC;
-                break;
-            default:
-                cachedTab = InterfaceTab.NOTHING_SELECTED;
-                break;
-        }
+        cachedTab = INDEX_TO_TAB.getOrDefault(value, InterfaceTab.NOTHING_SELECTED);
     }
 
     public static InterfaceTab getCurrentTab() {
