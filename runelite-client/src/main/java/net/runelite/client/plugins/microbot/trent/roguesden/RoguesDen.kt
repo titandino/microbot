@@ -5,6 +5,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import net.runelite.api.Client
 import net.runelite.api.Perspective
+import net.runelite.api.TileObject
 import net.runelite.api.coords.LocalPoint
 import net.runelite.api.coords.WorldArea
 import net.runelite.api.coords.WorldPoint
@@ -132,7 +133,7 @@ private class Lobby : State() {
             }
             return
         }
-        val doorway = Rs2GameObject.findDoor(7256)
+        val doorway: TileObject? = Rs2GameObject.getWallObject(7256)
         if (doorway == null && Rs2Walker.walkTo(WorldPoint(3056, 4991, 1))) {
             sleep(1260, 5920)
             return

@@ -81,7 +81,7 @@ private class Root : State() {
             return
         }
         if (Rs2Player.getWorldLocation().distanceTo(PLANK_LOCATION) >= 7) {
-            if (Rs2Walker.walkMiniMap(PLANK_LOCATION, 3))
+            if (Rs2Walker.walkMiniMap(PLANK_LOCATION, 3.0))
                 Rs2Player.waitForWalking()
             return
         }
