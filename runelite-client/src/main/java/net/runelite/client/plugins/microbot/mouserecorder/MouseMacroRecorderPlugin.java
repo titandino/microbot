@@ -153,10 +153,6 @@ public class MouseMacroRecorderPlugin extends Plugin implements MouseListener, M
 				stopRecording();
 			}
 		}
-		else if ("openRecordingsFolder".equals(key))
-		{
-			openRecordingsFolder();
-		}
 	}
 
 	@Subscribe
@@ -375,11 +371,6 @@ public class MouseMacroRecorderPlugin extends Plugin implements MouseListener, M
 			log.warn("Failed to write mouse macro event to JSONL {}", currentRecordingPath, e);
 			closeJsonlWriterLocked();
 		}
-	}
-
-	private void openRecordingsFolder()
-	{
-		openRecordingsFolderStatic();
 	}
 
 	int getRecordedEventCount()
