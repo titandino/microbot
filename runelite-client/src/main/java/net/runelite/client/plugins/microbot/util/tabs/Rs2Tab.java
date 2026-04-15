@@ -44,25 +44,25 @@ public class Rs2Tab {
                 cachedTab = InterfaceTab.MAGIC;
                 break;
             case 7:
-                cachedTab = InterfaceTab.FRIENDS;
-                break;
-            case 8:
-                cachedTab = InterfaceTab.LOGOUT;
-                break;
-            case 9:
-                cachedTab = InterfaceTab.SETTINGS;
-                break;
-            case 10:
-                cachedTab = InterfaceTab.MUSIC;
-                break;
-            case 11:
                 cachedTab = InterfaceTab.CHAT;
                 break;
-            case 12:
+            case 8:
                 cachedTab = InterfaceTab.ACC_MAN;
                 break;
-            case 13:
+            case 9:
+                cachedTab = InterfaceTab.FRIENDS;
+                break;
+            case 10:
+                cachedTab = InterfaceTab.LOGOUT;
+                break;
+            case 11:
+                cachedTab = InterfaceTab.SETTINGS;
+                break;
+            case 12:
                 cachedTab = InterfaceTab.EMOTES;
+                break;
+            case 13:
+                cachedTab = InterfaceTab.MUSIC;
                 break;
             default:
                 cachedTab = InterfaceTab.NOTHING_SELECTED;

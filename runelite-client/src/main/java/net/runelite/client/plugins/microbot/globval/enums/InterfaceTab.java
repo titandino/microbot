@@ -20,13 +20,13 @@ public enum InterfaceTab {
     EQUIPMENT("Worn Equipment", VarbitID.STONE_WORN_KEY, 4),
     PRAYER("Prayer", VarbitID.STONE_PRAYER_KEY, 5),
     MAGIC("Magic", VarbitID.STONE_MAGIC_KEY, 6),
-    FRIENDS("Friends List", VarbitID.STONE_FRIENDS_KEY, 7),
-    SETTINGS("Settings", VarbitID.STONE_OPTIONS1_KEY, 9),
-    MUSIC("Music Player", VarbitID.STONE_MUSIC_KEY, 10),
-    LOGOUT("Logout", VarbitID.STONE_LOGOUT_KEY, 8),
+    FRIENDS("Friends List", VarbitID.STONE_FRIENDS_KEY, 9),
+    SETTINGS("Settings", VarbitID.STONE_OPTIONS1_KEY, 11),
+    MUSIC("Music Player", VarbitID.STONE_MUSIC_KEY, 13),
+    LOGOUT("Logout", VarbitID.STONE_LOGOUT_KEY, 10),
     CHAT("Chat Channel", VarbitID.STONE_CLANCHAT_KEY, 11),
-    ACC_MAN("Account Management", VarbitID.STONE_ACCOUNT_KEY, 12),
-    EMOTES("Emotes", VarbitID.STONE_OPTIONS2_KEY, 13),
+    ACC_MAN("Account Management", VarbitID.STONE_ACCOUNT_KEY, 8),
+    EMOTES("Emotes", VarbitID.STONE_OPTIONS2_KEY, 12),
     // bogus widget info
     NOTHING_SELECTED("NothingSelected", -1, -1);
 
