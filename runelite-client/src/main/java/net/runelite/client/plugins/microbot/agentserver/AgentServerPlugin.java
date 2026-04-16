@@ -113,7 +113,8 @@ public class AgentServerPlugin extends Plugin {
 				new VarbitHandler(gson),
 				new WidgetInvokeHandler(gson),
 				new SettingsHandler(gson),
-				new KeyboardHandler(gson)
+				new KeyboardHandler(gson),
+				new StateMachineDebugHandler(gson)
 		);
 
 		for (AgentHandler handler : handlers) {
