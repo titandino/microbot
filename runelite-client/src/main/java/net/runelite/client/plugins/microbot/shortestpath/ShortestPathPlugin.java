@@ -75,7 +75,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
-import java.util.function.Supplier;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 @Slf4j
@@ -961,20 +961,24 @@ public class ShortestPathPlugin extends Plugin implements KeyListener {
         return polygon;
     }
 
-    private void toggleCategory(String categoryName, Supplier<WorldPoint> targetSupplier) {
-        if (panel == null || !Microbot.isLoggedIn()) {
+    private void toggleCategory(String categoryName, Function<ShortestPathPanel, WorldPoint> targetFn) {
+        // Capture panel locally so the null check is effective. Call sites
+        // pass unbound method references (ShortestPathPanel::get...) so panel
+        // is not dereferenced until after we've confirmed it's non-null.
+        ShortestPathPanel p = panel;
+        if (p == null || !Microbot.isLoggedIn()) {
             return;
         }
-        WorldPoint target = targetSupplier.get();
+        WorldPoint target = targetFn.apply(p);
         if (target == null) {
             Microbot.log("WebWalker: no " + categoryName + " selected in the panel.");
             return;
         }
         WorldPoint current = shortestPathScript.getTriggerWalker();
         if (target.equals(current)) {
-            panel.stopWalking();
+            p.stopWalking();
         } else {
-            panel.startWalking(target);
+            p.startWalking(target);
         }
     }
 
@@ -1007,14 +1011,14 @@ public class ShortestPathPlugin extends Plugin implements KeyListener {
     private final HotkeyListener customLocationHotkeyListener = new HotkeyListener(() -> config.customLocationToggleHotkey()) {
         @Override
         public void hotkeyPressed() {
-            toggleCategory("custom location", panel::getCustomLocation);
+            toggleCategory("custom location", ShortestPathPanel::getCustomLocation);
         }
     };
 
     private final HotkeyListener bankHotkeyListener = new HotkeyListener(() -> config.bankToggleHotkey()) {
         @Override
         public void hotkeyPressed() {
-            toggleCategory("bank", panel::getBankTarget);
+            toggleCategory("bank", ShortestPathPanel::getBankTarget);
         }
     };
 
@@ -1033,7 +1037,7 @@ public class ShortestPathPlugin extends Plugin implements KeyListener {
     private final HotkeyListener depositBoxHotkeyListener = new HotkeyListener(() -> config.depositBoxToggleHotkey()) {
         @Override
         public void hotkeyPressed() {
-            toggleCategory("deposit box", panel::getDepositBoxTarget);
+            toggleCategory("deposit box", ShortestPathPanel::getDepositBoxTarget);
         }
     };
 
@@ -1052,35 +1056,35 @@ public class ShortestPathPlugin extends Plugin implements KeyListener {
     private final HotkeyListener slayerMasterHotkeyListener = new HotkeyListener(() -> config.slayerMasterToggleHotkey()) {
         @Override
         public void hotkeyPressed() {
-            toggleCategory("slayer master", panel::getSlayerMasterTarget);
+            toggleCategory("slayer master", ShortestPathPanel::getSlayerMasterTarget);
         }
     };
 
     private final HotkeyListener questHotkeyListener = new HotkeyListener(() -> config.questToggleHotkey()) {
         @Override
         public void hotkeyPressed() {
-            toggleCategory("quest location", panel::getCurrentQuestLocation);
+            toggleCategory("quest location", ShortestPathPanel::getCurrentQuestLocation);
         }
     };
 
     private final HotkeyListener clueHotkeyListener = new HotkeyListener(() -> config.clueToggleHotkey()) {
         @Override
         public void hotkeyPressed() {
-            toggleCategory("clue location", panel::getCurrentClueLocation);
+            toggleCategory("clue location", ShortestPathPanel::getCurrentClueLocation);
         }
     };
 
     private final HotkeyListener farmingHotkeyListener = new HotkeyListener(() -> config.farmingToggleHotkey()) {
         @Override
         public void hotkeyPressed() {
-            toggleCategory("farming location", panel::getSelectedFarmingLocation);
+            toggleCategory("farming location", ShortestPathPanel::getSelectedFarmingLocation);
         }
     };
 
     private final HotkeyListener hunterHotkeyListener = new HotkeyListener(() -> config.hunterToggleHotkey()) {
         @Override
         public void hotkeyPressed() {
-            toggleCategory("hunter area", panel::getSelectedHuntingArea);
+            toggleCategory("hunter area", ShortestPathPanel::getSelectedHuntingArea);
         }
     };
 }
