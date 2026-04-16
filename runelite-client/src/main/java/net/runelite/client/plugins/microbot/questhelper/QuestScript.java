@@ -89,6 +89,9 @@ public class QuestScript extends Script {
 
     QuestStep dialogueStartedStep = null;
 
+    // Cooldown so we don't interrupt post-dialogue NPC animations/cutscenes by re-clicking immediately
+    private long dialogueCooldownEndsAt = 0;
+
 
 
     public boolean run(QuestHelperConfig config, QuestHelperPlugin mQuestPlugin) {
@@ -182,6 +185,9 @@ public class QuestScript extends Script {
                         //if there is no quest option in the dialogue, just click player location to remove
                         // the dialogue to avoid getting stuck in an infinite loop of dialogues
                         if (!hasOption) {
+                            if (Rs2Dialogue.acceptQuestStartDialogue()) {
+                                return;
+                            }
                             if (getQuestHelperPlugin().getSelectedQuest() != null &&
                                     getQuestHelperPlugin().getSelectedQuest().getQuest().getId() == Quest.IMP_CATCHER.getId()
                                     && Microbot.getClient().getTopLevelWorldView().getPlane() == 1) {
@@ -210,7 +216,14 @@ public class QuestScript extends Script {
                         Rs2Keyboard.keyPress(KeyEvent.VK_SPACE);
                         return;
                     } else {
+                        if (dialogueStartedStep != null) {
+                            dialogueCooldownEndsAt = System.currentTimeMillis() + Rs2Random.between(4000, 7000);
+                        }
                         dialogueStartedStep = null;
+                    }
+
+                    if (System.currentTimeMillis() < dialogueCooldownEndsAt) {
+                        return;
                     }
 
                     boolean isInCutscene = Microbot.getVarbitValue(4606) > 0;
