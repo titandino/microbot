@@ -80,6 +80,7 @@ Microbot is a RuneLite-based Old School RuneScape client fork with an always-on 
 
 ## When Unsure
 - **Code work in the Microbot plugin**: read `runelite-client/src/main/java/net/runelite/client/plugins/microbot/CLAUDE.md` (or its sibling `AGENTS.md`) — the canonical 2300-line guide to threading, Rs2* utilities, queryable API, and script lifecycle.
+- **State machine scripts**: read `runelite-client/src/main/java/net/runelite/client/plugins/microbot/statemachine/CLAUDE.md` for usage guide, or `AGENTS.md` in the same directory for architecture and design decisions. Prefer `StateMachineScript<S>` over ad-hoc `if/else` run() loops for new scripts with 3+ states.
 - Background and architecture: `docs/ARCHITECTURE.md` and `docs/decisions/`.
 - Agentic testing: `docs/AGENTIC_TESTING_LOOP.md`.
 - Runtime agent CLI: `docs/MICROBOT_CLI.md`; HTTP API: `docs/AGENT_SERVER.md`.

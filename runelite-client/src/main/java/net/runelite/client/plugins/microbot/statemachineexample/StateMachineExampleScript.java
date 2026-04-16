@@ -2,6 +2,9 @@ package net.runelite.client.plugins.microbot.statemachineexample;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.plugins.microbot.Microbot;
+import net.runelite.client.plugins.microbot.api.npc.models.Rs2NpcModel;
+import net.runelite.client.plugins.microbot.api.tileitem.models.Rs2TileItemModel;
+import net.runelite.client.plugins.microbot.api.tileobject.models.Rs2TileObjectModel;
 import net.runelite.client.plugins.microbot.statemachine.StateMachineScript;
 import net.runelite.client.plugins.microbot.statemachine.Transition;
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory;
@@ -12,12 +15,11 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Example script demonstrating the StateMachineScript framework.
+ * Example script demonstrating the StateMachineScript framework with the Queryable API.
  * <p>
- * Cycles through states:
- *   CHECK_INVENTORY → COOLDOWN_1 → CHECK_PLAYER → COOLDOWN_2 → CHECK_INVENTORY → ...
+ * Cycles through states scanning nearby game entities using queryable caches:
+ *   SCAN_NPCS → COOLDOWN → SCAN_OBJECTS → COOLDOWN → SCAN_GROUND_ITEMS → COOLDOWN → REPORT → ...
  * <p>
- * Each state logs information and transitions based on simple conditions.
  * Enable the plugin, then query state via:
  * {@code GET /debug/snapshot?script=StateMachineExampleScript}
  */
@@ -25,10 +27,13 @@ import java.util.concurrent.TimeUnit;
 public class StateMachineExampleScript extends StateMachineScript<StateMachineExampleScript.State> {
 
     enum State {
-        CHECK_INVENTORY,
-        COOLDOWN_AFTER_INVENTORY,
-        CHECK_PLAYER,
-        COOLDOWN_AFTER_PLAYER,
+        SCAN_NPCS,
+        COOLDOWN_AFTER_NPCS,
+        SCAN_OBJECTS,
+        COOLDOWN_AFTER_OBJECTS,
+        SCAN_GROUND_ITEMS,
+        COOLDOWN_AFTER_ITEMS,
+        REPORT,
         ERROR
     }
 
@@ -36,51 +41,88 @@ public class StateMachineExampleScript extends StateMachineScript<StateMachineEx
     private Instant cooldownStartedAt;
     private int cycleCount;
 
+    // Scan results carried across states for the REPORT phase
+    private int nearbyNpcCount;
+    private String nearestNpcName;
+    private int nearbyObjectCount;
+    private String nearestObjectName;
+    private int nearbyItemCount;
+    private String nearestItemName;
+
     @Override
     protected State initialState() {
-        return State.CHECK_INVENTORY;
+        return State.SCAN_NPCS;
     }
 
     @Override
     protected List<Transition<State>> defineTransitions() {
         return List.of(
-                Transition.<State>from(State.CHECK_INVENTORY)
-                        .when(() -> true, "always (one-tick action)")
-                        .because("Inventory check complete")
-                        .goTo(State.COOLDOWN_AFTER_INVENTORY),
+                // NPC scan → cooldown
+                Transition.<State>from(State.SCAN_NPCS)
+                        .when(() -> true, "always (one-tick scan)")
+                        .because("NPC scan complete")
+                        .goTo(State.COOLDOWN_AFTER_NPCS),
 
-                Transition.<State>from(State.COOLDOWN_AFTER_INVENTORY)
-                        .when(() -> cooldownElapsed(), "cooldownElapsed()")
-                        .because("Cooldown expired, checking player next")
-                        .goTo(State.CHECK_PLAYER),
+                // Cooldown → object scan
+                Transition.<State>from(State.COOLDOWN_AFTER_NPCS)
+                        .when(this::cooldownElapsed, "cooldownElapsed()")
+                        .because("Cooldown expired, scanning objects next")
+                        .goTo(State.SCAN_OBJECTS),
 
-                Transition.<State>from(State.CHECK_PLAYER)
-                        .when(() -> true, "always (one-tick action)")
-                        .because("Player check complete")
-                        .goTo(State.COOLDOWN_AFTER_PLAYER),
+                // Object scan → cooldown
+                Transition.<State>from(State.SCAN_OBJECTS)
+                        .when(() -> true, "always (one-tick scan)")
+                        .because("Object scan complete")
+                        .goTo(State.COOLDOWN_AFTER_OBJECTS),
 
-                Transition.<State>from(State.COOLDOWN_AFTER_PLAYER)
-                        .when(() -> cooldownElapsed(), "cooldownElapsed()")
-                        .because("Cooldown expired, starting new cycle")
-                        .goTo(State.CHECK_INVENTORY)
+                // Cooldown → ground item scan
+                Transition.<State>from(State.COOLDOWN_AFTER_OBJECTS)
+                        .when(this::cooldownElapsed, "cooldownElapsed()")
+                        .because("Cooldown expired, scanning ground items next")
+                        .goTo(State.SCAN_GROUND_ITEMS),
+
+                // Ground item scan → cooldown
+                Transition.<State>from(State.SCAN_GROUND_ITEMS)
+                        .when(() -> true, "always (one-tick scan)")
+                        .because("Ground item scan complete")
+                        .goTo(State.COOLDOWN_AFTER_ITEMS),
+
+                // Cooldown → report
+                Transition.<State>from(State.COOLDOWN_AFTER_ITEMS)
+                        .when(this::cooldownElapsed, "cooldownElapsed()")
+                        .because("Cooldown expired, generating report")
+                        .goTo(State.REPORT),
+
+                // Report → back to NPC scan (new cycle)
+                Transition.<State>from(State.REPORT)
+                        .when(() -> true, "always (one-tick report)")
+                        .because("Report complete, starting new cycle")
+                        .goTo(State.SCAN_NPCS)
         );
     }
 
     @Override
     protected void onState(State state) {
         switch (state) {
-            case CHECK_INVENTORY:
-                doCheckInventory();
+            case SCAN_NPCS:
+                doScanNpcs();
                 break;
-            case CHECK_PLAYER:
-                doCheckPlayer();
+            case SCAN_OBJECTS:
+                doScanObjects();
                 break;
-            case COOLDOWN_AFTER_INVENTORY:
-            case COOLDOWN_AFTER_PLAYER:
+            case SCAN_GROUND_ITEMS:
+                doScanGroundItems();
+                break;
+            case REPORT:
+                doReport();
+                break;
+            case COOLDOWN_AFTER_NPCS:
+            case COOLDOWN_AFTER_OBJECTS:
+            case COOLDOWN_AFTER_ITEMS:
                 // Cooldowns do nothing; transition guard handles timing
                 break;
             case ERROR:
-                log.warn("[Example] In error state, waiting for manual intervention");
+                log.warn("[StateMachineExample] In error state");
                 break;
         }
     }
@@ -88,40 +130,104 @@ public class StateMachineExampleScript extends StateMachineScript<StateMachineEx
     @Override
     protected void onTransition(State from, State to, String reason) {
         super.onTransition(from, to, reason);
-        if (to == State.COOLDOWN_AFTER_INVENTORY || to == State.COOLDOWN_AFTER_PLAYER) {
+        // Reset cooldown timer when entering any cooldown state
+        if (to.name().startsWith("COOLDOWN_")) {
             cooldownStartedAt = Instant.now();
         }
     }
 
     @Override
     protected State onError(State state, Exception e) {
-        log.error("[Example] Error in state {}: {}", state, e.getMessage(), e);
+        log.error("[StateMachineExample] Error in state {}: {}", state, e.getMessage(), e);
         return State.ERROR;
     }
 
-    // --- State actions ---
+    // --- State actions using Queryable API ---
 
-    private void doCheckInventory() {
+    private void doScanNpcs() {
         if (!Microbot.isLoggedIn()) return;
 
-        int itemCount = Rs2Inventory.count();
-        int emptySlots = Rs2Inventory.getEmptySlots();
-        boolean isFull = Rs2Inventory.isFull();
+        // Queryable API: scan nearby NPCs within 15 tiles
+        List<Rs2NpcModel> npcs = Microbot.getRs2NpcCache().query()
+                .within(15)
+                .toList();
 
-        log.info("[Example] Inventory: {} items, {} empty slots, full={}", itemCount, emptySlots, isFull);
+        nearbyNpcCount = npcs.size();
+
+        // Queryable API: find the nearest NPC
+        Rs2NpcModel nearest = Microbot.getRs2NpcCache().query()
+                .within(15)
+                .nearest();
+
+        nearestNpcName = nearest != null ? nearest.getName() : "none";
+
+        log.info("[StateMachineExample] NPC scan: {} nearby, nearest='{}'",
+                nearbyNpcCount, nearestNpcName);
     }
 
-    private void doCheckPlayer() {
+    private void doScanObjects() {
         if (!Microbot.isLoggedIn()) return;
 
-        boolean isAnimating = Rs2Player.isAnimating();
-        boolean isMoving = Rs2Player.isMoving();
+        // Queryable API: scan nearby tile objects within 10 tiles
+        List<Rs2TileObjectModel> objects = Microbot.getRs2TileObjectCache().query()
+                .within(10)
+                .toList();
 
-        log.info("[Example] Player: animating={}, moving={}", isAnimating, isMoving);
+        nearbyObjectCount = objects.size();
+
+        // Queryable API: find the nearest named object
+        Rs2TileObjectModel nearest = Microbot.getRs2TileObjectCache().query()
+                .where(obj -> obj.getName() != null && !obj.getName().equals("null"))
+                .within(10)
+                .nearest();
+
+        nearestObjectName = nearest != null ? nearest.getName() : "none";
+
+        log.info("[StateMachineExample] Object scan: {} nearby, nearest='{}'",
+                nearbyObjectCount, nearestObjectName);
+    }
+
+    private void doScanGroundItems() {
+        if (!Microbot.isLoggedIn()) return;
+
+        // Queryable API: scan nearby ground items within 15 tiles
+        List<Rs2TileItemModel> items = Microbot.getRs2TileItemCache().query()
+                .within(15)
+                .toList();
+
+        nearbyItemCount = items.size();
+
+        // Queryable API: find nearest lootable ground item
+        Rs2TileItemModel nearest = Microbot.getRs2TileItemCache().query()
+                .where(Rs2TileItemModel::isLootAble)
+                .within(15)
+                .nearest();
+
+        nearestItemName = nearest != null ? nearest.getName() : "none";
+
+        log.info("[StateMachineExample] Ground item scan: {} nearby, nearest lootable='{}'",
+                nearbyItemCount, nearestItemName);
+    }
+
+    private void doReport() {
+        if (!Microbot.isLoggedIn()) return;
 
         cycleCount++;
-        log.info("[Example] Completed cycle #{}", cycleCount);
+
+        // Player state (static utility — no queryable cache for local player yet)
+        boolean isAnimating = Rs2Player.isAnimating();
+        boolean isMoving = Rs2Player.isMoving();
+        int inventoryCount = Rs2Inventory.count();
+
+        log.info("[StateMachineExample] === Cycle #{} Report ===", cycleCount);
+        log.info("[StateMachineExample]   NPCs: {} nearby, nearest='{}'", nearbyNpcCount, nearestNpcName);
+        log.info("[StateMachineExample]   Objects: {} nearby, nearest='{}'", nearbyObjectCount, nearestObjectName);
+        log.info("[StateMachineExample]   Ground items: {} nearby, nearest lootable='{}'", nearbyItemCount, nearestItemName);
+        log.info("[StateMachineExample]   Player: animating={}, moving={}, inventory={} items",
+                isAnimating, isMoving, inventoryCount);
     }
+
+    // --- Helpers ---
 
     private boolean cooldownElapsed() {
         return cooldownStartedAt != null &&
@@ -136,14 +242,14 @@ public class StateMachineExampleScript extends StateMachineScript<StateMachineEx
 
     public boolean run(StateMachineExampleConfig config) {
         this.config = config;
-        log.info("[Example] Starting StateMachine example script");
+        log.info("[StateMachineExample] Starting state machine example script");
 
         mainScheduledFuture = scheduledExecutorService.scheduleWithFixedDelay(() -> {
             try {
                 if (!Microbot.isLoggedIn()) return;
                 step();
             } catch (Exception ex) {
-                log.error("[Example] Unexpected error in scheduled loop", ex);
+                log.error("[StateMachineExample] Unexpected error in scheduled loop", ex);
             }
         }, 0, config.tickDelay(), TimeUnit.MILLISECONDS);
 
