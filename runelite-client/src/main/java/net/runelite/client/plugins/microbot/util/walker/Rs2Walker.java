@@ -319,6 +319,7 @@ public class Rs2Walker {
             }
 
             boolean doorOrTransportResult = false;
+            boolean inInstance = Microbot.getClient().getTopLevelWorldView().isInstance();
             for (int i = indexOfStartPoint; i < path.size(); i++) {
                 WorldPoint currentWorldPoint = path.get(i);
                 WorldPoint nextWorldPoint = i + 1 < path.size() ? path.get(i + 1) : null;
@@ -357,7 +358,6 @@ public class Rs2Walker {
                 }
 
                 //Again, would be nice to have access to current node, since we're going to have to handle transports in instance (PoH)
-                boolean inInstance = Microbot.getClient().getTopLevelWorldView().isInstance();
                 if (PohTeleports.isInHouse() || !inInstance) {
                     doorOrTransportResult = handleTransports(path, i);
                 }
@@ -374,7 +374,7 @@ public class Rs2Walker {
                 nextWalkingDistance = Rs2Random.between(7, 11);
                 int dist2d = currentWorldPoint.distanceTo2D(Rs2Player.getWorldLocation());
                 if (dist2d > nextWalkingDistance) {
-                    if (Microbot.getClient().getTopLevelWorldView().isInstance()) {
+                    if (inInstance) {
                         if (Rs2Walker.walkMiniMap(currentWorldPoint)) {
                             final WorldPoint b = currentWorldPoint;
                             sleepUntil(() -> b.distanceTo2D(Rs2Player.getWorldLocation()) < nextWalkingDistance, 2000);
@@ -1463,15 +1463,27 @@ public class Rs2Walker {
      * @return
      */
     private static boolean handleTransports(List<WorldPoint> path, int indexOfStartPoint) {
-        Set<Transport> transports = ShortestPathPlugin.getTransports().getOrDefault(path.get(indexOfStartPoint), new HashSet<>());
-        log.info("[Walker] handleTransports at {}: {} candidates — {}", path.get(indexOfStartPoint),
-                transports.size(),
-                transports.stream().map(Transport::getDisplayInfo).collect(Collectors.joining(", ")));
+        Set<Transport> transports = ShortestPathPlugin.getTransports().get(path.get(indexOfStartPoint));
+        if (transports == null || transports.isEmpty()) {
+            return false;
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("[Walker] handleTransports at {}: {} candidates — {}", path.get(indexOfStartPoint),
+                    transports.size(),
+                    transports.stream().map(Transport::getDisplayInfo).collect(Collectors.joining(", ")));
+        }
         // When the player is inside a POH instance, the player's raw world-location plane is
         // the instance-template plane and has no relationship to the POH-transport origin plane.
         // Skip the plane guard in that case so POH transports can actually be considered.
         boolean inPohInstance = Microbot.getClient().getTopLevelWorldView().getScene().isInstance()
                 && net.runelite.client.plugins.microbot.shortestpath.PohPanel.getExitPortalTile() != null;
+
+        // Pre-compute path point index map for O(1) lookups instead of repeated O(n) scans
+        Map<WorldPoint, Integer> pathFirstIndex = new HashMap<>(path.size());
+        for (int idx = 0; idx < path.size(); idx++) {
+            pathFirstIndex.putIfAbsent(path.get(idx), idx);
+        }
+
         for (Transport transport : transports) {
             Collection<WorldPoint> worldPointCollections;
             //in some cases the getOrigin is null, for teleports that start the player location
@@ -1486,48 +1498,49 @@ public class Rs2Walker {
             } else {
                 worldPointCollections = WorldPoint.toLocalInstance(Microbot.getClient().getTopLevelWorldView(), transport.getOrigin());
             }
-            log.info("[Walker] Considering transport: {} (type={}, origin={}, wpCount={})",
+            log.debug("[Walker] Considering transport: {} (type={}, origin={}, wpCount={})",
                     transport.getDisplayInfo(), transport.getType(), transport.getOrigin(), worldPointCollections.size());
             for (WorldPoint origin : worldPointCollections) {
                 if (!inPohInstance && transport.getOrigin() != null && Rs2Player.getWorldLocation().getPlane() != transport.getOrigin().getPlane()) {
                     continue;
                 }
 
+                // Hoist path-constant checks out of the inner loop: destination must exist in path
+                if (!pathFirstIndex.containsKey(transport.getDestination())) {
+                    log.debug("[Walker] skip {}: destination {} not in path", transport.getDisplayInfo(), transport.getDestination());
+                    continue;
+                }
+                if (TransportType.isTeleport(transport.getType()) && Rs2Player.getWorldLocation().distanceTo(transport.getDestination()) < 3) {
+                    log.debug("[Walker] skip {}: already near destination", transport.getDisplayInfo());
+                    continue;
+                }
+
+                // Pre-compute origin/destination indices once per transport (not per inner iteration)
+                int precomputedIndexOfOrigin = -1;
+                int precomputedIndexOfDest = -1;
+                if (!TransportType.isTeleport(transport.getType())) {
+                    Integer originIdx = pathFirstIndex.get(transport.getOrigin());
+                    Integer destIdx = pathFirstIndex.get(transport.getDestination());
+                    precomputedIndexOfOrigin = originIdx != null ? originIdx : -1;
+                    precomputedIndexOfDest = destIdx != null ? destIdx : -1;
+                    if (log.isDebugEnabled()) {
+                        log.debug("[Walker] filter4 {}: indexOfOrigin={}, indexOfDestination={}, pathSize={}, originInPath={}, destInPath={}",
+                                transport.getDisplayInfo(), precomputedIndexOfOrigin, precomputedIndexOfDest, path.size(),
+                                precomputedIndexOfOrigin != -1, precomputedIndexOfDest != -1);
+                    }
+                    if (precomputedIndexOfDest == -1) continue;
+                    if (precomputedIndexOfOrigin == -1) continue;
+                    if (precomputedIndexOfDest < precomputedIndexOfOrigin) continue;
+                }
+
                 for (int i = indexOfStartPoint; i < path.size(); i++) {
                     if (!inPohInstance && origin != null && origin.getPlane() != Rs2Player.getWorldLocation().getPlane()) {
-                        if (i == indexOfStartPoint) log.info("[Walker] skip {} (i={}): plane mismatch", transport.getDisplayInfo(), i);
-                        continue;
-                    }
-                    if (path.stream().noneMatch(x -> x.equals(transport.getDestination()))) {
-                        if (i == indexOfStartPoint) log.info("[Walker] skip {} (i={}): destination {} not in path", transport.getDisplayInfo(), i, transport.getDestination());
-                        continue;
-                    }
-                    if (TransportType.isTeleport(transport.getType()) && Rs2Player.getWorldLocation().distanceTo(transport.getDestination()) < 3) {
-                        if (i == indexOfStartPoint) log.info("[Walker] skip {} (i={}): already near destination", transport.getDisplayInfo(), i);
-                        continue;
+                        log.debug("[Walker] skip {} (i={}): plane mismatch", transport.getDisplayInfo(), i);
+                        break; // plane won't change across iterations, so break instead of continue
                     }
 
-                    // we don't need to check for teleportation_item & teleportation_spell as they will be set on the first tile
-                    if (!TransportType.isTeleport(transport.getType())) {
-                        int indexOfOrigin = IntStream.range(0, path.size())
-                                .filter(f -> path.get(f).equals(transport.getOrigin()))
-                                .findFirst()
-                                .orElse(-1);
-                        int indexOfDestination = IntStream.range(0, path.size())
-                                .filter(f -> path.get(f).equals(transport.getDestination()))
-                                .findFirst()
-                                .orElse(-1);
-                        if (i == indexOfStartPoint) {
-                            log.info("[Walker] filter4 {}: indexOfOrigin={}, indexOfDestination={}, pathSize={}, originInPath={}, destInPath={}",
-                                    transport.getDisplayInfo(), indexOfOrigin, indexOfDestination, path.size(),
-                                    indexOfOrigin != -1, indexOfDestination != -1);
-                        }
-                        if (indexOfDestination == -1) continue;
-                        if (indexOfOrigin == -1) continue;
-                        if (indexOfDestination < indexOfOrigin) continue;
-                    }
                     if (i == indexOfStartPoint) {
-                        log.info("[Walker] reached pre-dispatch for {}: i={}, path[i]={}, origin={}, equalsOrigin={}",
+                        log.debug("[Walker] reached pre-dispatch for {}: i={}, path[i]={}, origin={}, equalsOrigin={}",
                                 transport.getDisplayInfo(), i, path.get(i), origin, path.get(i).equals(origin));
                     }
 
@@ -1579,11 +1592,11 @@ public class Rs2Walker {
                         }
                     }
 
-                    log.info("[Walker] Handling {} transport: {} (i={}, path[i]={}, origin={})",
+                    log.debug("[Walker] Handling {} transport: {} (i={}, path[i]={}, origin={})",
                             transport.getType(), transport.getDisplayInfo(), i, path.get(i), origin);
                     if (transport.getType() == TransportType.POH) {
                         boolean pohResult = handlePohTransport(transport);
-                        log.info("[Walker] handlePohTransport({}) returned {}", transport.getDisplayInfo(), pohResult);
+                        log.debug("[Walker] handlePohTransport({}) returned {}", transport.getDisplayInfo(), pohResult);
                         if (pohResult) {
                             sleepUntil(() -> Rs2Player.getWorldLocation().distanceTo(transport.getDestination()) < OFFSET, 10000);
                             break;
