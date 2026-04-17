@@ -270,7 +270,7 @@ public interface ShortestPathConfig extends Config {
     @ConfigItem(
             keyName = "useSeasonalTransports",
             name = "Use Seasonal Transports",
-            description = "Whether to include seasonal transports (e.g. clue compass) in the path.",
+            description = "Whether to include seasonal League transports (e.g. Map of Alacrity) in the path. League worlds only.",
             position = 19,
             section = sectionSettings
     )
