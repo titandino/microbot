@@ -266,6 +266,18 @@ Transition.from(FIND_TARGET)
     .when(() -> targetNpc != null).because("NPC found").goTo(WALK_TO_TARGET)
 ```
 
+### 7. Guards must be pure (no side effects)
+
+Guard conditions may be evaluated more than once per tick (e.g. for debug snapshot generation after a transition fires). Never put logging, counter increments, or state mutations inside a guard:
+
+```java
+// ❌ Bad — side effect in guard
+.when(() -> { attempts++; return attempts > 3; })
+
+// ✅ Good — pure boolean check
+.when(() -> attempts > 3, "attempts > 3")
+```
+
 ## Blocking States (v1 Limitation)
 
 `onState()` may call blocking methods like `sleepUntil()`, `Rs2Walker.walkTo()`, or `Rs2Bank.openNearest()`. This is tolerated in v1 for compatibility with existing Rs2* utilities.

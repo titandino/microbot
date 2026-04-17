@@ -128,6 +128,7 @@ GET /debug/snapshot?script=StateMachineExample
 3. ⚠️ **Always call `step()`** inside the scheduled lambda — don't call `onState()` or evaluate transitions manually.
 4. ⚠️ **Always provide `because()` strings** — they're the debug output. Without them, the trace log is useless.
 5. ⚠️ **Always null-check in transition guards** — the framework catches exceptions but the transition won't fire.
+6. ⚠️ **Guards must be pure** — no side effects (logging, counters, state mutation). Guards may be re-evaluated for debug snapshots.
 
 ## Future Work (v2)
 

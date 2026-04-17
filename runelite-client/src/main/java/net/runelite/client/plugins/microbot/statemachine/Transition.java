@@ -46,6 +46,8 @@ public final class Transition<S extends Enum<S>> {
 
         /**
          * Define the guard condition for this transition.
+         * Guards must be pure (no side effects) — they may be evaluated multiple
+         * times per tick for debug snapshot generation.
          * @param condition evaluated each tick; transition fires when true
          */
         public WhenBuilder<S> when(BooleanSupplier condition) {
@@ -54,6 +56,8 @@ public final class Transition<S extends Enum<S>> {
 
         /**
          * Define the guard condition with a human-readable expression for debug output.
+         * Guards must be pure (no side effects) — they may be evaluated multiple
+         * times per tick for debug snapshot generation.
          */
         public WhenBuilder<S> when(BooleanSupplier condition, String conditionExpression) {
             return new WhenBuilder<>(from, condition, conditionExpression);

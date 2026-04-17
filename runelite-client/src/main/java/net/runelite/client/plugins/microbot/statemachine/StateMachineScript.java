@@ -148,6 +148,7 @@ public abstract class StateMachineScript<S extends Enum<S>> extends Script {
         loopCount++;
 
         // Evaluate transitions (first matching wins)
+        boolean transitionFired = false;
         for (Transition<S> t : transitions) {
             if (t.from() == currentState) {
                 try {
@@ -169,6 +170,7 @@ public abstract class StateMachineScript<S extends Enum<S>> extends Script {
                         traceBuffer.addLast(entry);
 
                         onTransition(previousState, currentState, lastTransitionReason);
+                        transitionFired = true;
                         break;
                     }
                 } catch (Exception e) {
@@ -178,8 +180,9 @@ public abstract class StateMachineScript<S extends Enum<S>> extends Script {
             }
         }
 
-        // Publish snapshot for the debug endpoint
-        publishSnapshot();
+        // Publish snapshot. When no transition fired, all guards for the current
+        // state were just evaluated and found false — skip redundant re-evaluation.
+        publishSnapshot(!transitionFired);
 
         // Execute the current state's action
         try {
@@ -190,10 +193,20 @@ public abstract class StateMachineScript<S extends Enum<S>> extends Script {
                 previousState = currentState;
                 currentState = errorState;
                 lastTransitionReason = "Error: " + e.getMessage();
-                lastTransitionAt = Instant.now();
-                stateEnteredAt = Instant.now();
+                Instant now = Instant.now();
+                lastTransitionAt = now;
+                stateEnteredAt = now;
                 transitionCount++;
-                publishSnapshot();
+
+                // Record error transition in trace
+                StateSnapshot.TraceEntry<S> entry =
+                        new StateSnapshot.TraceEntry<>(previousState, currentState, lastTransitionReason, now);
+                if (traceBuffer.size() >= MAX_TRACE_SIZE) {
+                    traceBuffer.pollFirst();
+                }
+                traceBuffer.addLast(entry);
+
+                publishSnapshot(false);
             }
         }
 
@@ -209,15 +222,23 @@ public abstract class StateMachineScript<S extends Enum<S>> extends Script {
         log.info("[{}] State machine initialized in state {}", getScriptName(), currentState);
     }
 
-    private void publishSnapshot() {
+    /**
+     * @param allGuardsFalse when true, skip guard re-evaluation (all guards for
+     *                       the current state were just evaluated and found false)
+     */
+    private void publishSnapshot(boolean allGuardsFalse) {
         List<PendingTransition<S>> pending = new ArrayList<>();
         for (Transition<S> t : transitions) {
             if (t.from() == currentState) {
                 boolean satisfied;
-                try {
-                    satisfied = t.condition().getAsBoolean();
-                } catch (Exception e) {
+                if (allGuardsFalse) {
                     satisfied = false;
+                } else {
+                    try {
+                        satisfied = t.condition().getAsBoolean();
+                    } catch (Exception e) {
+                        satisfied = false;
+                    }
                 }
                 pending.add(new PendingTransition<>(
                         t.to(), t.conditionExpression(), satisfied, t.reason()));
@@ -256,10 +277,11 @@ public abstract class StateMachineScript<S extends Enum<S>> extends Script {
         previousState = currentState;
         currentState = newState;
         lastTransitionReason = "Forced: " + reason;
-        lastTransitionAt = Instant.now();
-        stateEnteredAt = Instant.now();
+        Instant now = Instant.now();
+        lastTransitionAt = now;
+        stateEnteredAt = now;
         transitionCount++;
-        publishSnapshot();
+        publishSnapshot(false);
         log.info("[{}] State forced: {} → {}  \"{}\"", getScriptName(), previousState, currentState, reason);
     }
 
