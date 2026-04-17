@@ -589,7 +589,6 @@ net.runelite.client.plugins.microbot.util.prayer.Rs2Prayer#isPreserveUnlocked():
 net.runelite.client.plugins.microbot.util.prayer.Rs2Prayer#isRigourUnlocked(): boolean  ->  net.runelite.api.Client#getRealSkillLevel(Skill): int
 net.runelite.client.plugins.microbot.util.reachable.Rs2Reachable#getReachableTiles(WorldPoint): IntSet  ->  net.runelite.api.Client#getTickCount(): int
 net.runelite.client.plugins.microbot.util.reflection.Rs2Reflection#invokeMenu(int, int, int, int, int, int, String, String, int, int): void  ->  net.runelite.api.Client#getKeyboardIdleTicks(): int
-net.runelite.client.plugins.microbot.util.settings.Rs2Settings#disableWorldSwitcherConfirmation(boolean): boolean  ->  net.runelite.api.widgets.Widget#getId(): int
 net.runelite.client.plugins.microbot.util.settings.Rs2Settings#enableDropShiftSetting(boolean): boolean  ->  net.runelite.api.widgets.Widget#getId(): int
 net.runelite.client.plugins.microbot.util.settings.Rs2Settings#enableSpellFiltering(): void  ->  net.runelite.api.widgets.Widget#getBounds(): Rectangle
 net.runelite.client.plugins.microbot.util.settings.Rs2Settings#enableSpellFiltering(): void  ->  net.runelite.api.widgets.Widget#getId(): int
