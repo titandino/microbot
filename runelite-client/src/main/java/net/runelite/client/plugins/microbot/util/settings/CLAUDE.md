@@ -1,3 +1,5 @@
+@AGENTS.md
+
 # Settings & Widget Debugging
 
 ## Widget Debugging Workflow
