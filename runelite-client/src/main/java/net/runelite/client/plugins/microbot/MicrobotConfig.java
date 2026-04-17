@@ -46,6 +46,19 @@ public interface MicrobotConfig extends Config
 		return true;
 	}
 
+	String keyHideRoofs = "hideRoofs";
+	@ConfigItem(
+		keyName = keyHideRoofs,
+		name = "Hide roofs",
+		description = "Automatically enable the hide roofs display setting",
+		position = 2,
+		section = generalSection
+	)
+	default boolean hideRoofs()
+	{
+		return true;
+	}
+
 	@ConfigSection(
 		name = "Logging",
 		description = "Game chat logging configuration",

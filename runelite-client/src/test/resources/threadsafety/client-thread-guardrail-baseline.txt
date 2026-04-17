@@ -592,7 +592,6 @@ net.runelite.client.plugins.microbot.util.reflection.Rs2Reflection#invokeMenu(in
 net.runelite.client.plugins.microbot.util.settings.Rs2Settings#enableDropShiftSetting(boolean): boolean  ->  net.runelite.api.widgets.Widget#getId(): int
 net.runelite.client.plugins.microbot.util.settings.Rs2Settings#enableSpellFiltering(): void  ->  net.runelite.api.widgets.Widget#getBounds(): Rectangle
 net.runelite.client.plugins.microbot.util.settings.Rs2Settings#enableSpellFiltering(): void  ->  net.runelite.api.widgets.Widget#getId(): int
-net.runelite.client.plugins.microbot.util.settings.Rs2Settings#hideRoofs(boolean): boolean  ->  net.runelite.api.widgets.Widget#getId(): int
 net.runelite.client.plugins.microbot.util.settings.Rs2Settings#switchToSettingsTab(String): boolean  ->  net.runelite.api.widgets.Widget#getId(): int
 net.runelite.client.plugins.microbot.util.settings.Rs2Settings#turnOffMusic(): void  ->  net.runelite.api.widgets.Widget#getActions(): String[]
 net.runelite.client.plugins.microbot.util.settings.Rs2Settings#turnOffMusic(): void  ->  net.runelite.api.widgets.Widget#getStaticChildren(): Widget[]
