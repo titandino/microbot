@@ -89,7 +89,13 @@ public class QuestScript extends Script {
 
     QuestStep dialogueStartedStep = null;
 
-    // Cooldown so we don't interrupt post-dialogue NPC animations/cutscenes by re-clicking immediately
+    /**
+     * Epoch millis at which the post-dialogue cooldown expires. While
+     * {@code System.currentTimeMillis() < dialogueCooldownEndsAt}, the main tick
+     * returns early to avoid re-clicking the quest NPC and interrupting scripted
+     * animations or cutscenes that play between dialogue exchanges. Set on the
+     * transition from in-dialogue to not-in-dialogue; zero means no cooldown.
+     */
     private long dialogueCooldownEndsAt = 0;
 
 
