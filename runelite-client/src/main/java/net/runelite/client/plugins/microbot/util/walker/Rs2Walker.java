@@ -1679,6 +1679,14 @@ public class Rs2Walker {
                         }
                     }
 
+                    if (transport.getType() == TransportType.SEASONAL_TRANSPORT) {
+                        if (handleSeasonalTransport(transport)) {
+                            sleepUntil(() -> !Rs2Player.isAnimating());
+                            sleepUntilTrue(() -> Rs2Player.getWorldLocation().distanceTo(transport.getDestination()) < OFFSET);
+                            break;
+                        }
+                    }
+
                     if (transport.getObjectId() <= 0) break;
 
                     // Use class-level constants for object ID mapping
@@ -2227,6 +2235,128 @@ public class Rs2Walker {
         Pathfinder pathfinder = new Pathfinder(ShortestPathPlugin.getPathfinderConfig(), startpoint, ends);
         pathfinder.run();
         return pathfinder.getPath().size();
+    }
+
+    // Map of Alacrity (League 6 / Demonic Pacts tier 3 relic — teleports to agility shortcuts).
+    // Item not yet in ItemID enum in this fork; widget group 187 is a flat destination picker
+    // (LJ_LAYER1 holds up to 10 visible rows, LJ_SCROLL_BAR paginates the rest).
+    private static final int MAP_OF_ALACRITY_ITEM_ID = 33233;
+    private static final int MAP_OF_ALACRITY_WIDGET_GROUP = 187;
+    private static final int MAP_OF_ALACRITY_LIST_CHILD = 3;
+
+    private static boolean handleSeasonalTransport(Transport transport) {
+        String displayInfo = transport.getDisplayInfo();
+        log.info("[MoA] handleSeasonalTransport entry: displayInfo='{}'", displayInfo);
+        if (displayInfo == null) return false;
+
+        // Only Map of Alacrity is modelled for now; future seasonal relics can branch here.
+        if (!displayInfo.toLowerCase().contains("map of alacrity")) {
+            log.info("[MoA] not Map of Alacrity, skipping");
+            return false;
+        }
+
+        Rs2ItemModel relic = Rs2Inventory.get(MAP_OF_ALACRITY_ITEM_ID);
+        if (relic == null) {
+            log.info("[MoA] item {} not in inventory — abort", MAP_OF_ALACRITY_ITEM_ID);
+            return false;
+        }
+        log.info("[MoA] relic found: name='{}' id={} actions={}",
+                relic.getName(), relic.getId(), Arrays.toString(relic.getInventoryActions()));
+
+        // Display info format: "Map of Alacrity: <Region> - <Shortcut name>"
+        String destLabel = displayInfo.contains(":")
+                ? displayInfo.split(":", 2)[1].trim()
+                : displayInfo.trim();
+        String shortName = destLabel.contains(" - ")
+                ? destLabel.split(" - ", 2)[1].trim()
+                : destLabel;
+        log.info("[MoA] parsed destLabel='{}' shortName='{}'", destLabel, shortName);
+
+        // "Read" is the relic's right-click action; fall back to any non-generic item action
+        // if the cache version differs.
+        String action = relic.getAction("Read");
+        if (action == null) {
+            action = relic.getActionFromList(Arrays.asList("Read", "Open", "Teleport", "Invoke"));
+        }
+        if (action == null) {
+            log.warn("[MoA] no usable action on relic (tried Read/Open/Teleport/Invoke); available={}",
+                    Arrays.toString(relic.getInventoryActions()));
+            return false;
+        }
+        log.info("[MoA] using action='{}'", action);
+
+        if (!Rs2Inventory.interact(relic, action)) {
+            log.warn("[MoA] Rs2Inventory.interact returned false for action '{}'", action);
+            return false;
+        }
+
+        if (!sleepUntil(() -> Rs2Widget.isWidgetVisible(MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD), 3000)) {
+            log.warn("[MoA] widget {}.{} did not become visible within 3s",
+                    MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD);
+            return false;
+        }
+        log.info("[MoA] widget {}.{} opened", MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD);
+
+        Widget listRoot = Rs2Widget.getWidget(MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD);
+        if (listRoot == null) {
+            log.warn("[MoA] getWidget returned null for {}.{}",
+                    MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD);
+            return false;
+        }
+
+        // Dump the first page of destination rows so we can see exactly how the game labels
+        // them — text, name, and actions — when iterating on the match logic.
+        dumpMapOfAlacrityWidget(listRoot);
+
+        // Try "Region - Name" first (most specific), then fall back to just the shortcut name.
+        // searchChildren matches on widget text, name, AND actions, so this is resilient to
+        // the exact in-game label format.
+        Widget match = Rs2Widget.searchChildren(destLabel, listRoot, false);
+        if (match == null && !shortName.equals(destLabel)) {
+            log.info("[MoA] no match for full '{}', falling back to short '{}'", destLabel, shortName);
+            match = Rs2Widget.searchChildren(shortName, listRoot, false);
+        }
+
+        if (match == null) {
+            log.warn("[MoA] no widget child matches destination '{}' (fallback '{}') — check dump above",
+                    destLabel, shortName);
+            return false;
+        }
+        log.info("[MoA] match found: id={} text='{}' name='{}' actions={}",
+                match.getId(), match.getText(), match.getName(), Arrays.toString(match.getActions()));
+
+        boolean clicked = Rs2Widget.clickWidget(match);
+        log.info("[MoA] clickWidget returned {} — teleporting to '{}'", clicked, destLabel);
+        return clicked;
+    }
+
+    // Verbose one-shot dump of MoA destination widget children to the log. Helps us figure out
+    // the real in-game label format on the first invocation; can be trimmed once execution is
+    // known to work end-to-end.
+    private static void dumpMapOfAlacrityWidget(Widget listRoot) {
+        try {
+            Widget[] dyn = listRoot.getDynamicChildren();
+            Widget[] stc = listRoot.getStaticChildren();
+            Widget[] nst = listRoot.getNestedChildren();
+            log.info("[MoA] widget dump: listRoot id={} text='{}' name='{}' dyn={} static={} nested={}",
+                    listRoot.getId(),
+                    listRoot.getText(),
+                    listRoot.getName(),
+                    dyn == null ? "null" : dyn.length,
+                    stc == null ? "null" : stc.length,
+                    nst == null ? "null" : nst.length);
+            Widget[] toDump = dyn != null ? dyn : (stc != null ? stc : nst);
+            if (toDump == null) return;
+            for (int i = 0; i < toDump.length; i++) {
+                Widget c = toDump[i];
+                if (c == null) continue;
+                log.info("[MoA]   child[{}] id={} hidden={} text='{}' name='{}' actions={}",
+                        i, c.getId(), c.isHidden(), c.getText(), c.getName(),
+                        Arrays.toString(c.getActions()));
+            }
+        } catch (Exception e) {
+            log.warn("[MoA] widget dump threw", e);
+        }
     }
 
     private static boolean handleSpiritTree(Transport transport) {
