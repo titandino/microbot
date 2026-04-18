@@ -3,7 +3,9 @@ package net.runelite.client.plugins.microbot.shortestpath.pathfinder;
 import net.runelite.api.coords.WorldPoint;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Post-BFS line-of-sight path smoothing.
@@ -15,15 +17,18 @@ import java.util.List;
  * along the path as a line-of-sight walk allows, keeping only the farthest
  * reachable waypoint.
  *
- * <p>Correctness rests on two invariants:
+ * <p>Correctness rests on these invariants:
  * <ul>
- *   <li>{@link CollisionMap#canStep} rejects any step across a wall or
- *       closed-door edge — doors/stairs/ladders/teleports in the BFS path
- *       are reached via a transport edge, so their origin→destination
- *       step fails LOS and is always preserved.</li>
+ *   <li>{@link CollisionMap#canStep} rejects any step across a wall that is
+ *       encoded in the collision data, so those door/stair/ladder boundaries
+ *       fail LOS and are preserved.</li>
  *   <li>Non-adjacent consecutive path tiles (teleports, boats, POH portals)
  *       fail the cheap adjacency check before we even attempt LOS, so those
  *       boundaries are also preserved.</li>
+ *   <li>Tiles listed in {@code transportAnchors} (transport origins and
+ *       destinations appearing in the raw path) are never skipped — some
+ *       gates aren't encoded as collision walls so {@code canStep} would
+ *       otherwise glide past them, hiding the transport from the walker.</li>
  * </ul>
  *
  * <p>Segments are capped at {@link #MAX_SEGMENT_CHEBYSHEV} tiles so that
@@ -37,8 +42,15 @@ public final class PathSmoother {
     private PathSmoother() {}
 
     public static List<WorldPoint> smooth(List<WorldPoint> path, CollisionMap map) {
+        return smooth(path, map, Collections.emptySet());
+    }
+
+    public static List<WorldPoint> smooth(List<WorldPoint> path, CollisionMap map, Set<WorldPoint> transportAnchors) {
         if (path == null || path.size() < 3 || map == null) {
             return path;
+        }
+        if (transportAnchors == null) {
+            transportAnchors = Collections.emptySet();
         }
 
         final int n = path.size();
@@ -49,6 +61,7 @@ public final class PathSmoother {
         while (i < n - 1) {
             int j = i + 1;
             while (j + 1 < n
+                    && !transportAnchors.contains(path.get(j))
                     && isChebyshevAdjacentSamePlane(path.get(j), path.get(j + 1))
                     && chebyshev(path.get(i), path.get(j + 1)) <= MAX_SEGMENT_CHEBYSHEV
                     && lineOfSight(path.get(i), path.get(j + 1), map)) {

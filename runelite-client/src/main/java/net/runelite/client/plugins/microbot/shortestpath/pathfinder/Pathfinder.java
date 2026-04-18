@@ -3,6 +3,7 @@ package net.runelite.client.plugins.microbot.shortestpath.pathfinder;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.client.plugins.microbot.shortestpath.Transport;
 import net.runelite.client.plugins.microbot.shortestpath.WorldPointUtil;
 
 import java.util.*;
@@ -127,10 +128,32 @@ public class Pathfinder implements Runnable {
             return raw;
         }
         if (!smoothed) {
-            smoothedPath = PathSmoother.smooth(raw, map);
+            smoothedPath = PathSmoother.smooth(raw, map, buildTransportAnchors(raw));
             smoothed = true;
         }
         return smoothedPath;
+    }
+
+    // Tiles in the raw path that are transport origins or destinations. The smoother
+    // must not collapse across these — some gates (e.g., Tutorial Island rat-cage
+    // gates) aren't encoded as collision walls, so canStep would otherwise glide
+    // past the transport edge and hide the gate from the walker.
+    private Set<WorldPoint> buildTransportAnchors(List<WorldPoint> path) {
+        Map<WorldPoint, Set<Transport>> transports = config.getTransports();
+        if (transports == null || transports.isEmpty() || path == null || path.isEmpty()) {
+            return Collections.emptySet();
+        }
+        Set<WorldPoint> anchors = new HashSet<>();
+        for (WorldPoint p : path) {
+            Set<Transport> fromP = transports.get(p);
+            if (fromP == null) continue;
+            anchors.add(p);
+            for (Transport t : fromP) {
+                WorldPoint dest = t.getDestination();
+                if (dest != null) anchors.add(dest);
+            }
+        }
+        return anchors;
     }
 
     private void addNeighbors(Node node) {

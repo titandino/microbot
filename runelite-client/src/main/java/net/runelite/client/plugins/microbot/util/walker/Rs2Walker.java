@@ -230,9 +230,6 @@ public class Rs2Walker {
         if (pathfinder != null && !pathfinder.isDone()) {
             return WalkerState.MOVING;
         }
-        if ((currentTarget != null && currentTarget.equals(target)) && ShortestPathPlugin.getMarker() != null) {
-            return WalkerState.MOVING;
-        }
         setTarget(target);
         ShortestPathPlugin.setReachedDistance(distance);
         stuckCount = 0;
@@ -3813,10 +3810,6 @@ public class Rs2Walker {
         final Pathfinder pathfinder = ShortestPathPlugin.getPathfinder();
         if (pathfinder != null && !pathfinder.isDone())
             return WalkerState.MOVING;
-        if ((currentTarget != null && currentTarget.equals(target)) && ShortestPathPlugin.getMarker() != null){
-            return WalkerState.MOVING;
-        }
-        Rs2Walker.currentTarget =  null;
         // Check what transport items are needed
         TransportRouteAnalysis comparison = compareRoutes(target);
         List<Transport> missingTransports = getMissingTransports(getTransportsForDestination(target, true, TransportType.TELEPORTATION_SPELL));
@@ -3829,7 +3822,6 @@ public class Rs2Walker {
         // If no missing transport items, go directly
         if (missingItemsWithQuantities.isEmpty() && !forceBanking) {
             log.info("\n\tNo missing transport items, traveling directly to: \n\t" + target);
-            setTarget(null); // Clear target to avoid conflicts
             WalkerState state = walkWithStateInternal(target, distance);
             if (state == WalkerState.ARRIVED) {
                 log.info("\n\tArrived directly at target: " + target);
@@ -3855,12 +3847,10 @@ public class Rs2Walker {
                     return walkWithBankingState(comparison.getBankLocation(), missingItemsWithQuantities, target, distance);
                 } else {
                     log.warn("\n\tBanking route requested but no accessible bank found, trying direct route");
-                    setTarget(null); // Clear target to avoid conflicts
                     return walkWithStateInternal(target, distance);
                 }
             } else {
                 log.info("\n\tDirect route is more efficient despite missing items or does not meet min savings, traveling directly");
-                setTarget(null); // Clear target to avoid conflicts
                 return walkWithStateInternal(target, distance);
             }
         }
@@ -3902,7 +3892,6 @@ public class Rs2Walker {
                 return WalkerState.EXIT;
             }
             // Step 1: Walk to bank
-            setTarget(null); // Clear current target to avoid conflicts
             WalkerState bankWalkResult = walkWithStateInternal(bankLocation, distance);
             if (bankWalkResult != WalkerState.ARRIVED) {
                 log.warn("Failed to arrive at bank at: " + bankLocation + ", state: " + bankWalkResult);
@@ -3959,7 +3948,6 @@ public class Rs2Walker {
             ShortestPathPlugin.getPathfinderConfig().refresh(finalTarget);
             // Step 5: Continue to final target
             log.debug("Banking complete, continuing to final target: " + finalTarget);
-            setTarget(null); // Clear current target to avoid conflicts
             return walkWithStateInternal(finalTarget, distance);
 
         } catch (Exception e) {
