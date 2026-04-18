@@ -35,7 +35,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
-class MicrobotHotkeyButton extends JButton
+public class MicrobotHotkeyButton extends JButton
 {
 	@Getter
 	private Keybind value;

@@ -52,6 +52,18 @@ plugins {
 
 }
 
+tasks.register<JavaExec>("run") {
+    group = "application"
+    description = "Run RuneLite client"
+
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("net.runelite.client.RuneLite")
+
+    jvmArgs(
+        "-Dfile.encoding=UTF-8"
+    )
+}
+
 tasks.register<JavaExec>("runDebug") {
     group = "application"
     description = "Run RuneLite client with JDWP debug"

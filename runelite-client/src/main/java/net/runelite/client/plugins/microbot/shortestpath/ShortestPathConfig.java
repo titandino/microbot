@@ -7,6 +7,112 @@ import java.awt.*;
 @ConfigGroup(ShortestPathPlugin.CONFIG_GROUP)
 @ConfigInformation("Press 'CTRL + X' to stop the webwalker automatically.")
 public interface ShortestPathConfig extends Config {
+    /* ------------------------------------------------------------------
+     * Hotkeys — stored as config values but bound/displayed inline on
+     * each side-panel category card (see ShortestPathPanel). Marked
+     * hidden so they don't clutter the settings UI.
+     * ------------------------------------------------------------------ */
+
+    @ConfigItem(
+            keyName = "customLocationToggleHotkey",
+            name = "",
+            description = "",
+            hidden = true
+    )
+    default Keybind customLocationToggleHotkey() {
+        return Keybind.NOT_SET;
+    }
+
+    @ConfigItem(
+            keyName = "bankToggleHotkey",
+            name = "",
+            description = "",
+            hidden = true
+    )
+    default Keybind bankToggleHotkey() {
+        return Keybind.NOT_SET;
+    }
+
+    @ConfigItem(
+            keyName = "nearestBankHotkey",
+            name = "",
+            description = "",
+            hidden = true
+    )
+    default Keybind nearestBankHotkey() {
+        return Keybind.NOT_SET;
+    }
+
+    @ConfigItem(
+            keyName = "depositBoxToggleHotkey",
+            name = "",
+            description = "",
+            hidden = true
+    )
+    default Keybind depositBoxToggleHotkey() {
+        return Keybind.NOT_SET;
+    }
+
+    @ConfigItem(
+            keyName = "nearestDepositBoxHotkey",
+            name = "",
+            description = "",
+            hidden = true
+    )
+    default Keybind nearestDepositBoxHotkey() {
+        return Keybind.NOT_SET;
+    }
+
+    @ConfigItem(
+            keyName = "slayerMasterToggleHotkey",
+            name = "",
+            description = "",
+            hidden = true
+    )
+    default Keybind slayerMasterToggleHotkey() {
+        return Keybind.NOT_SET;
+    }
+
+    @ConfigItem(
+            keyName = "questToggleHotkey",
+            name = "",
+            description = "",
+            hidden = true
+    )
+    default Keybind questToggleHotkey() {
+        return Keybind.NOT_SET;
+    }
+
+    @ConfigItem(
+            keyName = "clueToggleHotkey",
+            name = "",
+            description = "",
+            hidden = true
+    )
+    default Keybind clueToggleHotkey() {
+        return Keybind.NOT_SET;
+    }
+
+    @ConfigItem(
+            keyName = "farmingToggleHotkey",
+            name = "",
+            description = "",
+            hidden = true
+    )
+    default Keybind farmingToggleHotkey() {
+        return Keybind.NOT_SET;
+    }
+
+    @ConfigItem(
+            keyName = "hunterToggleHotkey",
+            name = "",
+            description = "",
+            hidden = true
+    )
+    default Keybind hunterToggleHotkey() {
+        return Keybind.NOT_SET;
+    }
+
     @ConfigSection(
             name = "Settings",
             description = "Options for the pathfinding",
