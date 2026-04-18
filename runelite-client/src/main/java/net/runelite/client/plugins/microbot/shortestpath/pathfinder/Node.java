@@ -4,13 +4,18 @@ import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.plugins.microbot.shortestpath.WorldPointUtil;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
+import java.util.Collections;
 import java.util.List;
 
 public class Node {
     public final int packedPosition;
     public final Node previous;
     public final int cost;
+    public int heuristic;
+
+    public int fCost() {
+        return cost + heuristic;
+    }
 
     public Node(WorldPoint position, Node previous, int wait) {
         this.packedPosition = WorldPointUtil.packWorldPoint(position);
@@ -33,28 +38,21 @@ public class Node {
     }
 
     public List<WorldPoint> getPath() {
-        List<WorldPoint> path = new LinkedList<>();
-        Node node = this;
-
-        while (node != null) {
-            WorldPoint position = WorldPointUtil.unpackWorldPoint(node.packedPosition);
-            path.add(0, position);
-            node = node.previous;
+        List<WorldPoint> path = new ArrayList<>();
+        for (Node n = this; n != null; n = n.previous) {
+            path.add(WorldPointUtil.unpackWorldPoint(n.packedPosition));
         }
-
-        return new ArrayList<>(path);
+        Collections.reverse(path);
+        return path;
     }
 
     public List<Integer> getPathPacked() {
-        List<Integer> path = new LinkedList<>();
-        Node node = this;
-
-        while (node != null) {
-            path.add(0, node.packedPosition);
-            node = node.previous;
+        List<Integer> path = new ArrayList<>();
+        for (Node n = this; n != null; n = n.previous) {
+            path.add(n.packedPosition);
         }
-
-        return new ArrayList<>(path);
+        Collections.reverse(path);
+        return path;
     }
 
     private int cost(Node previous, int wait) {
