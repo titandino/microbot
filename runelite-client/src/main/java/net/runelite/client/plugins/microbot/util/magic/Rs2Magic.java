@@ -480,15 +480,14 @@ public class Rs2Magic {
     }
 
     private static Map<Runes, Integer> addComboRunes(Map<Runes, Integer> runes) {
-        runes.replaceAll((key, value) -> {
-            final Runes[] comboRunes = Runes.getComboRunes(key);
-            if (comboRunes.length == 0) return value;
-
-            final int comboQuantity = Arrays.stream(comboRunes)
-                    .map(rune -> runes.getOrDefault(rune, 0))
-                    .reduce(0, Rs2Magic::limitSum);
-            return limitSum(value, comboQuantity);
+        final Map<Runes, Integer> baseContributions = new HashMap<>();
+        runes.forEach((rune, quantity) -> {
+            for (Runes baseRune : rune.getBaseRunes()) {
+                baseContributions.merge(baseRune, quantity, Rs2Magic::limitSum);
+            }
         });
+        baseContributions.forEach((baseRune, quantity) ->
+                runes.merge(baseRune, quantity, Rs2Magic::limitSum));
         return runes;
     }
 
