@@ -89,6 +89,15 @@ public class QuestScript extends Script {
 
     QuestStep dialogueStartedStep = null;
 
+    /**
+     * Epoch millis at which the post-dialogue cooldown expires. While
+     * {@code System.currentTimeMillis() < dialogueCooldownEndsAt}, the main tick
+     * returns early to avoid re-clicking the quest NPC and interrupting scripted
+     * animations or cutscenes that play between dialogue exchanges. Set on the
+     * transition from in-dialogue to not-in-dialogue; zero means no cooldown.
+     */
+    private long dialogueCooldownEndsAt = 0;
+
 
 
     public boolean run(QuestHelperConfig config, QuestHelperPlugin mQuestPlugin) {
@@ -182,6 +191,9 @@ public class QuestScript extends Script {
                         //if there is no quest option in the dialogue, just click player location to remove
                         // the dialogue to avoid getting stuck in an infinite loop of dialogues
                         if (!hasOption) {
+                            if (Rs2Dialogue.acceptQuestStartDialogue()) {
+                                return;
+                            }
                             if (getQuestHelperPlugin().getSelectedQuest() != null &&
                                     getQuestHelperPlugin().getSelectedQuest().getQuest().getId() == Quest.IMP_CATCHER.getId()
                                     && Microbot.getClient().getTopLevelWorldView().getPlane() == 1) {
@@ -210,7 +222,14 @@ public class QuestScript extends Script {
                         Rs2Keyboard.keyPress(KeyEvent.VK_SPACE);
                         return;
                     } else {
+                        if (dialogueStartedStep != null) {
+                            dialogueCooldownEndsAt = System.currentTimeMillis() + Rs2Random.between(4000, 7000);
+                        }
                         dialogueStartedStep = null;
+                    }
+
+                    if (System.currentTimeMillis() < dialogueCooldownEndsAt) {
+                        return;
                     }
 
                     boolean isInCutscene = Microbot.getVarbitValue(4606) > 0;
