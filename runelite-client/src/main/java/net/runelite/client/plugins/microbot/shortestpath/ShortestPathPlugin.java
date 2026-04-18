@@ -29,6 +29,7 @@ import lombok.Setter;
 import net.runelite.api.Point;
 import net.runelite.api.*;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.api.events.MenuOpened;
@@ -194,6 +195,12 @@ public class ShortestPathPlugin extends Plugin implements KeyListener {
     private static int reachedDistance;
     @Getter(AccessLevel.PACKAGE)
     private ShortestPathScript shortestPathScript;
+
+    // Set by onGameStateChanged when the client transitions to LOGGED_IN. Consumed on the next
+    // game tick so varbits, quest states, inventory, and bank containers are hydrated before
+    // PathfinderConfig#refresh rebuilds the transport availability cache. Without this the
+    // cache holds pre-login state after world-hops or re-logins.
+    volatile boolean pendingLoginRefresh = false;
     @Provides
     public ShortestPathConfig provideConfig(ConfigManager configManager) {
         return configManager.getConfig(ShortestPathConfig.class);
@@ -478,7 +485,27 @@ public class ShortestPathPlugin extends Plugin implements KeyListener {
     }
 
     @Subscribe
+    public void onGameStateChanged(GameStateChanged event) {
+        if (event.getGameState() == GameState.LOGGED_IN) {
+            pendingLoginRefresh = true;
+        }
+    }
+
+    void handlePendingLoginRefresh() {
+        if (pendingLoginRefresh && pathfinderConfig != null) {
+            pendingLoginRefresh = false;
+            try {
+                pathfinderConfig.refresh();
+            } catch (Exception e) {
+                log.warn("[ShortestPath] post-login refresh failed", e);
+            }
+        }
+    }
+
+    @Subscribe
     public void onGameTick(GameTick tick) {
+        handlePendingLoginRefresh();
+
         final WorldPoint myLoc = Rs2Player.getWorldLocation();
         final Pathfinder pathfinder = ShortestPathPlugin.pathfinder;
         if (myLoc == null || pathfinder == null || !pathfinder.isDone()) {
