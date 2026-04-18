@@ -570,10 +570,17 @@ public class PathfinderConfig {
                 && transport.getDisplayInfo() != null
                 && transport.getDisplayInfo().toLowerCase().contains("map of alacrity");
 
+        // Session blacklist: once an MoA destination fails at runtime (locked region or
+        // unrecognised name), don't let the pathfinder keep routing through it.
+        if (traceMoa && Rs2Walker.blacklistedMoaDestinations.contains(
+                WorldPointUtil.packWorldPoint(transport.getDestination()))) {
+            return false;
+        }
+
         // Check if the feature flag is disabled
         if (!isFeatureEnabled(transport)) {
             log.debug("Transport Type {} is disabled by feature flag", transport.getType());
-            if (traceMoa) log.info("[MoA] rejected '{}' — feature flag disabled (useSeasonalTransports={})",
+            if (traceMoa) log.debug("[MoA] rejected '{}' — feature flag disabled (useSeasonalTransports={})",
                     transport.getDisplayInfo(), useSeasonalTransports);
             return false;
         }
@@ -600,7 +607,7 @@ public class PathfinderConfig {
         // If the transport has varbit requirements & the varbits do not match
         if (!varbitChecks(transport)) {
             log.debug("Transport ( O: {} D: {} ) requires varbits {}", transport.getOrigin(), transport.getDestination(), transport.getVarbits());
-            if (traceMoa) log.info("[MoA] rejected '{}' — varbit check failed (varbits={}, LEAGUE_TYPE={})",
+            if (traceMoa) log.debug("[MoA] rejected '{}' — varbit check failed (varbits={}, LEAGUE_TYPE={})",
                     transport.getDisplayInfo(), transport.getVarbits(), Microbot.getVarbitValue(10032));
             return false;
         }
@@ -655,18 +662,15 @@ public class PathfinderConfig {
 
         // Used for Generic Item Requirements
         if (!transport.getItemIdRequirements().isEmpty()) {
-            if (traceMoa) log.info("[MoA] '{}' has itemReq={} — checking hasRequiredItems",
-                    transport.getDisplayInfo(), transport.getItemIdRequirements());
             boolean hasRequiredItems = hasRequiredItems(transport);
             if (!hasRequiredItems) {
                 log.debug("Transport ( O: {} D: {} ) requires items {}", transport.getOrigin(), transport.getDestination(), transport.getItemIdRequirements().stream().flatMap(Set::stream).collect(Collectors.toSet()));
-                if (traceMoa) log.info("[MoA] rejected '{}' — missing required items {}",
+                if (traceMoa) log.debug("[MoA] rejected '{}' — missing required items {}",
                         transport.getDisplayInfo(), transport.getItemIdRequirements());
             }
             return hasRequiredItems;
         }
 
-        if (traceMoa) log.info("[MoA] kept '{}' (no item requirements branch)", transport.getDisplayInfo());
         return true;
     }
 

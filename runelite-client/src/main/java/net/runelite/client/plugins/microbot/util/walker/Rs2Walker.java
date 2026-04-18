@@ -2238,20 +2238,34 @@ public class Rs2Walker {
     }
 
     // Map of Alacrity (League 6 / Demonic Pacts tier 3 relic — teleports to agility shortcuts).
-    // Item not yet in ItemID enum in this fork; widget group 187 is a flat destination picker
-    // (LJ_LAYER1 holds up to 10 visible rows, LJ_SCROLL_BAR paginates the rest).
+    // Item not in ItemID enum yet; widget group 187 is a two-step picker:
+    //   Step 1: click a region (LJ_LAYER1 children 0-9). Locked regions are visible but not
+    //           clickable. After clicking, the same widget repopulates with destinations.
+    //   Step 2: click the destination in the same LJ_LAYER1.
     private static final int MAP_OF_ALACRITY_ITEM_ID = 33233;
     private static final int MAP_OF_ALACRITY_WIDGET_GROUP = 187;
     private static final int MAP_OF_ALACRITY_LIST_CHILD = 3;
 
+    // Session blacklist of MoA destinations whose region or row is locked for this player,
+    // or whose display info doesn't resolve to any widget child. Prevents the pathfinder from
+    // re-picking the same doomed edge every tick.
+    public static final java.util.Set<Integer> blacklistedMoaDestinations =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     private static boolean handleSeasonalTransport(Transport transport) {
         String displayInfo = transport.getDisplayInfo();
-        log.info("[MoA] handleSeasonalTransport entry: displayInfo='{}'", displayInfo);
+        log.info("[MoA] entry: displayInfo='{}'", displayInfo);
         if (displayInfo == null) return false;
 
-        // Only Map of Alacrity is modelled for now; future seasonal relics can branch here.
         if (!displayInfo.toLowerCase().contains("map of alacrity")) {
             log.info("[MoA] not Map of Alacrity, skipping");
+            return false;
+        }
+
+        int packedDest = WorldPointUtil.packWorldPoint(transport.getDestination());
+        if (blacklistedMoaDestinations.contains(packedDest)) {
+            log.debug("[MoA] destination {} previously blacklisted this session — skipping",
+                    transport.getDestination());
             return false;
         }
 
@@ -2260,103 +2274,123 @@ public class Rs2Walker {
             log.info("[MoA] item {} not in inventory — abort", MAP_OF_ALACRITY_ITEM_ID);
             return false;
         }
-        log.info("[MoA] relic found: name='{}' id={} actions={}",
-                relic.getName(), relic.getId(), Arrays.toString(relic.getInventoryActions()));
 
         // Display info format: "Map of Alacrity: <Region> - <Shortcut name>"
-        String destLabel = displayInfo.contains(":")
-                ? displayInfo.split(":", 2)[1].trim()
-                : displayInfo.trim();
-        String shortName = destLabel.contains(" - ")
-                ? destLabel.split(" - ", 2)[1].trim()
-                : destLabel;
-        log.info("[MoA] parsed destLabel='{}' shortName='{}'", destLabel, shortName);
-
-        // "Read" is the relic's right-click action; fall back to any non-generic item action
-        // if the cache version differs.
-        String action = relic.getAction("Read");
-        if (action == null) {
-            action = relic.getActionFromList(Arrays.asList("Read", "Open", "Teleport", "Invoke"));
-        }
-        if (action == null) {
-            log.warn("[MoA] no usable action on relic (tried Read/Open/Teleport/Invoke); available={}",
-                    Arrays.toString(relic.getInventoryActions()));
+        String rest = displayInfo.contains(":") ? displayInfo.split(":", 2)[1].trim() : displayInfo.trim();
+        int dashIdx = rest.indexOf(" - ");
+        if (dashIdx < 0) {
+            log.warn("[MoA] cannot split region/shortcut from '{}'", rest);
             return false;
         }
-        log.info("[MoA] using action='{}'", action);
+        String region = rest.substring(0, dashIdx).trim();
+        String shortName = rest.substring(dashIdx + 3).trim();
+        log.info("[MoA] region='{}' shortName='{}'", region, shortName);
 
+        String action = relic.getAction("Read");
+        if (action == null) action = relic.getActionFromList(Arrays.asList("Read", "Open", "Teleport", "Invoke"));
+        if (action == null) {
+            log.warn("[MoA] no usable action; available={}", Arrays.toString(relic.getInventoryActions()));
+            return false;
+        }
         if (!Rs2Inventory.interact(relic, action)) {
             log.warn("[MoA] Rs2Inventory.interact returned false for action '{}'", action);
             return false;
         }
 
+        // Step 1: wait for the region picker to render, then click the matching region.
         if (!sleepUntil(() -> Rs2Widget.isWidgetVisible(MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD), 3000)) {
-            log.warn("[MoA] widget {}.{} did not become visible within 3s",
-                    MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD);
-            return false;
-        }
-        log.info("[MoA] widget {}.{} opened", MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD);
-
-        Widget listRoot = Rs2Widget.getWidget(MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD);
-        if (listRoot == null) {
-            log.warn("[MoA] getWidget returned null for {}.{}",
-                    MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD);
+            log.warn("[MoA] region widget {}.{} did not open", MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD);
             return false;
         }
 
-        // Dump the first page of destination rows so we can see exactly how the game labels
-        // them — text, name, and actions — when iterating on the match logic.
-        dumpMapOfAlacrityWidget(listRoot);
-
-        // Try "Region - Name" first (most specific), then fall back to just the shortcut name.
-        // searchChildren matches on widget text, name, AND actions, so this is resilient to
-        // the exact in-game label format.
-        Widget match = Rs2Widget.searchChildren(destLabel, listRoot, false);
-        if (match == null && !shortName.equals(destLabel)) {
-            log.info("[MoA] no match for full '{}', falling back to short '{}'", destLabel, shortName);
-            match = Rs2Widget.searchChildren(shortName, listRoot, false);
-        }
-
-        if (match == null) {
-            log.warn("[MoA] no widget child matches destination '{}' (fallback '{}') — check dump above",
-                    destLabel, shortName);
+        Widget regionRoot = Rs2Widget.getWidget(MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD);
+        if (regionRoot == null) {
+            log.warn("[MoA] region widget lookup returned null");
             return false;
         }
-        log.info("[MoA] match found: id={} text='{}' name='{}' actions={}",
-                match.getId(), match.getText(), match.getName(), Arrays.toString(match.getActions()));
+        dumpMapOfAlacrityWidget(regionRoot);
 
-        boolean clicked = Rs2Widget.clickWidget(match);
-        log.info("[MoA] clickWidget returned {} — teleporting to '{}'", clicked, destLabel);
+        Widget regionMatch = Rs2Widget.findWidget(region, java.util.List.of(regionRoot), false);
+        if (regionMatch == null) {
+            log.warn("[MoA] region '{}' not found in picker — check dump", region);
+            return false;
+        }
+        // Locked regions render with <str>...</str> strikethrough markup. Don't waste a click.
+        String regionText = Microbot.getClientThread().runOnClientThreadOptional(regionMatch::getText).orElse("");
+        if (regionText != null && regionText.contains("<str>")) {
+            log.warn("[MoA] region '{}' is locked (text='{}') — blacklisting destination {}",
+                    region, regionText, transport.getDestination());
+            blacklistedMoaDestinations.add(packedDest);
+            return false;
+        }
+        log.info("[MoA] clicking region '{}'", region);
+        if (!Rs2Widget.clickWidget(regionMatch)) {
+            log.warn("[MoA] region click returned false");
+            return false;
+        }
+
+        // Step 2: wait for the destination to appear in the (same) widget. If the region was
+        // locked or otherwise non-clickable, this poll will time out with shortName never
+        // showing, and we return false.
+        Widget destMatch = sleepUntilNotNull(() -> {
+            Widget root = Rs2Widget.getWidget(MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD);
+            if (root == null) return null;
+            return Rs2Widget.findWidget(shortName, java.util.List.of(root), false);
+        }, 3000);
+
+        if (destMatch == null) {
+            log.warn("[MoA] destination '{}' never appeared after clicking region '{}' — name mismatch or locked; blacklisting",
+                    shortName, region);
+            Widget root = Rs2Widget.getWidget(MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD);
+            if (root != null) dumpMapOfAlacrityWidget(root);
+            blacklistedMoaDestinations.add(packedDest);
+            return false;
+        }
+
+        // Individual destinations can also be locked inside an unlocked region.
+        String destText = Microbot.getClientThread().runOnClientThreadOptional(destMatch::getText).orElse("");
+        if (destText != null && destText.contains("<str>")) {
+            log.warn("[MoA] destination '{}' is locked (text='{}') — blacklisting", shortName, destText);
+            blacklistedMoaDestinations.add(packedDest);
+            return false;
+        }
+
+        log.info("[MoA] clicking destination '{}' (text='{}')", shortName, destText);
+        boolean clicked = Rs2Widget.clickWidget(destMatch);
+        log.info("[MoA] destination clickWidget returned {} — teleporting", clicked);
         return clicked;
     }
 
     // Verbose one-shot dump of MoA destination widget children to the log. Helps us figure out
     // the real in-game label format on the first invocation; can be trimmed once execution is
-    // known to work end-to-end.
+    // known to work end-to-end. Widget accessors must run on the client thread.
     private static void dumpMapOfAlacrityWidget(Widget listRoot) {
-        try {
-            Widget[] dyn = listRoot.getDynamicChildren();
-            Widget[] stc = listRoot.getStaticChildren();
-            Widget[] nst = listRoot.getNestedChildren();
-            log.info("[MoA] widget dump: listRoot id={} text='{}' name='{}' dyn={} static={} nested={}",
-                    listRoot.getId(),
-                    listRoot.getText(),
-                    listRoot.getName(),
-                    dyn == null ? "null" : dyn.length,
-                    stc == null ? "null" : stc.length,
-                    nst == null ? "null" : nst.length);
-            Widget[] toDump = dyn != null ? dyn : (stc != null ? stc : nst);
-            if (toDump == null) return;
-            for (int i = 0; i < toDump.length; i++) {
-                Widget c = toDump[i];
-                if (c == null) continue;
-                log.info("[MoA]   child[{}] id={} hidden={} text='{}' name='{}' actions={}",
-                        i, c.getId(), c.isHidden(), c.getText(), c.getName(),
-                        Arrays.toString(c.getActions()));
+        Microbot.getClientThread().runOnClientThreadOptional(() -> {
+            try {
+                Widget[] dyn = listRoot.getDynamicChildren();
+                Widget[] stc = listRoot.getStaticChildren();
+                Widget[] nst = listRoot.getNestedChildren();
+                log.info("[MoA] widget dump: listRoot id={} text='{}' name='{}' dyn={} static={} nested={}",
+                        listRoot.getId(),
+                        listRoot.getText(),
+                        listRoot.getName(),
+                        dyn == null ? "null" : dyn.length,
+                        stc == null ? "null" : stc.length,
+                        nst == null ? "null" : nst.length);
+                Widget[] toDump = dyn != null ? dyn : (stc != null ? stc : nst);
+                if (toDump == null) return true;
+                for (int i = 0; i < toDump.length; i++) {
+                    Widget c = toDump[i];
+                    if (c == null) continue;
+                    log.info("[MoA]   child[{}] id={} hidden={} text='{}' name='{}' actions={}",
+                            i, c.getId(), c.isHidden(), c.getText(), c.getName(),
+                            Arrays.toString(c.getActions()));
+                }
+            } catch (Exception e) {
+                log.warn("[MoA] widget dump threw", e);
             }
-        } catch (Exception e) {
-            log.warn("[MoA] widget dump threw", e);
-        }
+            return true;
+        });
     }
 
     private static boolean handleSpiritTree(Transport transport) {

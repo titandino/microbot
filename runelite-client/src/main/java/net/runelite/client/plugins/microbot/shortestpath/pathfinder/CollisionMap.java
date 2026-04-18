@@ -122,19 +122,43 @@ public class CollisionMap {
 
         Set<Transport> transports = config.getTransportsPacked().getOrDefault(node.packedPosition, Collections.emptySet());
 
+        int moaSeenHere = 0;
+        int moaAddedHere = 0;
+        int moaVisited = 0;
+        int moaIgnored = 0;
+
         // Transports are pre-filtered by PathfinderConfig.refreshTransports
         // Thus any transports in the list are guaranteed to be valid per the user's settings
         for (Transport transport : transports) {
+            boolean isMoa = transport.getType() == TransportType.SEASONAL_TRANSPORT
+                    && transport.getDisplayInfo() != null
+                    && transport.getDisplayInfo().toLowerCase().contains("map of alacrity");
+            if (isMoa) moaSeenHere++;
+
             //START microbot variables
-            if (visited.get(transport.getDestination())) continue;
+            if (visited.get(transport.getDestination())) {
+                if (isMoa) moaVisited++;
+                continue;
+            }
 
             if (TransportType.isTeleport(transport.getType())) {
-                if (config.isIgnoreTeleportAndItems()) continue;
+                if (config.isIgnoreTeleportAndItems()) {
+                    if (isMoa) moaIgnored++;
+                    continue;
+                }
                 neighbors.add(new TransportNode(transport.getDestination(), node, config.getDistanceBeforeUsingTeleport() + transport.getDuration()));
+                if (isMoa) moaAddedHere++;
             } else {
                 neighbors.add(new TransportNode(transport.getDestination(), node, transport.getDuration()));
             }
             //END microbot variables
+        }
+
+        if (moaSeenHere > 0) {
+            log.info("[MoA] getNeighbors @ ({},{},{}): seen={} added={} visited={} ignored={} (distanceBeforeUsingTeleport={}, cost={})",
+                    x, y, z, moaSeenHere, moaAddedHere, moaVisited, moaIgnored,
+                    config.getDistanceBeforeUsingTeleport(),
+                    config.getDistanceBeforeUsingTeleport() + 4);
         }
 
         if (isBlocked(x, y, z)) {
