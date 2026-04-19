@@ -332,12 +332,20 @@ public class PathfinderConfig {
         long useTransportTimeNanos = 0;
         Map<TransportType, int[]> typeStats = new java.util.EnumMap<>(TransportType.class);
 
+        int moaSeen = 0;
+        int moaKept = 0;
+
         for (Map.Entry<WorldPoint, Set<Transport>> entry : mergedList.entrySet()) {
             WorldPoint point = entry.getKey();
             Set<Transport> usableTransports = new HashSet<>(entry.getValue().size());
             for (Transport transport : entry.getValue()) {
                 totalTransports++;
                 updateActionBasedOnQuestState(transport);
+
+                boolean isMoa = transport.getType() == TransportType.SEASONAL_TRANSPORT
+                        && transport.getDisplayInfo() != null
+                        && transport.getDisplayInfo().toLowerCase().contains("map of alacrity");
+                if (isMoa) moaSeen++;
 
                 long t0 = System.nanoTime();
                 boolean usable = useTransport(transport);
@@ -357,6 +365,7 @@ public class PathfinderConfig {
                 } else {
                     usableTransports.add(transport);
                 }
+                if (isMoa) moaKept++;
             }
 
             if (point != null && !usableTransports.isEmpty()) {
@@ -385,6 +394,10 @@ public class PathfinderConfig {
                 .limit(5)
                 .forEach(e -> log.info("[refreshTransports]   {} : count={}, usable={}, time={}ms",
                         e.getKey(), e.getValue()[0], e.getValue()[1], e.getValue()[2] / 1000));
+
+        log.debug("[MoA] refreshTransports: seen={} kept={} (useSeasonalTransports={}, VarbitID.LEAGUE_TYPE={})",
+                moaSeen, moaKept, useSeasonalTransports,
+                Microbot.getVarbitValue(10032));
     }
 
 
@@ -553,9 +566,22 @@ public class PathfinderConfig {
     }
 
     private boolean useTransport(Transport transport) {
+        boolean traceMoa = transport.getType() == TransportType.SEASONAL_TRANSPORT
+                && transport.getDisplayInfo() != null
+                && transport.getDisplayInfo().toLowerCase().contains("map of alacrity");
+
+        // Session blacklist: once an MoA destination fails at runtime (locked region or
+        // unrecognised name), don't let the pathfinder keep routing through it.
+        if (traceMoa && Rs2Walker.blacklistedMoaDestinations.contains(
+                WorldPointUtil.packWorldPoint(transport.getDestination()))) {
+            return false;
+        }
+
         // Check if the feature flag is disabled
         if (!isFeatureEnabled(transport)) {
             log.debug("Transport Type {} is disabled by feature flag", transport.getType());
+            if (traceMoa) log.debug("[MoA] rejected '{}' — feature flag disabled (useSeasonalTransports={})",
+                    transport.getDisplayInfo(), useSeasonalTransports);
             return false;
         }
         // If the transport requires you to be in a members world (used for more granular member requirements)
@@ -581,6 +607,8 @@ public class PathfinderConfig {
         // If the transport has varbit requirements & the varbits do not match
         if (!varbitChecks(transport)) {
             log.debug("Transport ( O: {} D: {} ) requires varbits {}", transport.getOrigin(), transport.getDestination(), transport.getVarbits());
+            if (traceMoa) log.debug("[MoA] rejected '{}' — varbit check failed (varbits={}, LEAGUE_TYPE={})",
+                    transport.getDisplayInfo(), transport.getVarbits(), Microbot.getVarbitValue(10032));
             return false;
         }
 
@@ -637,6 +665,8 @@ public class PathfinderConfig {
             boolean hasRequiredItems = hasRequiredItems(transport);
             if (!hasRequiredItems) {
                 log.debug("Transport ( O: {} D: {} ) requires items {}", transport.getOrigin(), transport.getDestination(), transport.getItemIdRequirements().stream().flatMap(Set::stream).collect(Collectors.toSet()));
+                if (traceMoa) log.debug("[MoA] rejected '{}' — missing required items {}",
+                        transport.getDisplayInfo(), transport.getItemIdRequirements());
             }
             return hasRequiredItems;
         }
