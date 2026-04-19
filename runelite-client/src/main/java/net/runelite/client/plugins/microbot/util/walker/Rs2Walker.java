@@ -57,6 +57,8 @@ import java.util.*;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -2335,7 +2337,7 @@ public class Rs2Walker {
         Widget destMatch = sleepUntilNotNull(() -> {
             Widget root = Rs2Widget.getWidget(MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD);
             if (root == null) return null;
-            return Rs2Widget.findWidget(shortName, java.util.List.of(root), false);
+            return findMoaDestinationWidget(root, shortName);
         }, 3000);
 
         if (destMatch == null) {
@@ -2355,10 +2357,98 @@ public class Rs2Walker {
             return false;
         }
 
-        log.info("[MoA] clicking destination '{}' (text='{}')", shortName, destText);
-        boolean clicked = Rs2Widget.clickWidget(destMatch);
-        log.debug("[MoA] destination clickWidget returned {} — teleporting", clicked);
-        return clicked;
+        // Select via the row's in-game hotkey (1-9 then A-Z). Keybinds work even when the row
+        // is scrolled off-screen, which clickWidget cannot handle.
+        log.info("[MoA] selecting destination '{}' (text='{}')", shortName, destText);
+        Character hotkey = extractMoaHotkey(destText);
+        if (hotkey == null) hotkey = computeMoaHotkeyByIndex(destMatch);
+        if (hotkey != null) {
+            Rs2Keyboard.keyPress(hotkey);
+            log.debug("[MoA] pressed hotkey '{}' for '{}'", hotkey, shortName);
+            return true;
+        }
+
+        log.warn("[MoA] no hotkey resolved for '{}' — falling back to clickWidget", shortName);
+        return Rs2Widget.clickWidget(destMatch);
+    }
+
+    // Matches the OSRS menu-row hotkey prefix, e.g. "[1] ..." or "1: ..." or "A. ...".
+    private static final Pattern MOA_HOTKEY_PATTERN =
+            Pattern.compile("^\\s*(?:\\[([0-9A-Za-z])\\]|([0-9A-Za-z])\\s*[:.])");
+
+    // Token-contains match tolerant of punctuation, <col=..>/<str> markup, and case. Fixes
+    // the colon mismatch between TSV short names (e.g. "Chaos Temple Stepping Stone") and
+    // in-game labels ("Chaos Temple: Stepping Stone") without per-row data curation.
+    private static Widget findMoaDestinationWidget(Widget root, String shortName) {
+        String normalised = normaliseMoaText(shortName);
+        if (normalised.isEmpty()) return null;
+        String[] tokens = normalised.split(" ");
+        return Microbot.getClientThread().runOnClientThreadOptional(() -> {
+            for (Widget w : collectMoaChildren(root)) {
+                String hay = normaliseMoaText(w.getText());
+                if (hay.isEmpty()) continue;
+                boolean all = true;
+                for (String t : tokens) {
+                    if (t.isEmpty()) continue;
+                    if (!hay.contains(t)) { all = false; break; }
+                }
+                if (all) return w;
+            }
+            return null;
+        }).orElse(null);
+    }
+
+    private static java.util.List<Widget> collectMoaChildren(Widget root) {
+        java.util.List<Widget> out = new java.util.ArrayList<>();
+        Widget[][] groups = { root.getDynamicChildren(), root.getNestedChildren(), root.getStaticChildren() };
+        for (Widget[] g : groups) {
+            if (g == null) continue;
+            for (Widget w : g) if (w != null) out.add(w);
+        }
+        return out;
+    }
+
+    private static String normaliseMoaText(String s) {
+        if (s == null) return "";
+        s = s.replaceAll("<[^>]+>", " ");       // strip <col=..>, <str>, <br>
+        s = s.replaceAll("[^a-zA-Z0-9 ]", " "); // strip punctuation
+        return s.toLowerCase().replaceAll("\\s+", " ").trim();
+    }
+
+    private static Character extractMoaHotkey(String rawText) {
+        if (rawText == null) return null;
+        String stripped = rawText.replaceAll("<[^>]+>", "").trim();
+        Matcher m = MOA_HOTKEY_PATTERN.matcher(stripped);
+        if (!m.find()) return null;
+        String g = m.group(1) != null ? m.group(1) : m.group(2);
+        if (g == null || g.isEmpty()) return null;
+        char c = g.charAt(0);
+        return Character.isLetter(c) ? Character.toUpperCase(c) : c;
+    }
+
+    // Fallback when the row text has no bracketed/colon-prefixed key we can parse.
+    // OSRS numbers unlocked rows 1-9 then A-Z; locked (<str>) rows are skipped.
+    private static Character computeMoaHotkeyByIndex(Widget destMatch) {
+        return Microbot.getClientThread().runOnClientThreadOptional(() -> {
+            Widget root = Rs2Widget.getWidget(MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD);
+            if (root == null) return null;
+            int idx = 0;
+            for (Widget sibling : collectMoaChildren(root)) {
+                String t = sibling.getText();
+                if (t == null || t.isEmpty()) continue;
+                if (t.contains("<str>")) continue;
+                if (sibling == destMatch) return indexToHotkey(idx);
+                idx++;
+            }
+            return null;
+        }).orElse(null);
+    }
+
+    private static Character indexToHotkey(int i) {
+        if (i < 9) return (char) ('1' + i);
+        int letter = i - 9;
+        if (letter >= 26) return null;
+        return (char) ('A' + letter);
     }
 
     // Verbose one-shot dump of MoA destination widget children to the log. Helps us figure out
