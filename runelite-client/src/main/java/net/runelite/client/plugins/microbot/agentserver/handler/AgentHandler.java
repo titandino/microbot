@@ -39,14 +39,18 @@ public abstract class AgentHandler implements HttpHandler {
 
 	@Override
 	public void handle(HttpExchange exchange) throws IOException {
+		// Indistinguishable-from-generic 404 for every pre-auth failure: cross-origin,
+		// non-loopback Host, missing/wrong token. Scanners probing /varp or /scripts/deploy
+		// get the same response as /anything-not-here, so endpoint shape cannot be
+		// fingerprinted without the token.
 		if (exchange.getRequestHeaders().getFirst("Origin") != null) {
-			sendJson(exchange, 403, errorResponse("Cross-origin requests are not permitted"));
+			sendOpaqueNotFound(exchange);
 			return;
 		}
 
 		String host = exchange.getRequestHeaders().getFirst("Host");
 		if (host == null || !isLoopbackHost(host)) {
-			sendJson(exchange, 403, errorResponse("Invalid Host header"));
+			sendOpaqueNotFound(exchange);
 			return;
 		}
 
@@ -54,9 +58,7 @@ public abstract class AgentHandler implements HttpHandler {
 		if (expected != null && !expected.isEmpty()) {
 			String provided = exchange.getRequestHeaders().getFirst(AUTH_HEADER);
 			if (provided == null || !constantTimeEquals(expected, provided)) {
-				Map<String, Object> err = errorResponse("auth");
-				err.put("hint", "set " + AUTH_HEADER + " header; token is in the Agent Server plugin config or ~/.runelite/.agent-token");
-				sendJson(exchange, 401, err);
+				sendOpaqueNotFound(exchange);
 				return;
 			}
 		}
@@ -104,7 +106,7 @@ public abstract class AgentHandler implements HttpHandler {
 		return diff == 0;
 	}
 
-	protected static boolean isClientDisconnect(Throwable t) {
+	public static boolean isClientDisconnect(Throwable t) {
 		while (t != null) {
 			if (t instanceof java.io.IOException) {
 				String msg = t.getMessage();
@@ -140,6 +142,18 @@ public abstract class AgentHandler implements HttpHandler {
 		byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
 		exchange.getResponseHeaders().set("Content-Type", "application/json");
 		exchange.sendResponseHeaders(statusCode, bytes.length);
+		try (OutputStream os = exchange.getResponseBody()) {
+			os.write(bytes);
+		}
+	}
+
+	// Generic response used for any pre-auth failure: the wire shape must not differ
+	// from a genuinely absent endpoint, so keep the body and headers minimal and
+	// constant. Any variation here re-opens the endpoint-discovery leak this replaced.
+	protected void sendOpaqueNotFound(HttpExchange exchange) throws IOException {
+		byte[] bytes = "Not Found".getBytes(StandardCharsets.UTF_8);
+		exchange.getResponseHeaders().set("Content-Type", "text/plain; charset=utf-8");
+		exchange.sendResponseHeaders(404, bytes.length);
 		try (OutputStream os = exchange.getResponseBody()) {
 			os.write(bytes);
 		}

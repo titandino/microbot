@@ -93,7 +93,8 @@ public class VarpHandlerTest {
 				.GET()
 				.build();
 		java.net.http.HttpResponse<String> resp = hc.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
-		assertEquals(403, resp.statusCode());
+		// Opaque 404 for all pre-auth failures — scanners must not distinguish a real endpoint.
+		assertEquals(404, resp.statusCode());
 	}
 
 	@Test

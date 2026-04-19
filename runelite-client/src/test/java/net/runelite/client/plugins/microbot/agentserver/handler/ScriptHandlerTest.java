@@ -73,6 +73,8 @@ public class ScriptHandlerTest {
 
 	@Test
 	public void testRejectsCrossOriginRequests() throws IOException, InterruptedException {
+		// Pre-auth failure surface is indistinguishable from a generic 404 so that
+		// scanners cannot fingerprint the agent server from an unauthenticated probe.
 		HttpClient client = HttpClient.newHttpClient();
 		HttpRequest req = HttpRequest.newBuilder()
 				.uri(URI.create("http://127.0.0.1:" + port + "/scripts"))
@@ -80,7 +82,7 @@ public class ScriptHandlerTest {
 				.GET()
 				.build();
 		HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
-		assertEquals(403, resp.statusCode());
+		assertEquals(404, resp.statusCode());
 		assertTrue("CORS wildcard must not be emitted",
 				resp.headers().firstValue("Access-Control-Allow-Origin").isEmpty());
 	}
@@ -95,7 +97,7 @@ public class ScriptHandlerTest {
 			String statusLine = new java.io.BufferedReader(
 					new java.io.InputStreamReader(sock.getInputStream(), StandardCharsets.UTF_8)).readLine();
 			assertNotNull(statusLine);
-			assertTrue("expected 403 status, got: " + statusLine, statusLine.startsWith("HTTP/1.1 403"));
+			assertTrue("expected 404 status, got: " + statusLine, statusLine.startsWith("HTTP/1.1 404"));
 		}
 	}
 
@@ -105,7 +107,7 @@ public class ScriptHandlerTest {
 		try {
 			HttpURLConnection conn = openConnection("/scripts");
 			conn.setRequestMethod("GET");
-			assertEquals(401, conn.getResponseCode());
+			assertEquals(404, conn.getResponseCode());
 		} finally {
 			AgentHandler.setTokenSupplier(null);
 		}

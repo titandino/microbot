@@ -53,4 +53,26 @@ public interface AgentServerConfig extends Config {
 			description = ""
 	)
 	void authToken(String token);
+
+	@ConfigItem(
+			keyName = "bindOnlyWhileScriptsActive",
+			name = "Stealth bind",
+			description = "Only open the listening socket while a Microbot script is actively running. Eliminates the localhost port fingerprint during manual play.",
+			position = 3
+	)
+	default boolean bindOnlyWhileScriptsActive() {
+		return false;
+	}
+
+	enum BindMode { TCP, UDS }
+
+	@ConfigItem(
+			keyName = "bindMode",
+			name = "Bind mode",
+			description = "TCP: classic 127.0.0.1:<port>. UDS: Unix domain socket at ~/.runelite/.agent.sock — invisible to port scanners but clients must speak UDS.",
+			position = 4
+	)
+	default BindMode bindMode() {
+		return BindMode.TCP;
+	}
 }
