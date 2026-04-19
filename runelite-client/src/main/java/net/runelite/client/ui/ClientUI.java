@@ -182,7 +182,7 @@ public class ClientUI
 		EventBus eventBus,
 		@Named("safeMode") boolean safeMode,
 		@Named("runelite.title") String title,
-		@Named("microbot.version") String version
+		@Named("runelite.build.version") String version
 	)
 	{
 		this.config = config;
@@ -192,7 +192,7 @@ public class ClientUI
 		this.clientThreadProvider = clientThreadProvider;
 		this.eventBus = eventBus;
 		this.safeMode = safeMode;
-		this.title = title + (safeMode ? " (safe mode)" : " V" + version) + " " + proxyMessage;
+		this.title = title + (safeMode ? " (safe mode)" : " " + version) + " " + proxyMessage;
 
 		normalBoundsTimer = new Timer(250, _ev -> setLastNormalBounds());
 		normalBoundsTimer.setRepeats(false);

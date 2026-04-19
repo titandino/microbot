@@ -141,7 +141,7 @@ public class SplashScreen extends JFrame implements ActionListener {
     private SplashScreen() {
         BufferedImage logo = ImageUtil.loadImageResource(SplashScreen.class, "microbot_splash.png");
 
-        setTitle("Microbot");
+        setTitle("RuneLite");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setUndecorated(true);
         setIconImages(Arrays.asList(ClientUI.ICON_128, ClientUI.ICON_16));
