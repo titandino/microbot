@@ -6,10 +6,22 @@ PORT="${MICROBOT_PORT:-8081}"
 BASE="http://${HOST}:${PORT}"
 TIMEOUT="${MICROBOT_TIMEOUT:-30}"
 
-TOKEN_FILE="${MICROBOT_TOKEN_FILE:-${HOME}/.microbot/agent-token}"
+TOKEN_FILE="${MICROBOT_TOKEN_FILE:-${HOME}/.runelite/.agent-token}"
+LEGACY_TOKEN_FILES=(
+    "${HOME}/.runelite/microbot/agent-token"
+    "${HOME}/.microbot/agent-token"
+)
 AGENT_TOKEN="${MICROBOT_TOKEN:-}"
 if [[ -z "$AGENT_TOKEN" ]] && [[ -r "$TOKEN_FILE" ]]; then
     AGENT_TOKEN="$(tr -d '\r\n' < "$TOKEN_FILE" 2>/dev/null || true)"
+fi
+if [[ -z "$AGENT_TOKEN" ]]; then
+    for legacy in "${LEGACY_TOKEN_FILES[@]}"; do
+        if [[ -r "$legacy" ]]; then
+            AGENT_TOKEN="$(tr -d '\r\n' < "$legacy" 2>/dev/null || true)"
+            [[ -n "$AGENT_TOKEN" ]] && break
+        fi
+    done
 fi
 
 AUTH_HEADER_ARGS=()

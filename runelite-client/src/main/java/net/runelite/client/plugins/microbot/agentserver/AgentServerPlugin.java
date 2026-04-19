@@ -64,7 +64,7 @@ public class AgentServerPlugin extends Plugin {
 
 	@Override
 	protected void startUp() throws Exception {
-		int port = config.port();
+		int port = ensurePort();
 		int maxResults = config.maxResults();
 
 		stopServer();
@@ -149,6 +149,22 @@ public class AgentServerPlugin extends Plugin {
 		writeTokenFile(value);
 	}
 
+	private int ensurePort() {
+		String stored = configManager.getConfiguration(AgentServerConfig.GROUP, AgentServerConfig.KEY_PORT);
+		if (stored != null && !stored.isEmpty()) {
+			try {
+				return Integer.parseInt(stored);
+			} catch (NumberFormatException ignored) {
+			}
+		}
+		int span = AgentServerConfig.PORT_RANDOM_MAX - AgentServerConfig.PORT_RANDOM_MIN + 1;
+		int generated = AgentServerConfig.PORT_RANDOM_MIN
+				+ java.util.concurrent.ThreadLocalRandom.current().nextInt(span);
+		configManager.setConfiguration(AgentServerConfig.GROUP, AgentServerConfig.KEY_PORT, Integer.toString(generated));
+		log.info("Agent server port assigned at random for this install: {}", generated);
+		return generated;
+	}
+
 	private String ensureAuthToken() {
 		String existing = configManager.getConfiguration(AgentServerConfig.GROUP, AgentServerConfig.KEY_TOKEN);
 		if (existing != null && !existing.isEmpty()) {
@@ -161,9 +177,10 @@ public class AgentServerPlugin extends Plugin {
 
 	private Path writeTokenFile(String token) {
 		try {
-			Path dir = Paths.get(System.getProperty("user.home"), ".microbot");
+			cleanupLegacyTokenLocations();
+			Path dir = Paths.get(System.getProperty("user.home"), ".runelite");
 			Files.createDirectories(dir);
-			Path file = dir.resolve("agent-token");
+			Path file = dir.resolve(".agent-token");
 
 			boolean posix = java.nio.file.FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
 
@@ -217,10 +234,40 @@ public class AgentServerPlugin extends Plugin {
 
 	private void deleteTokenFile() {
 		try {
-			Path file = Paths.get(System.getProperty("user.home"), ".microbot", "agent-token");
+			Path file = Paths.get(System.getProperty("user.home"), ".runelite", ".agent-token");
 			Files.deleteIfExists(file);
 		} catch (IOException e) {
 			log.debug("Could not delete agent token file: {}", e.getMessage());
+		}
+		cleanupLegacyTokenLocations();
+	}
+
+	private void cleanupLegacyTokenLocations() {
+		Path home = Paths.get(System.getProperty("user.home"));
+
+		Path oldDotMicrobot = home.resolve(".microbot");
+		try {
+			Files.deleteIfExists(oldDotMicrobot.resolve("agent-token"));
+		} catch (IOException ignored) {
+		}
+		pruneEmptyDir(oldDotMicrobot);
+
+		Path runeliteMicrobot = home.resolve(".runelite").resolve("microbot");
+		try {
+			Files.deleteIfExists(runeliteMicrobot.resolve("agent-token"));
+		} catch (IOException ignored) {
+		}
+		pruneEmptyDir(runeliteMicrobot);
+	}
+
+	private void pruneEmptyDir(Path dir) {
+		try (java.util.stream.Stream<Path> entries = Files.list(dir)) {
+			if (entries.findAny().isEmpty()) {
+				Files.deleteIfExists(dir);
+			}
+		} catch (java.nio.file.NoSuchFileException ignored) {
+		} catch (IOException e) {
+			log.debug("Could not remove empty dir {}: {}", dir, e.getMessage());
 		}
 	}
 

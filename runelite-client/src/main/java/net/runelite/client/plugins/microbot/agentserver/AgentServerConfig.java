@@ -10,6 +10,9 @@ public interface AgentServerConfig extends Config {
 
 	String GROUP = "agentServer";
 	String KEY_TOKEN = "authToken";
+	String KEY_PORT = "port";
+	int PORT_RANDOM_MIN = 49152;
+	int PORT_RANDOM_MAX = 65535;
 
 	@ConfigItem(
 			keyName = "port",

@@ -55,7 +55,7 @@ public abstract class AgentHandler implements HttpHandler {
 			String provided = exchange.getRequestHeaders().getFirst(AUTH_HEADER);
 			if (provided == null || !constantTimeEquals(expected, provided)) {
 				Map<String, Object> err = errorResponse("auth");
-				err.put("hint", "set " + AUTH_HEADER + " header; token is in the Agent Server plugin config or ~/.microbot/agent-token");
+				err.put("hint", "set " + AUTH_HEADER + " header; token is in the Agent Server plugin config or ~/.runelite/.agent-token");
 				sendJson(exchange, 401, err);
 				return;
 			}
