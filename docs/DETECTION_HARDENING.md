@@ -163,8 +163,8 @@ P6-b. **Random-event / trade / mod-mute handlers.** Register listeners that paus
 P6-c. **Auto-login backoff.** Replace the 600 ms retry with exponential backoff (5 s → 15 s → 60 s → 5 min) plus jitter, and require a minimum 5-second idle between disconnect detection and the first retry.
 — addresses **B6**.
 
-P6-d. **Optional chat trickle.** Opt-in emote / occasional-reply feature so long-running accounts produce *some* outbound chat. Off by default; users turn it on if they care about the signal.
-— addresses **B7**.
+P6-d. ~~**Optional chat trickle.** Opt-in emote / occasional-reply feature so long-running accounts produce *some* outbound chat. Off by default; users turn it on if they care about the signal.~~ **Removed.** Timer-based chat unrelated to gameplay context is itself a detection signal; the mitigation was judged worse than the B7 signal it targeted.
+— B7 remains an account-management problem.
 
 ### Phase 7 — runtime surface (lower priority)
 
@@ -208,47 +208,47 @@ Status against the remediation plan in section 3. Each item links to the commit 
 | P2-a | S4 make calls configurable / disableable | ✅ | `feat(microbot): disableTelemetry toggle + per-install identity seed, gate microbot.cloud calls` |
 | P2-b | S4 drop periodic 10-min version-check heartbeat | ✅ | (same commit) |
 
-### Phase 3 — agent server surface reduction 🟡 partial
+### Phase 3 — agent server surface reduction ✅ complete
 
 | Item | Finding | Status | Commit |
 |---|---|---|---|
 | P3-a | S5 randomize default port per install | ✅ | `feat(agentserver): flatten token to ~/.runelite/.agent-token, randomize default port` |
-| P3-b | S5 bind only while scripts run / UDS option | ⏳ deferred | — |
-| P3-c | S5 token-gated endpoint discovery | ⏳ deferred | — |
+| P3-b | S5 bind only while scripts run / UDS option | ✅ two complementary mitigations. (i) Opt-in "Stealth bind" mode: server starts only when a script is actively running (ScriptHeartbeatRegistry) and tears down after 20s idle. (ii) Opt-in UDS bind mode: new `UdsHttpServer` / `UdsHttpExchange` / `UdsHttp1Parser` under `agentserver/uds/` bind a Unix domain socket at `~/.runelite/.agent.sock` instead of TCP. Socket permissions set to 0600; parent directory locked to owner-only (chmod 0700 on POSIX, single allow-owner ACL entry on Windows/NTFS); stale-socket cleanup on startup; path-length validation per-OS. UDS types reached reflectively so the compile target stays at Java 11. Handlers are untouched — `UdsHttpExchange extends HttpExchange`. | (this commit) |
+| P3-c | S5 token-gated endpoint discovery | ✅ every pre-auth failure now returns an opaque 404 with a plain-text "Not Found" body. Matches the JDK HttpServer's default for unbound paths, so scanners can't distinguish `/varp` from `/does-not-exist` without the token. | (this commit) |
 
-### Phase 4 — input-layer humanisation 🟡 partial
+### Phase 4 — input-layer humanisation ✅ complete
 
 | Item | Finding | Status | Commit |
 |---|---|---|---|
 | P4-a | I1 real mouse trajectory on every `MenuOptionClicked` | ✅ ungated motion in `VirtualMouse.click` / `drag` (was gated off by `Rs2AntibanSettings.naturalMouse=false` default); removed the same-pixel early-return in `Rs2UiHelper.getClickingPoint` so back-to-back clicks on the same rect always re-randomise; unconditionalised the post-click compensating sleeps in `Rs2Inventory` (4 sites) and `Rs2GrandExchange` (3 sites) so they survive the default flip; flipped `Rs2AntibanSettings.naturalMouse` default to `true`. The flag now only toggles click-point anchoring strategy (mouse-pos vs last-click) and a few hover-gate methods in `Rs2Npc` / `Rs2Bank` / `Rs2Inventory` / `Rs2GameObject` / `Rs2Tile`, which now work by default | `feat(mouse): ungate natural-mouse trajectory from Rs2AntibanSettings gate`; `fix(ui): always randomise click point — drop same-pixel early-return in Rs2UiHelper.getClickingPoint`; `refactor(inventory,ge): unconditionalise post-click settle sleeps, flip naturalMouse default on` |
-| P4-b | T3/I6/I8 log-normal reaction-time primitive | ✅ primitive shipped (callers TODO) | `feat(random): log-normal reaction-time primitive` |
+| P4-b | T3/I6/I8 log-normal reaction-time primitive | ✅ callers migrated: added `Rs2Random.logNormalBounded(min,max)` and routed the uniform-ranged sites in `Rs2Keyboard` (inter-event gaps), `VirtualMouse` (scroll + drag button pauses), and `Microbot.click`/`drag` (post-click settle) through it; `Rs2Random.reactionTime()` now applies `SessionFatigue.applyTo(...)` transparently. | (this commit) |
 | P4-c | I2 randomise click-point force | ✅ | `feat(ui): per-session randomized click-point force` |
-| P4-d | I5 smooth camera rotation | ⏳ deferred | — |
+| P4-d | I5 smooth camera rotation | ✅ `Rs2Camera.setPitch`/`setYaw` interpolate target over 220–780ms in 10 ease-in-out steps; direct one-shot setters retained as `setPitchInstant`/`setYawInstant` for callers that need them. | (this commit) |
 
-### Phase 5 — temporal de-quantisation 🟡 partial
+### Phase 5 — temporal de-quantisation ✅ complete
 
 | Item | Finding | Status | Commit |
 |---|---|---|---|
 | P5-a | T1 jitter the `sleepUntil` poll | ✅ | `feat(global): log-normal sleepUntil jitter + jittered tick-wait helper` |
 | P5-b | T2 un-align tick waits | ✅ | `feat(walker): per-account bimodal stamina threshold + jittered tick-waits` |
 | P5-c | T4 de-periodicise antiban (sine → OU) | ✅ | `refactor(antiban): remove sun.misc.Unsafe, replace sine evolve with Ornstein-Uhlenbeck, add SessionFatigue primitive` |
-| P5-d | T5 session fatigue | ✅ primitive shipped (callers TODO) | (same commit) |
+| P5-d | T5 session fatigue | ✅ callers wired: added `Global.sleepFatigued`, `Global.sleepGaussianFatigued`, `Global.sleepTickJitterFatigued`; `Script.run()` starts the session on first logged-in heartbeat and `BreakHandlerV2Script` ends it on every transition into `LOGGED_OUT` so fatigue resets after breaks. | (this commit) |
 
-### Phase 6 — behavioural coverage 🟡 partial
+### Phase 6 — behavioural coverage ✅ complete
 
 | Item | Finding | Status | Commit |
 |---|---|---|---|
 | P6-a | B1 per-account stamina threshold | ✅ | `feat(walker): per-account bimodal stamina threshold + jittered tick-waits` |
-| P6-b | B2 random-event / trade / mod-mute handlers | ⏳ deferred | — |
+| P6-b | B2 random-event / trade / mod-mute handlers | ✅ three new `BlockingEvent`s pre-registered in `BlockingEventManager`: `TradeRequestEvent` (pauses 10–40s on TRADEREQ), `ModeratorMessageEvent` (HIGHEST priority, 30–120s pause on MODCHAT/MODPRIVATECHAT), `RandomEventNpcEvent` (10–30s pause when a random-event NPC is interacting — deliberately no auto-dismiss). Backed by `ChatEventMonitor` on the event bus. | (this commit) |
 | P6-c | B6 auto-login backoff | ✅ | `feat(autologin): exponential retry backoff between login attempts` |
-| P6-d | B7 optional chat trickle | ⏳ deferred | — |
+| P6-d | B7 optional chat trickle | 🗑️ Reverted. `ChatTricklePlugin` was shipped then removed — timer-based out-of-context chat was judged to introduce a worse signal than the zero-chat-volume one it targeted. B7 is now classified as account-management. | (rollback) |
 
-### Phase 7 — runtime surface 🟡 partial
+### Phase 7 — runtime surface ✅ complete
 
 | Item | Finding | Status | Commit |
 |---|---|---|---|
 | P7-a | R1 replace `sun.misc.Unsafe` | ✅ (deleted — was dead code) | `refactor(antiban): remove sun.misc.Unsafe, replace sine evolve with Ornstein-Uhlenbeck, add SessionFatigue primitive` |
-| P7-b | R3 move runtime ASM to build-time | ⏳ deferred | — |
+| P7-b | R3 move runtime ASM to build-time | ✅ four-stage fix, fully committed. (i) Localised: all `org.objectweb.asm.*` imports moved into `MenuActionAsmResolver`; `Rs2Reflection.class` carries no ASM strings in its constant pool. (ii) Persistent install-level cache via `MenuActionInfoCache` at `~/.runelite/.menu-action-info.properties` — after first successful scan the resolution is pinned; subsequent startups resolve via plain reflection without touching `MenuActionAsmResolver`. (iii) Classpath pre-seed path: `MenuActionInfoCache.load()` consults a bundled resource `menu-action-info.properties` under the package. (iv) Build-time generator: `MenuActionResourceSeeder` + the `:client:seedMenuActionInfo` Gradle task produce the pre-seed by scanning the injected-client jar at build time (the jar ships with RuneLite mixins already applied, so the wrapper method is present at compile time). A pre-seed file generated against the pinned injected-client is committed with this change, so even a fresh install skips ASM load on first launch. Regenerate via `:client:seedMenuActionInfo` whenever the injected-client version bumps. | (this commit) |
 | P7-c | R2 rename `MicrobotPluginClassLoader` | ✅ | `refactor(externalplugins): rename MicrobotPluginClassLoader to PluginJarClassLoader` |
 
 ### Regression guards added
@@ -256,7 +256,8 @@ Status against the remediation plan in section 3. Each item links to the commit 
 - `MouseSourceTest` — ASM constant-pool scan asserts no `"Microbot"` string literal in `VirtualMouse.class` / `Mouse.class`; asserts `Mouse.VIRTUAL_SOURCE` is gone; stretched-mode translator end-to-end.
 - `GlobalPollIntervalTest` — bounds, spread, median not on 100 ms, tick-jitter breaks the 600 ms grid.
 - `Rs2WalkerStaminaTest` — range, determinism, case-insensitivity, install-seed scatter, bimodality, null-fallback.
-- `Rs2RandomReactionTimeTest` — bounds, ~260 ms median, right-skew, target-median tracking.
+- `Rs2RandomReactionTimeTest` — bounds, ~260 ms median, right-skew, target-median tracking, inactive-session median preservation.
+- `Rs2RandomLogNormalBoundedTest` — bounds, geometric-mean median, right-skew, degenerate/swapped-bound handling.
 - `Rs2UiHelperClickForceTest` — range, session stability, explicit non-equality with legacy 0.78.
 - `VirtualMouseUngatedMotionTest` — bytecode scan asserts `VirtualMouse.class` has no `GETSTATIC` of `Rs2AntibanSettings.naturalMouse`; reflective check that the flag defaults to `true`.
 - `Rs2UiHelperClickPointJitterTest` — asserts `Rs2Random.randomPointEx` still produces variance with an in-rect anchor, and bytecode scan asserts `Rs2UiHelper.getClickingPoint` no longer calls `isMouseWithinRectangle` (i.e. the same-pixel early-return is gone).
@@ -264,13 +265,118 @@ Status against the remediation plan in section 3. Each item links to the commit 
 - `UnsafeUsageGuardTest` — filesystem scan: no `sun.misc.Unsafe` import anywhere under `plugins/microbot/`.
 - `PlayStyleOrnsteinUhlenbeckTest` — stationarity, mean-reversion, strict positivity, autocorrelation (no fixed period).
 - `SessionFatigueTest` — inactive baseline, linear growth to cap, reset.
+- `SessionFatigueWiringTest` — start/end lifecycle idempotency and applyTo identity-on-zero.
+- `Rs2CameraSmoothingTest` — `setPitch`/`setYaw` no longer directly call `setCameraPitchTarget`/`setCameraYawTarget`, instant-helper escape hatches exist, smoothing duration/step counts satisfy minimum thresholds.
+- `ChatEventMonitorTest` — TRADEREQ matches only messages with "wishes to trade", MODCHAT and MODPRIVATECHAT both stamp the mod timestamp, unrelated chat types do not fire, `acknowledge*` clears freshness.
+- `AgentHandlerAuthOpacityTest` — every pre-auth failure (missing token, wrong token, cross-origin header, spoofed Host header) returns a body- and status-identical 404 to an unbound-path probe; correct token passes through.
+- `Rs2ReflectionAsmIsolationTest` — constant-pool scan asserts `Rs2Reflection.class` contains no `org.objectweb.asm.*` strings, and a companion sanity check that `MenuActionAsmResolver.class` still does (so the test isn't vacuous).
+- `MenuActionInfoCacheTest` — round-trips the install-level cache and pins the bust conditions: missing fields, malformed props, bogus owner class, dropped method, descriptor drift. Also asserts the supported integral garbage-value kinds (Byte/Short/Integer/Long) serialize and deserialize losslessly.
+- `UdsHttpServerTest` — end-to-end HTTP/1.1 over a real UNIX socket on Java 16+ (skipped below). Unknown-path 404, JSON ping round-trip, opaque-auth enforcement in both directions, malformed-request 400, path-length validator rejection.
+- `UdsParentDirLockdownTest` — POSIX assertion that the socket's parent directory is locked to 0700 (owner-only traversal) after `start()`, including creation of missing parents. Guards against a regression where others-traversal would let a second local account connect to the socket regardless of the socket file's own mode.
+- `MenuActionInfoCacheTest#bundledLoaderResolvesAgainstTheShippedClientJar` — asserts the shipped pre-seed resolves to a real `Method` at test time. If the resource stops shipping, or drifts from the injected-client jar, this test flips red and the fix is `:client:seedMenuActionInfo`.
 
-### Remaining deferred work, in order of recommended priority
+### Remaining follow-ups
 
-1. **Migrate callers** to `Rs2Random.reactionTime()` and `SessionFatigue.applyTo(...)`. The primitives are in place but nothing routes through them yet.
-2. **P6-b** — blocking-event listeners for trade requests, random events, moderator messages.
-3. **P3-b / P3-c** — agent-server UNIX-socket mode and stronger endpoint gating.
-4. **P4-d** — camera smoothing.
-5. **P5-d wiring** — introduce fatigue-adjusted sleep helpers alongside `sleep`/`sleepGaussian`.
-6. **P6-d** — opt-in chat trickle.
-7. **P7-b** — move runtime ASM (`Rs2Reflection`) to build-time code generation.
+The original plan (phases 1–7) is fully addressed and every mitigation is shipped, tested, and committed. Only one operational reminder remains:
+
+- **Regenerate the pre-seed on injected-client bumps.** The bundled `menu-action-info.properties` is tied to the obfuscator seed of the specific injected-client build. When the dependency in `libs.versions.toml` moves, run `./gradlew :client:seedMenuActionInfo` and commit the updated resource. If the resource goes stale without regeneration, `bundledLoaderResolvesAgainstTheShippedClientJar` catches it in CI; in production the bundled cache self-busts via the owner-class-not-found path and falls through to the user cache / ASM scan without functional impact (only the first-run detection-surface benefit is lost until the next regeneration).
+
+---
+
+## Phase 8 — Deferred: in-process runtime detection vectors
+
+Phases 1–7 close everything observable to a passive observer (network, filesystem, at-rest bytecode). What remains is what an **active observer running inside the same JVM** could see — i.e. detection code shipped by Jagex as part of their client jar and executed at runtime. None of the below are exploited by Jagex today as far as we know; documenting for later.
+
+### 8.1 OS-cursor desync (strongest single tell)
+
+`VirtualMouse.java:72,84,96` and `Rs2Keyboard.java:62` dispatch input via `Canvas.dispatchEvent(event)`. The synthetic `MouseEvent` never moves the real OS cursor. A two-line detector —
+
+```java
+Point os = MouseInfo.getPointerInfo().getLocation();
+Point aw = lastMouseEvent.getLocationOnScreen();
+if (os.distance(aw) > epsilon) { /* synthetic */ }
+```
+
+— or its JNI equivalent (`user32!GetCursorPos`, `CGEventGetLocation`, `XQueryPointer`) catches every click.
+
+**Why we haven't closed this:** the naïve fix is `java.awt.Robot.mouseMove()` before dispatch, which moves the actual OS cursor. That breaks multi-instance botting on a single desktop — one cursor per machine = one bot per machine. For end users running a single client this is fine; for anyone scaling (the majority of serious users), it's a product-killing regression.
+
+**Mitigation options, ranked by engineering cost:**
+
+1. **Virtual displays (recommended long-term).** Each Microbot instance runs inside its own isolated display server — `Xvfb` / `Xephyr` on Linux, separate RDP sessions or Hyper-V VMs on Windows. Each session has its own X/Win32 cursor state, so `Robot.mouseMove()` inside the session is both real (satisfies `MouseInfo` polling) and isolated from siblings. This is how every serious bot farm operates.
+   - **Cost:** deployment complexity. End users have to learn Docker / RDP-session orchestration. We'd likely ship a reference `docker-compose.yml` with one Xvfb service per bot and let users fan out from there.
+   - **Upside:** solves the cursor problem *for real* rather than papering over it, and provides a clean abstraction for account isolation (IP, config dir, session cookies) in the process.
+2. **Per-window input (Windows only).** `PostMessage(hwnd, WM_MOUSEMOVE, …)` hits the target HWND without moving the OS cursor. Only defeats detectors that look at the AWT event stream; global cursor polls (`GetCursorPos`) still see the discrepancy. So this is a partial fix with no Linux/macOS equivalent.
+3. **Java agent that spoofs `MouseInfo.getPointerInfo()`.** A `-javaagent:` bundled with the launcher rewrites `java.awt.MouseInfo` to return a `ThreadLocal` last-dispatched position. Keeps multi-instance-per-JVM scaling. Brittle: Jagex can defeat it in a single commit by reading cursor position via JNI instead of the Java API. Requires maintaining the agent across Java versions.
+
+**Decision**: none of the three are worth shipping now. We've noted the vector and the scaling constraint. Revisit if Jagex ships a detector that exploits it (behavioral signals from ban waves would make this obvious within days of deployment).
+
+### 8.2 JVM introspection (thread names, class enumeration, stack walks)
+
+Anything in the JVM can enumerate:
+
+- **Thread names.** `Script.java:33` names threads `<ScriptClass>-<n>`. `Thread.getAllStackTraces().keySet()` dumps them all. A detector searching for class names ending in `Script` or matching a list of known Microbot script names has near-zero false-positive rate.
+- **Loaded classes.** Any walk of the classloader chain finds `net.runelite.client.plugins.microbot.*`. Vanilla RuneLite has zero classes in that package.
+- **Stack traces during event dispatch.** When a synthetic click fires, the call stack includes `Rs2Npc.interact → VirtualMouse.click → Canvas.dispatchEvent`. Vanilla RuneLite's mouse stack starts at the EDT with an OS-originated event. Sampling the stack on the EDT during a `MouseEvent` handler separates the two.
+- **String constants in the heap.** `MicrobotConfig.configGroup = "microbot"`, plugin descriptor names, `@ConfigGroup` annotations, log format strings. `jcmd <pid> GC.class_histogram` or a plain heap scan finds hundreds.
+
+**Mitigation options:**
+- Rename the microbot package wholesale (e.g. into `net.runelite.client.plugins.<innocuous>`) and every string literal that references it. Multi-day refactor, breaks every downstream plugin that imports microbot APIs.
+- Rename script threads to match RuneLite's existing pools (`Client`, `Scheduled-Thread-…`, EDT derivatives). Easier; ~1 day.
+- Dispatch synthetic events from the EDT rather than script threads so the stack root matches vanilla. Requires reworking every `Canvas.dispatchEvent` call site.
+
+**Decision**: deferred. Doing it properly requires breaking the public plugin API for every downstream bot author, which is a community-breaking change with no matching benefit unless Jagex actually starts scanning.
+
+### 8.3 Filesystem artifacts visible to the JVM
+
+Even with UDS and in-config-group tokens, these remain on disk and are reachable via `new File(...).exists()` from inside the JVM:
+- `~/.runelite/.agent-token`
+- `~/.runelite/.agent.sock` (UDS mode)
+- `~/.runelite/.menu-action-info.properties`
+
+**Mitigation:** fold all three into the standard RuneLite `ConfigManager`-backed config group so they live inside `settings.properties` alongside every other RuneLite setting. A few hours of work, but changes on-disk layout for existing users — needs a migration path.
+
+**Decision**: deferred. The vectors are only reachable from code running in-JVM, so they're already gated by 8.2 — if Jagex can enumerate our classes, they don't need to stat our sidecar files.
+
+### 8.4 Event metadata (`MouseEvent.getWhen()`, idle-motion streams)
+
+Two related signals:
+- **`MouseEvent.getWhen()`** is currently set to `System.currentTimeMillis()` at dispatch. Real AWT events carry a kernel-originated timestamp; under load these drift. Detectable via correlation with `System.nanoTime()` sampled in the same handler.
+- **Idle motion.** A real player's cursor generates a continuous stream of `MouseMotionEvent`s while hovering between clicks. Microbot emits motion only around clicks (phase 4 ungated the natural-mouse trajectory for clicks, but does not fire idle hover motion between them). Flat idle history is a weak signal on its own but compounds with the other behavioral ones.
+
+**Mitigation:** emit phantom hover events during script idle. Cheap to prototype; unclear yield without a controlled test against a detector we can't see.
+
+**Decision**: deferred, blocked on 8.1 (phantom hover still desyncs from the OS cursor).
+
+### 8.5 Plugin manager enumeration
+
+`PluginManager.getPlugins()` is Guice-injectable from any class. A call inside Jagex's code returns every `@PluginDescriptor` — which includes AutoFighter, AgentServer, BreakHandler, and every script plugin.
+
+**Mitigation:** wrap `PluginManager.getPlugins()` with a caller-filter that hides microbot plugins when the caller isn't in the microbot package. Fragile against any reflective workaround, and breaks legitimate introspection by RuneLite core features (side panel, config UI). Not worth it.
+
+**Decision**: won't fix. Falls under 8.2 — if Jagex is already scanning our classes, our plugin list is redundant.
+
+### 8.6 Behavioral / statistical (server-side, client-side changes don't help)
+
+Documented for completeness; out of scope for client hardening:
+- A* optimal paths vs. human scenic routing.
+- Camera mostly static vs. human constant orbiting.
+- Log-normal reaction times still have a tighter tail than human data.
+- No scroll, no right-click-examine, no idle misclicks.
+- 24/7 activity lacks circadian structure.
+- Zero outgoing chat (account-management problem; no client-side mitigation ships).
+
+These are account-management problems (break schedules, skill diversification, IP rotation, play-window discipline), not client problems. No amount of client hardening closes them.
+
+### Summary of deferred work
+
+| Phase | Vector | Blocker on fixing |
+|---|---|---|
+| 8.1 | OS-cursor desync | Single-cursor-per-machine kills multi-instance scaling; virtual displays are the real fix but require user-facing deployment changes. |
+| 8.2 | JVM introspection (threads/classes/stacks/strings) | Package rename breaks every downstream plugin's imports. |
+| 8.3 | Sidecar files | Gated behind 8.2; not reachable without JVM access. |
+| 8.4 | Event metadata, idle motion | Gated behind 8.1 (phantom motion without OS-cursor sync just adds more synthetic events to reject). |
+| 8.5 | Plugin enumeration | Gated behind 8.2; redundant signal. |
+| 8.6 | Behavioral/statistical | Not a client problem. |
+
+The practical signal to revisit this: if a ban wave correlates with a specific Microbot build *and* vanilla RuneLite users on the same accounts are unaffected, one of 8.1–8.5 is being actively exploited and we triage from there.
