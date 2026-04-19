@@ -64,6 +64,23 @@ tasks.register<JavaExec>("run") {
     )
 }
 
+tasks.register<JavaExec>("seedMenuActionInfo") {
+    group = "verification"
+    description = "Generate src/main/resources/.../menu-action-info.properties from the injected-client jar. Re-run when the injected-client dependency bumps."
+
+    dependsOn(":client:compileJava")
+
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("net.runelite.client.plugins.microbot.util.reflection.MenuActionResourceSeeder")
+
+    val outputFile = file("src/main/resources/net/runelite/client/plugins/microbot/util/reflection/menu-action-info.properties")
+    args(outputFile.absolutePath)
+
+    doFirst {
+        outputFile.parentFile.mkdirs()
+    }
+}
+
 tasks.register<JavaExec>("runDebug") {
     group = "application"
     description = "Run RuneLite client with JDWP debug"

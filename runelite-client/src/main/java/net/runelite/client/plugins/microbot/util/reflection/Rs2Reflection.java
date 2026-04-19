@@ -7,9 +7,6 @@ import net.runelite.api.MenuEntry;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.util.keyboard.Rs2Keyboard;
 import net.runelite.client.plugins.microbot.util.math.Rs2Random;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.tree.*;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,59 +30,27 @@ public class Rs2Reflection {
     @SneakyThrows
     public static void invokeMenu(int param0, int param1, int opcode, int identifier, int itemId, int worldViewId, String option, String target, int canvasX, int canvasY)
     {
+        // Cache-first path: when the on-disk cache resolves, MenuActionAsmResolver is never
+        // referenced, so the JVM has no cause to class-load it — and therefore no cause to
+        // link the ASM library. That's the point of P7-b: ASM becomes a first-launch-only
+        // runtime signature instead of a steady-state one.
         if (menuAction == null)
         {
-            final String MENU_ACTION_DESCRIPTOR_VANILLA = "(IIIIIILjava/lang/String;Ljava/lang/String;III)V";
-            final String MENU_ACTION_DESCRIPTOR_RUNELITE = "(IILnet/runelite/api/MenuAction;IILjava/lang/String;Ljava/lang/String;)V";
-
-            final Class<?> clientClazz = Microbot.getClient().getClass();
-            final ClassReader classReader = new ClassReader(clientClazz.getName());
-            final ClassNode classNode = new ClassNode(Opcodes.ASM9);
-            classReader.accept(classNode, ClassReader.SKIP_FRAMES);
-
-            final MethodNode targetMethodNodeContainingMenuActionInvocation = classNode.methods.stream()
-                    .filter(m -> m.access == Opcodes.ACC_PUBLIC
-                            && (m.name.equals("menuAction") && m.desc.equals(MENU_ACTION_DESCRIPTOR_RUNELITE)
-                            || m.name.equals("openWorldHopper") && m.desc.equals("()V")
-                            || m.name.equals("hopToWorld") && m.desc.equals("(Lnet/runelite/api/World;)V")))
-                    .findFirst()
-                    .orElse(null);
-
-            if (targetMethodNodeContainingMenuActionInvocation != null)
+            MenuActionAsmResolver.Resolution cached = MenuActionInfoCache.load();
+            if (cached != null)
             {
-                final InsnList instructions = targetMethodNodeContainingMenuActionInvocation.instructions;
-                for (AbstractInsnNode insnNode : instructions)
-                {
-                    if ((insnNode instanceof LdcInsnNode || (insnNode instanceof IntInsnNode)) && insnNode.getNext() instanceof MethodInsnNode)
-                    {
-                        if (insnNode instanceof LdcInsnNode)
-                        {
-                            menuActionGarbageValue = ((LdcInsnNode) insnNode).cst;
-                        }
-                        else if (insnNode instanceof IntInsnNode)
-                        {
-                            if (insnNode.getOpcode() == Opcodes.BIPUSH)
-                            {
-                                menuActionGarbageValue = ((byte) ((IntInsnNode) insnNode).operand);
-                            }
-                            else if (insnNode.getOpcode() == Opcodes.SIPUSH)
-                            {
-                                menuActionGarbageValue = ((short) ((IntInsnNode) insnNode).operand);
-                            }
-                        }
-
-                        final MethodInsnNode menuActionVanillaInsn = (MethodInsnNode) insnNode.getNext();
-                        if (!menuActionVanillaInsn.desc.equals(MENU_ACTION_DESCRIPTOR_VANILLA))
-                        {
-                            throw new RuntimeException("Menu action descriptor vanilla has changed from: " + MENU_ACTION_DESCRIPTOR_VANILLA + " to: " + menuActionVanillaInsn.desc);
-                        }
-                        menuAction = Arrays.stream(Class.forName(menuActionVanillaInsn.owner).getDeclaredMethods())
-                                .filter(m -> m.getName().equals(menuActionVanillaInsn.name))
-                                .findFirst()
-                                .orElse(null);
-                        break;
-                    }
-                }
+                menuAction = cached.method;
+                menuActionGarbageValue = cached.garbageValue;
+            }
+        }
+        if (menuAction == null)
+        {
+            MenuActionAsmResolver.Resolution resolution = MenuActionAsmResolver.resolve(Microbot.getClient().getClass());
+            if (resolution != null)
+            {
+                menuAction = resolution.method;
+                menuActionGarbageValue = resolution.garbageValue;
+                MenuActionInfoCache.store(resolution);
             }
         }
 
