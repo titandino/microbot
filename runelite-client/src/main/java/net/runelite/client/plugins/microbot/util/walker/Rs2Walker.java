@@ -472,23 +472,47 @@ public class Rs2Walker {
                 if (!tileReachable && !inInstance) {
                     continue;
                 }
-                nextWalkingDistance = Rs2Random.between(7, 11);
+                nextWalkingDistance = Rs2Random.between(9, 12);
                 int dist2d = currentWorldPoint.distanceTo2D(Rs2Player.getWorldLocation());
                 if (dist2d > nextWalkingDistance) {
-                    // Scan forward to the furthest path tile still on the minimap and on the
-                    // same plane that isn't a transport origin. Maximizes minimap throughput —
-                    // a single click at ~15-tile reach covers ~40% more ground than clicking
-                    // the first tile past nextWalkingDistance, especially on diagonal runs
-                    // where Chebyshev distance is 1.4× the cardinal step count.
-                    final int MINIMAP_REACH = 14;
+                    // Minimap clickable area is a circle, so reach is a Euclidean radius —
+                    // cardinal tiles reach ~13, diagonals ~9. Empirically 14 was too
+                    // optimistic (clicks at 13.5–13.9 Euclidean missed the clip).
+                    final int MINIMAP_REACH_EUCLIDEAN = 13;
                     WorldPoint playerLoc = Rs2Player.getWorldLocation();
                     int targetIdx = findFurthestClickableIndex(path, i, playerLoc,
                             wp -> {
                                 Set<Transport> ts = ShortestPathPlugin.getTransports().get(wp);
                                 return ts != null && !ts.isEmpty();
                             },
-                            MINIMAP_REACH);
+                            MINIMAP_REACH_EUCLIDEAN);
                     WorldPoint targetWp = path.get(targetIdx);
+                    // Forward waypoint out of minimap reach (e.g., diagonal PathSmoother
+                    // segment at Chebyshev 10 = Euclidean 14.1). Backward-scan returns
+                    // the previous in-reach waypoint, but clicking it walks backward or
+                    // barely advances. Instead, interpolate a point close to the minimap
+                    // edge toward the forward waypoint — the server's walk-here
+                    // pathfinder routes through whatever is blocking line-of-sight
+                    // (door, gate, diagonal offset). Each interpolated click covers
+                    // ~12 tiles, matching a human clicking the furthest visible tile.
+                    if (targetIdx < i) {
+                        int backwardDistSq = euclideanSq(targetWp, playerLoc);
+                        int interpTarget = MINIMAP_REACH_EUCLIDEAN - 1;
+                        if (backwardDistSq < interpTarget * interpTarget) {
+                            WorldPoint beyond = path.get(i);
+                            int dxB = beyond.getX() - playerLoc.getX();
+                            int dyB = beyond.getY() - playerLoc.getY();
+                            double distB = Math.sqrt(dxB * dxB + dyB * dyB);
+                            if (distB > 1) {
+                                double scale = interpTarget / distB;
+                                targetWp = new WorldPoint(
+                                        playerLoc.getX() + (int) Math.round(dxB * scale),
+                                        playerLoc.getY() + (int) Math.round(dyB * scale),
+                                        playerLoc.getPlane());
+                                targetIdx = Math.max(indexOfStartPoint, i - 1);
+                            }
+                        }
+                    }
 
                     WorldPoint posBefore = playerLoc;
                     boolean clicked;
@@ -499,7 +523,22 @@ public class Rs2Walker {
                     }
                     if (clicked) {
                         final WorldPoint b = targetWp;
-                        sleepUntil(() -> b.distanceTo2D(Rs2Player.getWorldLocation()) < nextWalkingDistance, 2000);
+                        final WorldPoint before = posBefore;
+                        // Proximity-primary wake: let each click cover most of its distance
+                        // before re-clicking, like a human. The progress cap is a safety net
+                        // for the rare case where proximity never fires (player detoured, got
+                        // blocked by another entity, etc.) — set just above max reach so it
+                        // only triggers when something is actually wrong.
+                        final int proximityWake = Rs2Random.between(2, 4);
+                        final int progressCap = 16;
+                        final long clickedAt = System.currentTimeMillis();
+                        sleepUntil(() -> {
+                            long elapsed = System.currentTimeMillis() - clickedAt;
+                            if (elapsed < 600) return false;
+                            WorldPoint now = Rs2Player.getWorldLocation();
+                            if (b.distanceTo2D(now) <= proximityWake) return true;
+                            return before.distanceTo2D(now) >= progressCap;
+                        }, 2000);
                     }
                     // Keep stuck-detection honest: observed movement resets the movement timer.
                     // Without this, isStuckTooLong() fires after long successful walks because
@@ -1331,24 +1370,51 @@ public class Rs2Walker {
      * Given a path and a starting index, return the index of the furthest path tile that:
      *  - is on the same plane as {@code path.get(startIdx)}
      *  - is not a transport origin (per {@code isTransportOrigin})
-     *  - lies within {@code maxChebyshev} 2D Chebyshev distance of {@code playerLoc}
-     * The returned index is always ≥ startIdx. Used to maximize minimap click throughput
-     * on straight or diagonal runs without skipping past required transports.
+     *  - lies within {@code maxEuclidean} 2D Euclidean distance of {@code playerLoc}
+     *
+     * <p>Euclidean (not Chebyshev) because the minimap clickable area is a circle: a
+     * Chebyshev-bounded cap either wastes reach on cardinal directions (where the circle
+     * extends to ~{@code maxEuclidean}) or lets diagonal clicks escape the disk (where
+     * Chebyshev-{@code maxEuclidean} is {@code maxEuclidean}·√2 away).
+     *
+     * <p>If {@code path.get(startIdx)} itself is already beyond reach — which happens
+     * when the player has drifted off path and the next smoothed waypoint is out of
+     * minimap range — the function scans <em>backward</em> for the latest in-range path
+     * tile. Clicking that earlier tile brings the player back onto the path so forward
+     * progress can resume; without this, the walker would spam off-minimap clicks
+     * against {@code path.get(startIdx)} until the 10-second stall-recalc fires.
      */
     static int findFurthestClickableIndex(List<WorldPoint> path, int startIdx, WorldPoint playerLoc,
                                           java.util.function.Predicate<WorldPoint> isTransportOrigin,
-                                          int maxChebyshev) {
+                                          int maxEuclidean) {
         if (path == null || startIdx < 0 || startIdx >= path.size()) return startIdx;
         WorldPoint startWp = path.get(startIdx);
+        final int maxSq = maxEuclidean * maxEuclidean;
+        if (playerLoc != null && euclideanSq(startWp, playerLoc) > maxSq) {
+            for (int j = startIdx - 1; j >= 0; j--) {
+                WorldPoint candidate = path.get(j);
+                if (candidate.getPlane() != playerLoc.getPlane()) continue;
+                if (euclideanSq(candidate, playerLoc) <= maxSq) {
+                    return j;
+                }
+            }
+            return startIdx;
+        }
         int bestIdx = startIdx;
         for (int j = startIdx + 1; j < path.size(); j++) {
             WorldPoint candidate = path.get(j);
             if (candidate.getPlane() != startWp.getPlane()) break;
             if (isTransportOrigin != null && isTransportOrigin.test(candidate)) break;
-            if (playerLoc != null && candidate.distanceTo2D(playerLoc) > maxChebyshev) break;
+            if (playerLoc != null && euclideanSq(candidate, playerLoc) > maxSq) break;
             bestIdx = j;
         }
         return bestIdx;
+    }
+
+    private static int euclideanSq(WorldPoint a, WorldPoint b) {
+        int dx = a.getX() - b.getX();
+        int dy = a.getY() - b.getY();
+        return dx * dx + dy * dy;
     }
 
     private static boolean handleDoors(List<WorldPoint> path, int index) {

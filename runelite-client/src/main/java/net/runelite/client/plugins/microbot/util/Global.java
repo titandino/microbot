@@ -104,17 +104,16 @@ public class Global {
      */
     public static boolean sleepUntil(BooleanSupplier awaitedCondition, int time) {
         if (Microbot.getClient().isClientThread()) return false;
-        boolean done = false;
         long startTime = System.currentTimeMillis();
         try {
-            do {
-                done = awaitedCondition.getAsBoolean();
+            while (System.currentTimeMillis() - startTime < time) {
+                if (awaitedCondition.getAsBoolean()) return true;
                 sleep(nextPollIntervalMs());
-            } while (!done && System.currentTimeMillis() - startTime < time);
+            }
         } catch (Exception e) {
             Microbot.logStackTrace("Global Sleep: ", e);
         }
-        return done;
+        return false;
     }
 
     public static boolean sleepUntil(BooleanSupplier awaitedCondition, Runnable action, long timeoutMillis, int sleepMillis) {
