@@ -15,6 +15,7 @@ import net.runelite.client.plugins.microbot.util.world.Rs2WorldUtil;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -26,6 +27,18 @@ public class AutoLoginScript extends Script {
 
     // ban detection constants
     private static final int BANNED_LOGIN_INDEX = 14;
+
+    static final int[] BACKOFF_SEQUENCE_SECONDS = {5, 15, 60, 300};
+
+    static int computeRetryBackoffSeconds(int attemptsSoFar, int configuredBaseSeconds) {
+        int idx = Math.min(Math.max(attemptsSoFar - 1, 0), BACKOFF_SEQUENCE_SECONDS.length - 1);
+        int scheduleStep = BACKOFF_SEQUENCE_SECONDS[idx];
+        int floor = Math.max(1, configuredBaseSeconds);
+        int step = Math.max(scheduleStep, floor);
+        double jitter = 0.7 + ThreadLocalRandom.current().nextDouble() * 0.6;
+        long jittered = Math.round(step * jitter);
+        return (int) Math.max(floor, jittered);
+    }
 
     // ban detection state
     public static boolean isBanned = false;
@@ -133,11 +146,12 @@ public class AutoLoginScript extends Script {
             }
         }
 
-        // check if enough time has passed for retry
+        // check if enough time has passed for retry — uses exponential backoff
         if (lastLoginAttemptTime != null) {
             long timeSinceLastAttempt = Duration.between(lastLoginAttemptTime, Instant.now()).toSeconds();
-            if (timeSinceLastAttempt < config.loginRetryDelay()) {
-                return; // wait for retry delay
+            int backoff = computeRetryBackoffSeconds(retryCount, config.loginRetryDelay());
+            if (timeSinceLastAttempt < backoff) {
+                return;
             }
         }
 
