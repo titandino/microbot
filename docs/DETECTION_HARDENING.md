@@ -184,3 +184,92 @@ P7-c. **Dynamic-script classloader** — lower priority; `URLClassLoader` is com
 - **Package renaming / ProGuard.** The `net.runelite.client.plugins.microbot.*` namespace is pervasive and project-defining. Renaming it is a separate, larger piece of work and is a weaker signal than items S1-S5 anyway.
 - **Game-packet manipulation.** Nothing in `net.runelite.client.plugins.microbot.*` writes to the wire directly; all packet interaction goes through vanilla RuneLite hooks. No action needed.
 - **Remote script loading.** `DynamicScriptManager` only loads from local disk; no remote class-fetch path exists. Not a current risk.
+
+---
+
+## 5. Progress
+
+Status against the remediation plan in section 3. Each item links to the commit that implemented it.
+
+### Phase 1 — drop the obvious watermarks ✅ complete
+
+| Item | Finding | Status | Commit |
+|---|---|---|---|
+| P1-a | S1 mouse-event source watermark | ✅ | `feat(mouse): drop Microbot event-source watermark, bypass translator via pre-scaling` |
+| P1-b | S2/S9 window title | ✅ | `chore(ui,resources): neutralize window title and rename microbot.* property keys` |
+| P1-c | S3 config dir | ✅ | `feat(agentserver): flatten token to ~/.runelite/.agent-token, randomize default port` |
+| P1-d | S8 Chrome-11 User-Agent | ✅ | `chore(http): drop dead Chrome-11 User-Agent path in GlobalConfiguration` |
+| P1-e | S7 property key names | ✅ | `chore(ui,resources): neutralize window title and rename microbot.* property keys` |
+
+### Phase 2 — retire the `microbot.cloud` SNI signal ✅ complete
+
+| Item | Finding | Status | Commit |
+|---|---|---|---|
+| P2-a | S4 make calls configurable / disableable | ✅ | `feat(microbot): disableTelemetry toggle + per-install identity seed, gate microbot.cloud calls` |
+| P2-b | S4 drop periodic 10-min version-check heartbeat | ✅ | (same commit) |
+
+### Phase 3 — agent server surface reduction 🟡 partial
+
+| Item | Finding | Status | Commit |
+|---|---|---|---|
+| P3-a | S5 randomize default port per install | ✅ | `feat(agentserver): flatten token to ~/.runelite/.agent-token, randomize default port` |
+| P3-b | S5 bind only while scripts run / UDS option | ⏳ deferred | — |
+| P3-c | S5 token-gated endpoint discovery | ⏳ deferred | — |
+
+### Phase 4 — input-layer humanisation 🟡 partial
+
+| Item | Finding | Status | Commit |
+|---|---|---|---|
+| P4-a | I1 real mouse trajectory on every `MenuOptionClicked` | ⏳ deferred (high blast radius — dedicated session) | — |
+| P4-b | T3/I6/I8 log-normal reaction-time primitive | ✅ primitive shipped (callers TODO) | `feat(random): log-normal reaction-time primitive` |
+| P4-c | I2 randomise click-point force | ✅ | `feat(ui): per-session randomized click-point force` |
+| P4-d | I5 smooth camera rotation | ⏳ deferred | — |
+
+### Phase 5 — temporal de-quantisation 🟡 partial
+
+| Item | Finding | Status | Commit |
+|---|---|---|---|
+| P5-a | T1 jitter the `sleepUntil` poll | ✅ | `feat(global): log-normal sleepUntil jitter + jittered tick-wait helper` |
+| P5-b | T2 un-align tick waits | ✅ | `feat(walker): per-account bimodal stamina threshold + jittered tick-waits` |
+| P5-c | T4 de-periodicise antiban (sine → OU) | ✅ | `refactor(antiban): remove sun.misc.Unsafe, replace sine evolve with Ornstein-Uhlenbeck, add SessionFatigue primitive` |
+| P5-d | T5 session fatigue | ✅ primitive shipped (callers TODO) | (same commit) |
+
+### Phase 6 — behavioural coverage 🟡 partial
+
+| Item | Finding | Status | Commit |
+|---|---|---|---|
+| P6-a | B1 per-account stamina threshold | ✅ | `feat(walker): per-account bimodal stamina threshold + jittered tick-waits` |
+| P6-b | B2 random-event / trade / mod-mute handlers | ⏳ deferred | — |
+| P6-c | B6 auto-login backoff | ✅ | `feat(autologin): exponential retry backoff between login attempts` |
+| P6-d | B7 optional chat trickle | ⏳ deferred | — |
+
+### Phase 7 — runtime surface 🟡 partial
+
+| Item | Finding | Status | Commit |
+|---|---|---|---|
+| P7-a | R1 replace `sun.misc.Unsafe` | ✅ (deleted — was dead code) | `refactor(antiban): remove sun.misc.Unsafe, replace sine evolve with Ornstein-Uhlenbeck, add SessionFatigue primitive` |
+| P7-b | R3 move runtime ASM to build-time | ⏳ deferred | — |
+| P7-c | R2 rename `MicrobotPluginClassLoader` | ✅ | `refactor(externalplugins): rename MicrobotPluginClassLoader to PluginJarClassLoader` |
+
+### Regression guards added
+
+- `MouseSourceTest` — ASM constant-pool scan asserts no `"Microbot"` string literal in `VirtualMouse.class` / `Mouse.class`; asserts `Mouse.VIRTUAL_SOURCE` is gone; stretched-mode translator end-to-end.
+- `GlobalPollIntervalTest` — bounds, spread, median not on 100 ms, tick-jitter breaks the 600 ms grid.
+- `Rs2WalkerStaminaTest` — range, determinism, case-insensitivity, install-seed scatter, bimodality, null-fallback.
+- `Rs2RandomReactionTimeTest` — bounds, ~260 ms median, right-skew, target-median tracking.
+- `Rs2UiHelperClickForceTest` — range, session stability, explicit non-equality with legacy 0.78.
+- `AutoLoginBackoffTest` — early-retry bounds, monotonic escalation, cap, user floor.
+- `UnsafeUsageGuardTest` — filesystem scan: no `sun.misc.Unsafe` import anywhere under `plugins/microbot/`.
+- `PlayStyleOrnsteinUhlenbeckTest` — stationarity, mean-reversion, strict positivity, autocorrelation (no fixed period).
+- `SessionFatigueTest` — inactive baseline, linear growth to cap, reset.
+
+### Remaining deferred work, in order of recommended priority
+
+1. **P4-a** — real mouse trajectory on every `MenuOptionClicked`. Deprecate the direct-opcode helpers in `Rs2Npc` / `Rs2GameObject` / `Rs2Widget` / `Rs2Equipment` / `Rs2Shop`. Largest behavioural shift; touches many scripts. Recommend a dedicated session with a compatibility shim.
+2. **Migrate callers** to `Rs2Random.reactionTime()` and `SessionFatigue.applyTo(...)`. The primitives are in place but nothing routes through them yet.
+3. **P6-b** — blocking-event listeners for trade requests, random events, moderator messages.
+4. **P3-b / P3-c** — agent-server UNIX-socket mode and stronger endpoint gating.
+5. **P4-d** — camera smoothing.
+6. **P5-d wiring** — introduce fatigue-adjusted sleep helpers alongside `sleep`/`sleepGaussian`.
+7. **P6-d** — opt-in chat trickle.
+8. **P7-b** — move runtime ASM (`Rs2Reflection`) to build-time code generation.
