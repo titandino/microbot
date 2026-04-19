@@ -63,6 +63,7 @@ public class BlockingEventManager
         blockingEvents.add(new PluginPauseEvent());
 		blockingEvents.add(new EnjoyRSChatboxEvent());
 		blockingEvents.add(new DisableWorldSwitcherConfirmationEvent());
+		blockingEvents.add(new HideRoofsEvent());
 
         sortBlockingEvents();
     }

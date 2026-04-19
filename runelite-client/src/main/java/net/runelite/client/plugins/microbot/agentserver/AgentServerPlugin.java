@@ -114,7 +114,9 @@ public class AgentServerPlugin extends Plugin {
 				new WidgetInvokeHandler(gson),
 				new SettingsHandler(gson),
 				new KeyboardHandler(gson),
-				new StateMachineDebugHandler(gson)
+				new StateMachineDebugHandler(gson),
+				new ProfileHandler(gson),
+				new DynamicScriptDeployHandler(gson)
 		);
 
 		for (AgentHandler handler : handlers) {

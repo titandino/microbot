@@ -123,34 +123,16 @@ public class Rs2Settings
 		{
 			return true;
 		}
-		if (!openSettings())
+
+		Widget toggleWidget = openSettingsSearch("roof", "Toggle");
+		if (toggleWidget == null)
 		{
+			closeSettingsMenu();
 			return false;
 		}
 
-		if (!switchToSettingsTab("Display"))
-		{
-			return false;
-		}
-		sleepGaussian(800, 100);
-		Widget widget = Rs2Widget.getWidget(SETTINGS_CLICKABLE_ALT);
-		if (widget == null)
-		{
-			return false;
-		}
-
-		// MenuEntryImpl(getOption=Toggle, getTarget=, getIdentifier=1, getType=CC_OP, getParam0=4, getParam1=8781843, getItemId=-1, isForceLeftClick=false, getWorldViewId=-1, isDeprioritized=false)
-		NewMenuEntry menuEntry = new NewMenuEntry()
-				.option("Toggle")
-				.target("")
-				.identifier(1)
-				.type(MenuAction.CC_OP)
-				.param0(4)
-				.param1(widget.getId())
-				.forceLeftClick(false)
-				;
-		Microbot.doInvoke(menuEntry, Rs2UiHelper.getDefaultRectangle());
-		boolean success = sleepUntil(Rs2Settings::isHideRoofsEnabled);
+		Rs2Widget.clickWidget(toggleWidget);
+		boolean success = sleepUntil(Rs2Settings::isHideRoofsEnabled, 3000);
 
 		if (closeInterface)
 		{
@@ -338,26 +320,15 @@ public class Rs2Settings
 	public static boolean disableWorldSwitcherConfirmation(boolean closeInterface) {
 		if (!isWorldSwitcherConfirmationEnabled()) return true;
 
-		if (!openSettings()) return false;
+		Widget toggleWidget = openSettingsSearch("world switcher", "Toggle");
+		if (toggleWidget == null)
+		{
+			closeSettingsMenu();
+			return false;
+		}
 
-		if (!switchToSettingsTab("Warnings")) return false;
-
-		sleepGaussian(800, 100);
-		Widget widget = Rs2Widget.getWidget(SETTINGS_CLICKABLE);
-		if (widget == null) return false;
-
-		// MenuEntryImpl(getOption=Toggle, getTarget=, getIdentifier=1, getType=CC_OP, getParam0=35, getParam1=8781844, getItemId=-1, isForceLeftClick=false, getWorldViewId=-1, isDeprioritized=false)
-		NewMenuEntry menuEntry = new NewMenuEntry()
-				.option("Toggle")
-				.target("")
-				.identifier(1)
-				.type(MenuAction.CC_OP)
-				.param0(35)
-				.param1(widget.getId())
-				.forceLeftClick(false)
-				;
-		Microbot.doInvoke(menuEntry, Rs2UiHelper.getDefaultRectangle());
-		boolean success = sleepUntil(() -> !isWorldSwitcherConfirmationEnabled());
+		Rs2Widget.clickWidget(toggleWidget);
+		boolean success = sleepUntil(() -> !isWorldSwitcherConfirmationEnabled(), 3000);
 
 		if (closeInterface)
 		{

@@ -66,6 +66,10 @@ Login:
   login                                  Login status (game state, profile)
   login now [--world 360] [--timeout 60] Login using active profile (blocks until done)
 
+Profiles:
+  profile                                List all profiles with active indicator
+  profile switch <name>                  Switch active profile (used by next login)
+
 Scripts:
   scripts                                List all plugins with status
   scripts start --class <className>      Start plugin by fully qualified class
@@ -420,6 +424,18 @@ case "$1" in
                 result=$(curl -s --max-time "$((login_timeout + 5))" -X POST -H "Content-Type: application/json" -d "$body" "${BASE}/login" 2>/dev/null) || { echo '{"error":"Connection refused - is the Agent Server plugin enabled?"}'; exit 1; }
                 echo "$result"
                 echo "$result" | grep -q '"success": *true' || exit 1
+                ;;
+            *) usage ;;
+        esac
+        ;;
+
+    profile)
+        [[ $# -lt 2 ]] && { do_get "${BASE}/profiles"; exit 0; }
+        case "$2" in
+            switch)
+                [[ $# -lt 3 ]] && { echo '{"error":"Usage: microbot-cli profile switch <name>"}'; exit 1; }
+                name=$(json_escape "$3")
+                do_post "${BASE}/profiles" "{\"name\":\"${name}\"}"
                 ;;
             *) usage ;;
         esac

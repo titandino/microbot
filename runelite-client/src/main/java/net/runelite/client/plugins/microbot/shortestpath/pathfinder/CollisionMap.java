@@ -67,6 +67,37 @@ public class CollisionMap {
         return !n(x, y, z) && !s(x, y, z) && !e(x, y, z) && !w(x, y, z);
     }
 
+    /**
+     * Single walking step permission check from (x,y,z) in direction (dx,dy).
+     * Mirrors the traversability logic in {@link #getNeighbors} so that a
+     * line-of-sight trace approves exactly the sequences of moves the BFS
+     * could have taken without a transport edge.
+     *
+     * <p>Walls, closed doors, and diagonal corner-cutting are all blocked
+     * here — which is the invariant the path smoother relies on to avoid
+     * skipping across transport origins.
+     */
+    public boolean canStep(int x, int y, int z, int dx, int dy) {
+        if (dx == 0 && dy == 0) return true;
+        if (dx < -1 || dx > 1 || dy < -1 || dy > 1) return false;
+        if (isBlocked(x, y, z)) {
+            if (isBlocked(x + dx, y + dy, z)) return false;
+            if (dx != 0 && dy != 0) {
+                return !isBlocked(x + dx, y, z) && !isBlocked(x, y + dy, z);
+            }
+            return true;
+        }
+        if (dx == -1 && dy == 0) return w(x, y, z);
+        if (dx == 1 && dy == 0) return e(x, y, z);
+        if (dx == 0 && dy == -1) return s(x, y, z);
+        if (dx == 0 && dy == 1) return n(x, y, z);
+        if (dx == -1 && dy == -1) return sw(x, y, z);
+        if (dx == 1 && dy == -1) return se(x, y, z);
+        if (dx == -1 && dy == 1) return nw(x, y, z);
+        if (dx == 1 && dy == 1) return ne(x, y, z);
+        return false;
+    }
+
     private static int packedPointFromOrdinal(int startPacked, OrdinalDirection direction) {
         final int x = WorldPointUtil.unpackWorldX(startPacked);
         final int y = WorldPointUtil.unpackWorldY(startPacked);

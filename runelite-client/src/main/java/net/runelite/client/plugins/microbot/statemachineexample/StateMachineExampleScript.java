@@ -48,6 +48,7 @@ public class StateMachineExampleScript extends StateMachineScript<StateMachineEx
     private String nearestObjectName;
     private int nearbyItemCount;
     private String nearestItemName;
+    private boolean actionDone;
 
     @Override
     protected State initialState() {
@@ -59,7 +60,7 @@ public class StateMachineExampleScript extends StateMachineScript<StateMachineEx
         return List.of(
                 // NPC scan → cooldown
                 Transition.<State>from(State.SCAN_NPCS)
-                        .when(() -> true, "always (one-tick scan)")
+                        .when(() -> actionDone, "actionDone")
                         .because("NPC scan complete")
                         .goTo(State.COOLDOWN_AFTER_NPCS),
 
@@ -71,7 +72,7 @@ public class StateMachineExampleScript extends StateMachineScript<StateMachineEx
 
                 // Object scan → cooldown
                 Transition.<State>from(State.SCAN_OBJECTS)
-                        .when(() -> true, "always (one-tick scan)")
+                        .when(() -> actionDone, "actionDone")
                         .because("Object scan complete")
                         .goTo(State.COOLDOWN_AFTER_OBJECTS),
 
@@ -83,7 +84,7 @@ public class StateMachineExampleScript extends StateMachineScript<StateMachineEx
 
                 // Ground item scan → cooldown
                 Transition.<State>from(State.SCAN_GROUND_ITEMS)
-                        .when(() -> true, "always (one-tick scan)")
+                        .when(() -> actionDone, "actionDone")
                         .because("Ground item scan complete")
                         .goTo(State.COOLDOWN_AFTER_ITEMS),
 
@@ -95,7 +96,7 @@ public class StateMachineExampleScript extends StateMachineScript<StateMachineEx
 
                 // Report → back to NPC scan (new cycle)
                 Transition.<State>from(State.REPORT)
-                        .when(() -> true, "always (one-tick report)")
+                        .when(() -> actionDone, "actionDone")
                         .because("Report complete, starting new cycle")
                         .goTo(State.SCAN_NPCS)
         );
@@ -106,15 +107,19 @@ public class StateMachineExampleScript extends StateMachineScript<StateMachineEx
         switch (state) {
             case SCAN_NPCS:
                 doScanNpcs();
+                actionDone = true;
                 break;
             case SCAN_OBJECTS:
                 doScanObjects();
+                actionDone = true;
                 break;
             case SCAN_GROUND_ITEMS:
                 doScanGroundItems();
+                actionDone = true;
                 break;
             case REPORT:
                 doReport();
+                actionDone = true;
                 break;
             case COOLDOWN_AFTER_NPCS:
             case COOLDOWN_AFTER_OBJECTS:
@@ -130,6 +135,7 @@ public class StateMachineExampleScript extends StateMachineScript<StateMachineEx
     @Override
     protected void onTransition(State from, State to, String reason) {
         super.onTransition(from, to, reason);
+        actionDone = false;
         // Reset cooldown timer when entering any cooldown state
         if (to.name().startsWith("COOLDOWN_")) {
             cooldownStartedAt = Instant.now();

@@ -610,6 +610,72 @@ curl -X POST -d '{"world":383,"timeout":30}' http://127.0.0.1:8081/login
 # → {"success":true,"message":"Login successful","currentWorld":383}
 ```
 
+### Profiles
+
+#### GET /profiles
+
+Lists all non-internal profiles with their active indicator, membership status, and world selection.
+
+```bash
+curl http://127.0.0.1:8081/profiles
+```
+
+```json
+{
+  "count": 2,
+  "activeProfile": "player@email.com",
+  "profiles": [
+    {
+      "name": "player@email.com",
+      "isMember": true,
+      "selectedWorld": "random-members",
+      "active": true
+    },
+    {
+      "name": "alt-account@email.com",
+      "isMember": false,
+      "selectedWorld": 383,
+      "active": false
+    }
+  ]
+}
+```
+
+The `selectedWorld` field shows: `"auto"` (null — use fallback logic), `"random-members"` (-1), `"random-f2p"` (-2), or a specific world number.
+
+#### POST /profiles
+
+Switch the active profile. The switched profile will be used by the next `POST /login`.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Profile name (case-insensitive exact match) |
+
+```bash
+# Switch profile
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"name":"alt-account@email.com"}' \
+  http://127.0.0.1:8081/profiles
+```
+
+```json
+{
+  "success": true,
+  "message": "Switched to profile 'alt-account@email.com'",
+  "profile": {
+    "name": "alt-account@email.com",
+    "isMember": false,
+    "selectedWorld": 383,
+    "active": true
+  }
+}
+```
+
+**Error responses:**
+- `400` — Missing or blank `name` field
+- `404` — No profile matches the given name (response includes `available` list)
+- `503` — Profile system not initialized
+
 ### Script Lifecycle
 
 #### GET /scripts

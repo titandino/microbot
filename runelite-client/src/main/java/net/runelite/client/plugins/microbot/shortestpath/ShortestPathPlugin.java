@@ -29,6 +29,7 @@ import lombok.Setter;
 import net.runelite.api.Point;
 import net.runelite.api.*;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.api.events.MenuOpened;
@@ -61,6 +62,7 @@ import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.overlay.worldmap.WorldMapPoint;
 import net.runelite.client.ui.overlay.worldmap.WorldMapPointManager;
 import net.runelite.client.util.ColorUtil;
+import net.runelite.client.util.HotkeyListener;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.util.Text;
 
@@ -74,6 +76,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 @Slf4j
@@ -194,6 +197,12 @@ public class ShortestPathPlugin extends Plugin implements KeyListener {
     private static int reachedDistance;
     @Getter(AccessLevel.PACKAGE)
     private ShortestPathScript shortestPathScript;
+
+    // Set by onGameStateChanged when the client transitions to LOGGED_IN. Consumed on the next
+    // game tick so varbits, quest states, inventory, and bank containers are hydrated before
+    // PathfinderConfig#refresh rebuilds the transport availability cache. Without this the
+    // cache holds pre-login state after world-hops or re-logins.
+    volatile boolean pendingLoginRefresh = false;
     @Provides
     public ShortestPathConfig provideConfig(ConfigManager configManager) {
         return configManager.getConfig(ShortestPathConfig.class);
@@ -244,10 +253,34 @@ public class ShortestPathPlugin extends Plugin implements KeyListener {
             overlayManager.add(debugOverlayPanel);
         }
         keyManager.registerKeyListener(this);
+        keyManager.registerKeyListener(customLocationHotkeyListener);
+        keyManager.registerKeyListener(bankHotkeyListener);
+        keyManager.registerKeyListener(nearestBankHotkeyListener);
+        keyManager.registerKeyListener(depositBoxHotkeyListener);
+        keyManager.registerKeyListener(nearestDepositBoxHotkeyListener);
+        keyManager.registerKeyListener(slayerMasterHotkeyListener);
+        keyManager.registerKeyListener(questHotkeyListener);
+        keyManager.registerKeyListener(clueHotkeyListener);
+        keyManager.registerKeyListener(farmingHotkeyListener);
+        keyManager.registerKeyListener(hunterHotkeyListener);
     }
 
     @Override
     protected void shutDown() {
+        // Unregister hotkey listeners first so any in-flight keystroke can't
+        // dereference panel/shortestPathScript after we null/tear them down.
+        keyManager.unregisterKeyListener(hunterHotkeyListener);
+        keyManager.unregisterKeyListener(farmingHotkeyListener);
+        keyManager.unregisterKeyListener(clueHotkeyListener);
+        keyManager.unregisterKeyListener(questHotkeyListener);
+        keyManager.unregisterKeyListener(slayerMasterHotkeyListener);
+        keyManager.unregisterKeyListener(nearestDepositBoxHotkeyListener);
+        keyManager.unregisterKeyListener(depositBoxHotkeyListener);
+        keyManager.unregisterKeyListener(nearestBankHotkeyListener);
+        keyManager.unregisterKeyListener(bankHotkeyListener);
+        keyManager.unregisterKeyListener(customLocationHotkeyListener);
+        keyManager.unregisterKeyListener(this);
+
         overlayManager.remove(pathOverlay);
         overlayManager.remove(pathMinimapOverlay);
         overlayManager.remove(pathMapOverlay);
@@ -267,7 +300,6 @@ public class ShortestPathPlugin extends Plugin implements KeyListener {
         shortestPathScript.shutdown();
 
         exit();
-        keyManager.unregisterKeyListener(this);
     }
 
     //Method from microbot
@@ -478,7 +510,27 @@ public class ShortestPathPlugin extends Plugin implements KeyListener {
     }
 
     @Subscribe
+    public void onGameStateChanged(GameStateChanged event) {
+        if (event.getGameState() == GameState.LOGGED_IN) {
+            pendingLoginRefresh = true;
+        }
+    }
+
+    void handlePendingLoginRefresh() {
+        if (pendingLoginRefresh && pathfinderConfig != null) {
+            pendingLoginRefresh = false;
+            try {
+                pathfinderConfig.refresh();
+            } catch (Exception e) {
+                log.warn("[ShortestPath] post-login refresh failed", e);
+            }
+        }
+    }
+
+    @Subscribe
     public void onGameTick(GameTick tick) {
+        handlePendingLoginRefresh();
+
         final WorldPoint myLoc = Rs2Player.getWorldLocation();
         final Pathfinder pathfinder = ShortestPathPlugin.pathfinder;
         if (myLoc == null || pathfinder == null || !pathfinder.isDone()) {
@@ -936,6 +988,27 @@ public class ShortestPathPlugin extends Plugin implements KeyListener {
         return polygon;
     }
 
+    private void toggleCategory(String categoryName, Function<ShortestPathPanel, WorldPoint> targetFn) {
+        // Capture panel locally so the null check is effective. Call sites
+        // pass unbound method references (ShortestPathPanel::get...) so panel
+        // is not dereferenced until after we've confirmed it's non-null.
+        ShortestPathPanel p = panel;
+        if (p == null || !Microbot.isLoggedIn()) {
+            return;
+        }
+        WorldPoint target = targetFn.apply(p);
+        if (target == null) {
+            Microbot.log("WebWalker: no " + categoryName + " selected in the panel.");
+            return;
+        }
+        WorldPoint current = shortestPathScript.getTriggerWalker();
+        if (target.equals(current)) {
+            p.stopWalking();
+        } else {
+            p.startWalking(target);
+        }
+    }
+
     @Override
     public void keyTyped(KeyEvent e) {
 
@@ -961,4 +1034,84 @@ public class ShortestPathPlugin extends Plugin implements KeyListener {
     public void keyReleased(KeyEvent e) {
 
     }
+
+    private final HotkeyListener customLocationHotkeyListener = new HotkeyListener(() -> config.customLocationToggleHotkey()) {
+        @Override
+        public void hotkeyPressed() {
+            toggleCategory("custom location", ShortestPathPanel::getCustomLocation);
+        }
+    };
+
+    private final HotkeyListener bankHotkeyListener = new HotkeyListener(() -> config.bankToggleHotkey()) {
+        @Override
+        public void hotkeyPressed() {
+            toggleCategory("bank", ShortestPathPanel::getBankTarget);
+        }
+    };
+
+    private final HotkeyListener nearestBankHotkeyListener = new HotkeyListener(() -> config.nearestBankHotkey()) {
+        @Override
+        public void hotkeyPressed() {
+            if (panel == null || !Microbot.isLoggedIn()) return;
+            if (shortestPathScript.getTriggerWalker() != null) {
+                panel.stopWalking();
+            } else {
+                panel.startWalkingNearestBank();
+            }
+        }
+    };
+
+    private final HotkeyListener depositBoxHotkeyListener = new HotkeyListener(() -> config.depositBoxToggleHotkey()) {
+        @Override
+        public void hotkeyPressed() {
+            toggleCategory("deposit box", ShortestPathPanel::getDepositBoxTarget);
+        }
+    };
+
+    private final HotkeyListener nearestDepositBoxHotkeyListener = new HotkeyListener(() -> config.nearestDepositBoxHotkey()) {
+        @Override
+        public void hotkeyPressed() {
+            if (panel == null || !Microbot.isLoggedIn()) return;
+            if (shortestPathScript.getTriggerWalker() != null) {
+                panel.stopWalking();
+            } else {
+                panel.startWalkingNearestDepositBox();
+            }
+        }
+    };
+
+    private final HotkeyListener slayerMasterHotkeyListener = new HotkeyListener(() -> config.slayerMasterToggleHotkey()) {
+        @Override
+        public void hotkeyPressed() {
+            toggleCategory("slayer master", ShortestPathPanel::getSlayerMasterTarget);
+        }
+    };
+
+    private final HotkeyListener questHotkeyListener = new HotkeyListener(() -> config.questToggleHotkey()) {
+        @Override
+        public void hotkeyPressed() {
+            toggleCategory("quest location", ShortestPathPanel::getCurrentQuestLocation);
+        }
+    };
+
+    private final HotkeyListener clueHotkeyListener = new HotkeyListener(() -> config.clueToggleHotkey()) {
+        @Override
+        public void hotkeyPressed() {
+            toggleCategory("clue location", ShortestPathPanel::getCurrentClueLocation);
+        }
+    };
+
+    private final HotkeyListener farmingHotkeyListener = new HotkeyListener(() -> config.farmingToggleHotkey()) {
+        @Override
+        public void hotkeyPressed() {
+            toggleCategory("farming location", ShortestPathPanel::getSelectedFarmingLocation);
+        }
+    };
+
+    private final HotkeyListener hunterHotkeyListener = new HotkeyListener(() -> config.hunterToggleHotkey()) {
+        @Override
+        public void hotkeyPressed() {
+            toggleCategory("hunter area", ShortestPathPanel::getSelectedHuntingArea);
+        }
+    };
 }

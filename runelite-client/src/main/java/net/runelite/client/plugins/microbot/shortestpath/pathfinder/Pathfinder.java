@@ -3,6 +3,7 @@ package net.runelite.client.plugins.microbot.shortestpath.pathfinder;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.client.plugins.microbot.shortestpath.Transport;
 import net.runelite.client.plugins.microbot.shortestpath.WorldPointUtil;
 
 import java.util.*;
@@ -17,19 +18,27 @@ public class Pathfinder implements Runnable {
 
     private final int start;
     private final Set<Integer> targets;
+    // Primitive view of targets — iterated on every popped node in run().
+    // Avoids autoboxing vs. iterating Set<Integer>.
+    private final int[] targetsPacked;
 
     private final PathfinderConfig config;
     private final CollisionMap map;
     private final boolean targetInWilderness;
 
-    // Capacities should be enough to store all nodes without requiring the queue to grow
-    // They were found by checking the max queue size
-    private final Deque<Node> boundary = new ArrayDeque<>(4096);
+    // Walking subgraph uses A* (boundary is a PQ keyed on f = g + Chebyshev heuristic),
+    // so among walking nodes the search picks the most promising direction first.
+    // Transports stay in a separate PQ keyed on g-cost only — they're picked when their
+    // travel cost is cheaper than any frontier walking node's g-cost, preserving the
+    // existing "try cheap transports before walking farther" selection behavior.
+    private final Queue<Node> boundary = new PriorityQueue<>(4096, Comparator.comparingInt(Node::fCost));
     private final Queue<Node> pending = new PriorityQueue<>(256);
     private final VisitedTiles visited;
 
     private volatile List<WorldPoint> path = Collections.emptyList();
+    private volatile List<WorldPoint> smoothedPath = Collections.emptyList();
     private volatile boolean pathNeedsUpdate = false;
+    private volatile boolean smoothed = false;
     private volatile Node bestLastNode;
     /**
      * Teleportation transports are updated when this changes.
@@ -47,6 +56,11 @@ public class Pathfinder implements Runnable {
         this.map = config.getMap();
         this.start = start;
         this.targets = targets;
+        this.targetsPacked = new int[targets.size()];
+        int idx = 0;
+        for (Integer t : targets) {
+            this.targetsPacked[idx++] = t;
+        }
         visited = new VisitedTiles(map);
         targetInWilderness = PathfinderConfig.isInWildernessPackedPoint(targets);
         wildernessLevel = 31;
@@ -95,9 +109,51 @@ public class Pathfinder implements Runnable {
         if (pathNeedsUpdate) {
             path = lastNode.getPath();
             pathNeedsUpdate = false;
+            smoothed = false;
         }
 
         return path;
+    }
+
+    /**
+     * Smoothed view of {@link #getPath()} for walker consumption. Collapses
+     * straight-line runs of adjacent tiles using line-of-sight checks so that
+     * the walker's main loop iterates fewer waypoints and issues fewer
+     * minimap clicks. Falls back to the raw path while the pathfinder is
+     * still running (smoothing only runs once after completion).
+     */
+    public List<WorldPoint> getWalkablePath() {
+        List<WorldPoint> raw = getPath();
+        if (!done || raw == null || raw.isEmpty()) {
+            return raw;
+        }
+        if (!smoothed) {
+            smoothedPath = PathSmoother.smooth(raw, map, buildTransportAnchors(raw));
+            smoothed = true;
+        }
+        return smoothedPath;
+    }
+
+    // Tiles in the raw path that are transport origins or destinations. The smoother
+    // must not collapse across these — some gates (e.g., Tutorial Island rat-cage
+    // gates) aren't encoded as collision walls, so canStep would otherwise glide
+    // past the transport edge and hide the gate from the walker.
+    private Set<WorldPoint> buildTransportAnchors(List<WorldPoint> path) {
+        Map<WorldPoint, Set<Transport>> transports = config.getTransports();
+        if (transports == null || transports.isEmpty() || path == null || path.isEmpty()) {
+            return Collections.emptySet();
+        }
+        Set<WorldPoint> anchors = new HashSet<>();
+        for (WorldPoint p : path) {
+            Set<Transport> fromP = transports.get(p);
+            if (fromP == null) continue;
+            anchors.add(p);
+            for (Transport t : fromP) {
+                WorldPoint dest = t.getDestination();
+                if (dest != null) anchors.add(dest);
+            }
+        }
+        return anchors;
     }
 
     private void addNeighbors(Node node) {
@@ -112,10 +168,39 @@ public class Pathfinder implements Runnable {
                 pending.add(neighbor);
                 ++stats.transportsChecked;
             } else {
-                boundary.addLast(neighbor);
+                neighbor.heuristic = heuristicToNearestTarget(neighbor.packedPosition);
+                boundary.add(neighbor);
                 ++stats.nodesChecked;
             }
         }
+    }
+
+    // Admissible A* heuristic: Chebyshev 2D to the nearest target, with a modulo-6400
+    // fallback for the surface↔underground Y-offset convention (OSRS shifts underground
+    // coords by +6400 on the Y axis, so Varrock sewers live at y≈9800 while Varrock sits
+    // at y≈3400). Plain Chebyshev would claim ~6200 tiles to any underground point, which
+    // misdirects A* into expanding the surface southward instead of routing through a
+    // nearby ladder/stairs transport. Taking min(direct, mod-6400) stays admissible
+    // because reaching a y-mirrored underground point still requires ≥ one transport
+    // (cost ≥ 0) on top of the mod-6400 walking distance.
+    private static final int UNDERGROUND_Y_OFFSET = 6400;
+
+    private int heuristicToNearestTarget(int packedPos) {
+        int posX = WorldPointUtil.unpackWorldX(packedPos);
+        int posY = WorldPointUtil.unpackWorldY(packedPos);
+        int best = Integer.MAX_VALUE;
+        for (int target : targetsPacked) {
+            int tx = WorldPointUtil.unpackWorldX(target);
+            int ty = WorldPointUtil.unpackWorldY(target);
+            int dx = Math.abs(posX - tx);
+            int direct = Math.max(dx, Math.abs(posY - ty));
+            int wrapped = Math.max(dx, Math.abs(((posY % UNDERGROUND_Y_OFFSET) - (ty % UNDERGROUND_Y_OFFSET))));
+            int h = Math.min(direct, wrapped);
+            if (h < best) {
+                best = h;
+            }
+        }
+        return best;
     }
 
     @Override
@@ -124,7 +209,9 @@ public class Pathfinder implements Runnable {
                 WorldPointUtil.toString(start), WorldPointUtil.toString(targets), config.getCalculationCutoffMillis());
         try {
             stats.start();
-            boundary.addFirst(new Node(start, null));
+            Node startNode = new Node(start, null);
+            startNode.heuristic = heuristicToNearestTarget(start);
+            boundary.add(startNode);
 
             int bestDistance = Integer.MAX_VALUE;
             long bestHeuristic = Integer.MAX_VALUE;
@@ -132,13 +219,13 @@ public class Pathfinder implements Runnable {
             long cutoffTimeMillis = System.currentTimeMillis() + cutoffDurationMillis;
             config.refreshTeleports(start, 31);
             while (!cancelled && (!boundary.isEmpty() || !pending.isEmpty())) {
-                Node node = boundary.peekFirst();
+                Node b = boundary.peek();
                 Node p = pending.peek();
-
-                if (p != null && (node == null || p.cost < node.cost)) {
+                Node node;
+                if (p != null && (b == null || p.cost < b.cost)) {
                     node = pending.poll();
                 } else {
-                    node = boundary.removeFirst();
+                    node = boundary.poll();
                 }
 
                 if (wildernessLevel > 0) {
@@ -161,18 +248,18 @@ public class Pathfinder implements Runnable {
                     }
                 }
 
-                if (targets.contains(node.packedPosition)) {
-                    bestLastNode = node;
-                    pathNeedsUpdate = true;
-                    break;
-                }
-
-                for (int target : targets) {
-                    int distance = WorldPointUtil.distanceBetween(node.packedPosition, target);
-                    long heuristic = distance + (long) WorldPointUtil.distanceBetween(node.packedPosition, target, 2);
-
+                final int nodePos = node.packedPosition;
+                boolean reached = false;
+                for (int target : targetsPacked) {
+                    if (nodePos == target) {
+                        bestLastNode = node;
+                        pathNeedsUpdate = true;
+                        reached = true;
+                        break;
+                    }
+                    int distance = WorldPointUtil.distanceBetween(nodePos, target);
+                    long heuristic = distance + (long) WorldPointUtil.distanceBetween(nodePos, target, 2);
                     if (heuristic < bestHeuristic || (heuristic <= bestHeuristic && distance < bestDistance)) {
-
                         bestLastNode = node;
                         pathNeedsUpdate = true;
                         bestDistance = distance;
@@ -180,6 +267,7 @@ public class Pathfinder implements Runnable {
                         cutoffTimeMillis = System.currentTimeMillis() + cutoffDurationMillis;
                     }
                 }
+                if (reached) break;
 
                 if (System.currentTimeMillis() > cutoffTimeMillis) {
                     log.info("[Pathfinder] Cutoff reached. bestDistance={}, nodesChecked={}", bestDistance, stats.getNodesChecked());
@@ -198,8 +286,8 @@ public class Pathfinder implements Runnable {
             done = !cancelled;
 
             boundary.clear();
-            visited.clear();
             pending.clear();
+            visited.clear();
 
             stats.end();
 

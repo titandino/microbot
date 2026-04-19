@@ -160,7 +160,12 @@ Game objects include trees, rocks, doors, bank booths, furnaces, and all other w
 ./microbot-cli walk 3222 3218 1    # plane 1 (upstairs)
 ```
 
-The walk command blocks until the player arrives or the path fails. The response includes both the destination and the player's final position.
+The walk command is **non-blocking by default** — it starts the walk and returns immediately. Add `--wait` to block until the player arrives (or the timeout elapses, default 30s). The response includes both the destination and the player's final position.
+
+```bash
+# Blocking walk — waits until arrival or 60s timeout
+./microbot-cli walk 3222 3218 --wait --timeout 60
+```
 
 ### Banking
 
@@ -217,6 +222,18 @@ The walk command blocks until the player arrives or the path fails. The response
 ```
 
 When on the login screen, the status response includes `loginIndex` and `loginError` for detecting issues like non-member accounts on members worlds (`loginIndex: 34`), banned accounts (`loginIndex: 14`), or invalid credentials (`loginIndex: 4`).
+
+### Profiles
+
+```bash
+# List all profiles (shows name, member status, world selection, active indicator)
+./microbot-cli profile
+
+# Switch the active profile (used by the next login)
+./microbot-cli profile switch "player@email.com"
+```
+
+After switching, `./microbot-cli login now` will use the newly selected profile. Profile switching is safe while logged in — the current session is unaffected; only the next login uses the new profile.
 
 ### Client-Thread Lookup (offline)
 
