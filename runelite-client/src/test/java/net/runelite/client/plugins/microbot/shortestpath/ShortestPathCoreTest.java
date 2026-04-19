@@ -588,6 +588,66 @@ public class ShortestPathCoreTest {
 		return config;
 	}
 
+	// ========================
+	// Pathfinder Tiebreaker / Route Diversity Tests
+	// ========================
+
+	@Test
+	public void testPathfinderTiebreakerProducesDiverseRoutes() {
+		// With deterministic A*, the same (start, target) pair always produces the
+		// same tile sequence, leaving a fingerprint on bots that shuttle between
+		// fixed waypoints. Node.tiebreaker seeds a random secondary priority-queue
+		// key so equal-fCost frontiers expand in a different order each run —
+		// paths stay optimal by cost but diverge tile-by-tile.
+		final WorldPoint start = new WorldPoint(3222, 3218, 0);   // Lumbridge
+		final WorldPoint target = new WorldPoint(3164, 3485, 0);  // Grand Exchange
+		final int runs = 10;
+
+		List<List<WorldPoint>> paths = new ArrayList<>(runs);
+		for (int i = 0; i < runs; i++) {
+			Pathfinder pf = new Pathfinder(createMinimalConfig(), start, target);
+			pf.run();
+			assertTrue("Run " + i + " should complete", pf.isDone());
+			List<WorldPoint> path = pf.getPath();
+			assertNotNull("Run " + i + " path should not be null", path);
+			assertFalse("Run " + i + " path should not be empty", path.isEmpty());
+			paths.add(path);
+		}
+
+		// Optimality: with no transports configured, path cost == path length
+		// (every step is cost 1). All runs should return the same length.
+		int referenceLength = paths.get(0).size();
+		for (int i = 1; i < runs; i++) {
+			assertEquals(
+					"Run " + i + " length should match run 0 (optimality preserved)",
+					referenceLength, paths.get(i).size());
+		}
+
+		// Diversity: at least two of the N runs should produce different tile
+		// sequences. Lumbridge → GE has abundant equal-cost alternatives through
+		// Varrock squares, so the tiebreaker reliably picks different ones.
+		long distinctPaths = paths.stream().distinct().count();
+		assertTrue(
+				"Expected at least 2 distinct paths over " + runs + " runs, got " + distinctPaths,
+				distinctPaths >= 2);
+	}
+
+	@Test
+	public void testPathfinderShortRouteStillOptimal() {
+		// Tiebreaker must not break optimality on short routes where only one
+		// shortest tile sequence exists. Two runs should still agree on length.
+		final WorldPoint start = new WorldPoint(3222, 3218, 0);
+		final WorldPoint target = new WorldPoint(3228, 3218, 0); // 6 tiles east
+
+		Pathfinder a = new Pathfinder(createMinimalConfig(), start, target);
+		a.run();
+		Pathfinder b = new Pathfinder(createMinimalConfig(), start, target);
+		b.run();
+
+		assertEquals("Both runs should have equal path length",
+				a.getPath().size(), b.getPath().size());
+	}
+
 	private PathfinderConfig createMinimalConfig() {
 		PathfinderConfig config = new PathfinderConfig(
 				collisionMap,

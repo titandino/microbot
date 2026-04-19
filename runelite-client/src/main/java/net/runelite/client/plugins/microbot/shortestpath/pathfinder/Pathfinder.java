@@ -31,7 +31,25 @@ public class Pathfinder implements Runnable {
     // Transports stay in a separate PQ keyed on g-cost only — they're picked when their
     // travel cost is cheaper than any frontier walking node's g-cost, preserving the
     // existing "try cheap transports before walking farther" selection behavior.
-    private final Queue<Node> boundary = new PriorityQueue<>(4096, Comparator.comparingInt(Node::fCost));
+    //
+    // Comparator chain is (fCost, gCost, tiebreaker):
+    //   1. fCost — standard A* primary ordering.
+    //   2. gCost — required for correctness under early-discovery. addNeighbors() marks
+    //      a neighbor visited at insert time (not at pop), so a node only ever enters
+    //      the PQ once. If two equal-fCost nodes have different gCost, popping the
+    //      higher-gCost one first would fix their shared neighbor's gCost to a
+    //      suboptimal value (because visited is already set when the lower-g node later
+    //      tries to discover the same neighbor). Preferring lower gCost on ties keeps
+    //      early-discovery optimal.
+    //   3. tiebreaker — per-node random. Among nodes with identical (f, g) — common in
+    //      open-grid regions where many tiles share the same distance-from-start and
+    //      distance-to-goal — this rotates the exploration order each run so paths
+    //      diverge tile-by-tile between successive searches with the same endpoints.
+    //      Kills the deterministic "identical route every trip" fingerprint.
+    private final Queue<Node> boundary = new PriorityQueue<>(4096,
+            Comparator.comparingInt(Node::fCost)
+                    .thenComparingInt(n -> n.cost)
+                    .thenComparingInt(n -> n.tiebreaker));
     private final Queue<Node> pending = new PriorityQueue<>(256);
     private final VisitedTiles visited;
 
