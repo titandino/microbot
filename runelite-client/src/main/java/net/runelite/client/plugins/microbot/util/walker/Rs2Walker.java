@@ -2247,11 +2247,18 @@ public class Rs2Walker {
     private static final int MAP_OF_ALACRITY_ITEM_ID = 33233;
     private static final int MAP_OF_ALACRITY_WIDGET_GROUP = 187;
     private static final int MAP_OF_ALACRITY_LIST_CHILD = 3;
+    // Strikethrough markup the client wraps around locked (unselectable) menu rows.
+    private static final String MOA_LOCKED_MARKUP = "<str>";
 
     // Session blacklist of MoA destinations whose region or row is locked for this player,
     // or whose display info doesn't resolve to any widget child. Prevents the pathfinder from
     // re-picking the same doomed edge every tick.
     public static final java.util.Set<Integer> blacklistedMoaDestinations =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    // Session cache of MoA regions detected as locked. Short-circuits every destination in
+    // that region without re-opening the widget each attempt. Key is lowercased region name.
+    public static final java.util.Set<String> lockedMoaRegions =
             java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private static boolean handleSeasonalTransport(Transport transport) {
@@ -2288,6 +2295,12 @@ public class Rs2Walker {
         String shortName = rest.substring(dashIdx + 3).trim();
         log.debug("[MoA] region='{}' shortName='{}'", region, shortName);
 
+        if (lockedMoaRegions.contains(region.toLowerCase())) {
+            log.debug("[MoA] region '{}' already known-locked — skipping '{}'", region, shortName);
+            blacklistedMoaDestinations.add(packedDest);
+            return false;
+        }
+
         String action = relic.getAction("Read");
         if (action == null) action = relic.getActionFromList(Arrays.asList("Read", "Open", "Teleport", "Invoke"));
         if (action == null) {
@@ -2312,23 +2325,31 @@ public class Rs2Walker {
         }
         dumpMapOfAlacrityWidget(regionRoot);
 
-        Widget regionMatch = Rs2Widget.findWidget(region, java.util.List.of(regionRoot), false);
+        Widget regionMatch = findMoaWidget(regionRoot, region);
         if (regionMatch == null) {
             log.warn("[MoA] region '{}' not found in picker — check dump", region);
             return false;
         }
-        // Locked regions render with <str>...</str> strikethrough markup. Don't waste a click.
+        // Locked regions render with <str>...</str> strikethrough markup. Don't waste a press.
         String regionText = Microbot.getClientThread().runOnClientThreadOptional(regionMatch::getText).orElse("");
-        if (regionText != null && regionText.contains("<str>")) {
-            log.warn("[MoA] region '{}' is locked (text='{}') — blacklisting destination {}",
+        if (regionText != null && regionText.contains(MOA_LOCKED_MARKUP)) {
+            log.warn("[MoA] region '{}' is locked (text='{}') — caching + blacklisting destination {}",
                     region, regionText, transport.getDestination());
+            lockedMoaRegions.add(region.toLowerCase());
             blacklistedMoaDestinations.add(packedDest);
             return false;
         }
-        log.debug("[MoA] clicking region '{}'", region);
-        if (!Rs2Widget.clickWidget(regionMatch)) {
-            log.warn("[MoA] region click returned false");
-            return false;
+        log.debug("[MoA] selecting region '{}'", region);
+        Character regionHotkey = extractMoaHotkey(regionText);
+        if (regionHotkey == null) regionHotkey = computeMoaHotkeyByIndex(regionRoot, regionMatch);
+        if (regionHotkey != null) {
+            Rs2Keyboard.keyPress(regionHotkey);
+        } else {
+            log.warn("[MoA] no hotkey resolved for region '{}' — falling back to clickWidget", region);
+            if (!Rs2Widget.clickWidget(regionMatch)) {
+                log.warn("[MoA] region click returned false");
+                return false;
+            }
         }
 
         // Step 2: wait for the destination to appear in the (same) widget. If the region was
@@ -2337,7 +2358,7 @@ public class Rs2Walker {
         Widget destMatch = sleepUntilNotNull(() -> {
             Widget root = Rs2Widget.getWidget(MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD);
             if (root == null) return null;
-            return findMoaDestinationWidget(root, shortName);
+            return findMoaWidget(root, shortName);
         }, 3000);
 
         if (destMatch == null) {
@@ -2351,7 +2372,7 @@ public class Rs2Walker {
 
         // Individual destinations can also be locked inside an unlocked region.
         String destText = Microbot.getClientThread().runOnClientThreadOptional(destMatch::getText).orElse("");
-        if (destText != null && destText.contains("<str>")) {
+        if (destText != null && destText.contains(MOA_LOCKED_MARKUP)) {
             log.warn("[MoA] destination '{}' is locked (text='{}') — blacklisting", shortName, destText);
             blacklistedMoaDestinations.add(packedDest);
             return false;
@@ -2361,7 +2382,10 @@ public class Rs2Walker {
         // is scrolled off-screen, which clickWidget cannot handle.
         log.info("[MoA] selecting destination '{}' (text='{}')", shortName, destText);
         Character hotkey = extractMoaHotkey(destText);
-        if (hotkey == null) hotkey = computeMoaHotkeyByIndex(destMatch);
+        if (hotkey == null) {
+            Widget destRoot = Rs2Widget.getWidget(MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD);
+            hotkey = computeMoaHotkeyByIndex(destRoot, destMatch);
+        }
         if (hotkey != null) {
             Rs2Keyboard.keyPress(hotkey);
             log.debug("[MoA] pressed hotkey '{}' for '{}'", hotkey, shortName);
@@ -2375,11 +2399,15 @@ public class Rs2Walker {
     // Matches the OSRS menu-row hotkey prefix, e.g. "[1] ..." or "1: ..." or "A. ...".
     private static final Pattern MOA_HOTKEY_PATTERN =
             Pattern.compile("^\\s*(?:\\[([0-9A-Za-z])\\]|([0-9A-Za-z])\\s*[:.])");
+    private static final Pattern MOA_MARKUP_PATTERN = Pattern.compile("<[^>]+>");
+    private static final Pattern MOA_PUNCT_PATTERN = Pattern.compile("[^a-zA-Z0-9 ]");
+    private static final Pattern MOA_WHITESPACE_PATTERN = Pattern.compile("\\s+");
 
-    // Token-contains match tolerant of punctuation, <col=..>/<str> markup, and case. Fixes
-    // the colon mismatch between TSV short names (e.g. "Chaos Temple Stepping Stone") and
-    // in-game labels ("Chaos Temple: Stepping Stone") without per-row data curation.
-    private static Widget findMoaDestinationWidget(Widget root, String shortName) {
+    // Token-contains match tolerant of punctuation, <col=..>/<str> markup, and case. Used for
+    // both the region picker and the destination picker. Fixes the colon mismatch between TSV
+    // short names (e.g. "Chaos Temple Stepping Stone") and in-game labels ("Chaos Temple:
+    // Stepping Stone") without per-row data curation.
+    private static Widget findMoaWidget(Widget root, String shortName) {
         String normalised = normaliseMoaText(shortName);
         if (normalised.isEmpty()) return null;
         String[] tokens = normalised.split(" ");
@@ -2410,9 +2438,9 @@ public class Rs2Walker {
 
     private static String normaliseMoaText(String s) {
         if (s == null) return "";
-        s = s.replaceAll("<[^>]+>", " ");       // strip <col=..>, <str>, <br>
-        s = s.replaceAll("[^a-zA-Z0-9 ]", " "); // strip punctuation
-        return s.toLowerCase().replaceAll("\\s+", " ").trim();
+        s = MOA_MARKUP_PATTERN.matcher(s).replaceAll(" ");
+        s = MOA_PUNCT_PATTERN.matcher(s).replaceAll(" ");
+        return MOA_WHITESPACE_PATTERN.matcher(s.toLowerCase()).replaceAll(" ").trim();
     }
 
     private static Character extractMoaHotkey(String rawText) {
@@ -2428,15 +2456,14 @@ public class Rs2Walker {
 
     // Fallback when the row text has no bracketed/colon-prefixed key we can parse.
     // OSRS numbers unlocked rows 1-9 then A-Z; locked (<str>) rows are skipped.
-    private static Character computeMoaHotkeyByIndex(Widget destMatch) {
+    private static Character computeMoaHotkeyByIndex(Widget root, Widget destMatch) {
+        if (root == null) return null;
         return Microbot.getClientThread().runOnClientThreadOptional(() -> {
-            Widget root = Rs2Widget.getWidget(MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD);
-            if (root == null) return null;
             int idx = 0;
             for (Widget sibling : collectMoaChildren(root)) {
                 String t = sibling.getText();
                 if (t == null || t.isEmpty()) continue;
-                if (t.contains("<str>")) continue;
+                if (t.contains(MOA_LOCKED_MARKUP)) continue;
                 if (sibling == destMatch) return indexToHotkey(idx);
                 idx++;
             }
@@ -2481,6 +2508,96 @@ public class Rs2Walker {
             }
             return true;
         });
+    }
+
+    // TEMP: iterate every MoA seasonal transport, attempt it, log landing vs expected.
+    // Run from a dedicated worker thread (blocks). Requires Map of Alacrity in inventory;
+    // locked regions/destinations are reported and skipped via the existing handler's guards.
+    public static void runMoaAudit() {
+        try {
+            while (!Microbot.isLoggedIn()) {
+                if (Thread.currentThread().isInterrupted()) return;
+                sleep(1000);
+            }
+            if (Rs2Inventory.get(MAP_OF_ALACRITY_ITEM_ID) == null) {
+                log.warn("[MoA-AUDIT] Map of Alacrity not in inventory — aborting");
+                return;
+            }
+
+            HashMap<WorldPoint, Set<Transport>> all = Transport.loadAllFromResources();
+            List<Transport> moa = new ArrayList<>();
+            for (Set<Transport> set : all.values()) {
+                for (Transport t : set) {
+                    if (t.getType() == TransportType.SEASONAL_TRANSPORT
+                            && t.getDisplayInfo() != null
+                            && t.getDisplayInfo().toLowerCase().contains("map of alacrity")) {
+                        moa.add(t);
+                    }
+                }
+            }
+            moa.sort(Comparator.comparing(Transport::getDisplayInfo));
+            log.info("[MoA-AUDIT] {} MoA transports queued", moa.size());
+            blacklistedMoaDestinations.clear();
+            lockedMoaRegions.clear();
+
+            int landed = 0, skipped = 0;
+            for (int i = 0; i < moa.size(); i++) {
+                if (Thread.currentThread().isInterrupted()) break;
+                if (!Microbot.isLoggedIn()) { log.warn("[MoA-AUDIT] logged out — stopping"); break; }
+
+                Transport t = moa.get(i);
+                String disp = t.getDisplayInfo();
+                WorldPoint expected = t.getDestination();
+                WorldPoint before = Rs2Player.getWorldLocation();
+                if (before == null) { sleep(500); continue; }
+
+                log.info("[MoA-AUDIT] {}/{}: {} (expected {},{},{})",
+                        i + 1, moa.size(), disp,
+                        expected.getX(), expected.getY(), expected.getPlane());
+
+                if (!handleSeasonalTransport(t)) {
+                    log.info("[MoA-AUDIT]   handler returned false");
+                    closeMoaWidgetIfOpen();
+                    skipped++;
+                    sleep(600);
+                    continue;
+                }
+
+                boolean moved = sleepUntil(() -> {
+                    WorldPoint now = Rs2Player.getWorldLocation();
+                    return now != null && (now.distanceTo(before) > 5 || now.getPlane() != before.getPlane());
+                }, 8000);
+
+                if (!moved) {
+                    log.info("[MoA-AUDIT]   no teleport detected");
+                    closeMoaWidgetIfOpen();
+                    skipped++;
+                    continue;
+                }
+
+                sleep(1500); // settle
+                WorldPoint after = Rs2Player.getWorldLocation();
+                int dist = after.getPlane() == expected.getPlane() ? after.distanceTo(expected) : -1;
+                String marker = dist == 0 ? "EXACT" : (dist > 0 && dist <= 2 ? "close" : (dist > 0 && dist <= 10 ? "NEAR" : "FAR"));
+                log.info("[MoA-AUDIT] LAND {} | actual={},{},{} expected={},{},{} dist={} | {}",
+                        marker,
+                        after.getX(), after.getY(), after.getPlane(),
+                        expected.getX(), expected.getY(), expected.getPlane(),
+                        dist, disp);
+                landed++;
+                sleep(1500);
+            }
+            log.info("[MoA-AUDIT] complete: landed={}/{} skipped={}", landed, moa.size(), skipped);
+        } catch (Exception e) {
+            log.error("[MoA-AUDIT] crashed", e);
+        }
+    }
+
+    private static void closeMoaWidgetIfOpen() {
+        if (Rs2Widget.isWidgetVisible(MAP_OF_ALACRITY_WIDGET_GROUP, MAP_OF_ALACRITY_LIST_CHILD)) {
+            Rs2Keyboard.keyPress(27); // ESC
+            sleep(400);
+        }
     }
 
     private static boolean handleSpiritTree(Transport transport) {
