@@ -683,9 +683,60 @@ public class Rs2Walker {
     // Enable run (if energy permits) and drink a stamina/restore-energy potion when
     // energy drops below a threshold on a long walk. Short hops don't justify a dose.
     private static long lastStaminaDoseAtMs = 0;
-    private static final int STAMINA_ENERGY_THRESHOLD = 30;
+    static final int STAMINA_THRESHOLD_MIN = 12;
+    static final int STAMINA_THRESHOLD_MAX = 55;
+    static final int STAMINA_CASUAL_MIN = 35;
+    static final int STAMINA_CASUAL_MAX = 55;
+    static final int STAMINA_HARDCORE_MIN = 12;
+    static final int STAMINA_HARDCORE_MAX = 24;
+    static final double STAMINA_HARDCORE_PROBABILITY = 0.3;
+    private static final int STAMINA_THRESHOLD_FALLBACK = 35;
     private static final int STAMINA_MIN_PATH_TILES = 20;
     private static final long STAMINA_MIN_INTERVAL_MS = 10_000;
+
+    private static volatile String staminaSeedName = null;
+    private static volatile int staminaThresholdCached = STAMINA_THRESHOLD_FALLBACK;
+
+    static int computeStaminaThreshold(String playerName, long installSeed) {
+        if (playerName == null || playerName.isEmpty()) {
+            return STAMINA_THRESHOLD_FALLBACK;
+        }
+        long nameHash = mix64(playerName.toLowerCase());
+        long seed = nameHash ^ installSeed;
+        java.util.Random rng = new java.util.Random(seed);
+        if (rng.nextDouble() < STAMINA_HARDCORE_PROBABILITY) {
+            int span = STAMINA_HARDCORE_MAX - STAMINA_HARDCORE_MIN + 1;
+            return STAMINA_HARDCORE_MIN + rng.nextInt(span);
+        }
+        int span = STAMINA_CASUAL_MAX - STAMINA_CASUAL_MIN + 1;
+        return STAMINA_CASUAL_MIN + rng.nextInt(span);
+    }
+
+    private static long mix64(String s) {
+        long h = 0xcbf29ce484222325L;
+        for (int i = 0; i < s.length(); i++) {
+            h ^= s.charAt(i);
+            h *= 0x100000001b3L;
+        }
+        return h;
+    }
+
+    private static int staminaThreshold() {
+        String name = null;
+        try {
+            var player = Microbot.getClient().getLocalPlayer();
+            if (player != null) name = player.getName();
+        } catch (Exception ignored) {
+        }
+        if (name == null || name.isEmpty()) {
+            return staminaThresholdCached;
+        }
+        if (!name.equals(staminaSeedName)) {
+            staminaSeedName = name;
+            staminaThresholdCached = computeStaminaThreshold(name, Microbot.getInstallSeed());
+        }
+        return staminaThresholdCached;
+    }
 
     private static void manageRunEnergy(int pathRemaining) {
         try {
@@ -693,7 +744,7 @@ public class Rs2Walker {
                 Rs2Player.toggleRunEnergy(true);
             }
             if (pathRemaining < STAMINA_MIN_PATH_TILES) return;
-            if (Rs2Player.getRunEnergy() >= STAMINA_ENERGY_THRESHOLD) return;
+            if (Rs2Player.getRunEnergy() >= staminaThreshold()) return;
             if (Rs2Player.hasStaminaBuffActive()) return;
             long now = System.currentTimeMillis();
             if (now - lastStaminaDoseAtMs < STAMINA_MIN_INTERVAL_MS) return;
@@ -1838,14 +1889,14 @@ public class Rs2Walker {
                                 }
 
                                 if (Rs2Dialogue.clickOption("I'm just going to Pirates' cove")){
-                                    sleep(600 * 2);
+                                    sleepTickJitter(2);
                                     Rs2Dialogue.clickContinue();
                                 } else if (Objects.equals(transport.getName(), "Mountain Guide")) {
                                     Rs2Dialogue.clickOption(transport.getDisplayInfo());
                                 }
                                 sleepUntil(() -> !Rs2Player.isAnimating());
                                 sleepUntil(() -> Rs2Player.getWorldLocation().distanceTo(transport.getDestination()) < 10);
-                                sleep(600 * 6);
+                                sleepTickJitter(6);
                             } else {
                                 Rs2Walker.walkFastCanvas(path.get(i));
                                 sleep(1200, 1600);
@@ -1856,7 +1907,7 @@ public class Rs2Walker {
                             if (handleCharterShip(transport)) {
                                 sleepUntil(() -> !Rs2Player.isAnimating());
                                 sleepUntilTrue(() -> Rs2Player.getWorldLocation().distanceTo(transport.getDestination()) < 10);
-                                sleep(600 * 4); // wait 4 extra ticks before walking
+                                sleepTickJitter(4); // wait 4 extra ticks before walking
                                 break;
                             }
                         }
@@ -1875,7 +1926,7 @@ public class Rs2Walker {
 
                     if (transport.getType() == TransportType.CANOE) {
                         if (handleCanoe(transport)) {
-                            sleep(600 * 2); // wait 2 extra ticks before walking
+                            sleepTickJitter(2);
                             break;
                         }
                     }
@@ -1890,21 +1941,21 @@ public class Rs2Walker {
 
                     if (transport.getType() == TransportType.QUETZAL) {
                         if (handleQuetzal(transport)) {
-                            sleep(600 * 2); // wait 2 extra ticks before walking
+                            sleepTickJitter(2);
                             break;
                         }
                     }
 
                     if (transport.getType() == TransportType.MAGIC_CARPET) {
                         if (handleMagicCarpet(transport)) {
-                            sleep(600 * 2); // wait 2 extra ticks before walking
+                            sleepTickJitter(2);
                             break;
                         }
                     }
 
                     if (transport.getType() == TransportType.WILDERNESS_OBELISK) {
                         if (handleWildernessObelisk(transport)) {
-                            sleep(600 * 2);
+                            sleepTickJitter(2);
                             break;
                         }
                     }
@@ -1913,7 +1964,7 @@ public class Rs2Walker {
                         if (handleGlider(transport)) {
                             sleepUntil(() -> !Rs2Player.isAnimating());
                             sleepUntilTrue(() -> Rs2Player.getWorldLocation().distanceTo(transport.getDestination()) < 10);
-                            sleep(600 * 3); // wait 3 extra ticks before walking
+                            sleepTickJitter(3);
                             break;
                         }
                     }
@@ -2056,13 +2107,13 @@ public class Rs2Walker {
                 sleepUntil(() -> Rs2Player.getWorldLocation().distanceTo(transport.getDestination()) <= 2, 10000);
             } else if (transport.getType() == TransportType.MINECART) {
                 if (interactWithAdventureLog(transport)) {
-                    sleep(600 * 2); // wait extra 2 game ticks before moving
+                    sleepTickJitter(2); // wait extra 2 game ticks before moving
                 } else {
                     sleepUntil(() -> Rs2Player.getPoseAnimation() == 2148, 5000);
                     sleepUntil(() -> Rs2Player.getPoseAnimation() != 2148, 10000);
                 }
             } else if (transport.getType() == TransportType.TELEPORTATION_PORTAL) {
-                sleep(600 * 2); // wait extra 2 game ticks before moving
+                sleepTickJitter(2); // wait extra 2 game ticks before moving
             } else {
                 Rs2Player.waitForWalking();
                 Rs2Dialogue.clickOption("Yes please"); //shillo village cart
@@ -3934,7 +3985,7 @@ public class Rs2Walker {
                 }
 
                 // Wait a bit for all withdrawals to complete
-                sleep(600); // 1 tick
+                sleepTickJitter(1);
             }
 
             // Step 4: Close bank
