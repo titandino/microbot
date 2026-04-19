@@ -11,6 +11,19 @@ public class Global {
     static ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(10);
     static ScheduledFuture<?> scheduledFuture;
 
+    private static final int POLL_MIN_MS = 40;
+    private static final int POLL_MAX_MS = 320;
+    private static final double POLL_LOG_MEAN = 4.41;
+    private static final double POLL_LOG_SIGMA = 0.22;
+
+    static int nextPollIntervalMs() {
+        double gaussian = ThreadLocalRandom.current().nextGaussian();
+        double sample = Math.exp(POLL_LOG_MEAN + POLL_LOG_SIGMA * gaussian);
+        if (sample < POLL_MIN_MS) return POLL_MIN_MS;
+        if (sample > POLL_MAX_MS) return POLL_MAX_MS;
+        return (int) sample;
+    }
+
     public static ScheduledFuture<?> awaitExecutionUntil(Runnable callback, BooleanSupplier awaitedCondition, int time) {
         scheduledFuture = scheduledExecutorService.scheduleWithFixedDelay(() -> {
             if (awaitedCondition.getAsBoolean()) {
@@ -39,6 +52,24 @@ public class Global {
     public static void sleepGaussian(int mean, int stddev) {
         int randomSleep = Rs2Random.randomGaussian(mean, stddev);
         sleep(randomSleep);
+    }
+
+    private static final int TICK_MS = 600;
+    private static final int TICK_JITTER_SIGMA_MS = 80;
+
+    static int nextTickJitterMs(int ticks) {
+        int base = Math.max(0, ticks * TICK_MS);
+        double g = ThreadLocalRandom.current().nextGaussian();
+        int sample = (int) Math.round(base + g * TICK_JITTER_SIGMA_MS);
+        int floor = Math.max(100, base - 3 * TICK_JITTER_SIGMA_MS);
+        int ceil = base + 3 * TICK_JITTER_SIGMA_MS;
+        if (sample < floor) return floor;
+        if (sample > ceil) return ceil;
+        return sample;
+    }
+
+    public static void sleepTickJitter(int ticks) {
+        sleep(nextTickJitterMs(ticks));
     }
 
     @SneakyThrows
@@ -78,7 +109,7 @@ public class Global {
         try {
             do {
                 done = awaitedCondition.getAsBoolean();
-                sleep(100);
+                sleep(nextPollIntervalMs());
             } while (!done && System.currentTimeMillis() - startTime < time);
         } catch (Exception e) {
             Microbot.logStackTrace("Global Sleep: ", e);
@@ -112,7 +143,7 @@ public class Global {
                 if (awaitedCondition.getAsBoolean()) {
                     return true;
                 }
-                sleep(100);
+                sleep(nextPollIntervalMs());
             } while (System.currentTimeMillis() - startTime < 5000);
         } catch (Exception e) {
             Microbot.logStackTrace("Global Sleep: ", e);
