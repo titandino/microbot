@@ -11,6 +11,7 @@ import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.api.player.models.Rs2PlayerModel;
 import net.runelite.client.plugins.microbot.util.Global;
 import net.runelite.client.plugins.microbot.util.keyboard.Rs2Keyboard;
+import net.runelite.client.plugins.microbot.util.math.Rs2Random;
 import net.runelite.client.plugins.microbot.util.player.Rs2Player;
 
 import java.awt.*;
@@ -162,9 +163,12 @@ public class Rs2Camera {
 
     // set camera pitch
     public static void setPitch(int pitch) {
+        smoothTo(pitch, true);
+    }
+
+    public static void setPitchInstant(int pitch) {
         int minPitch = 128;
         int maxPitch = 383;
-        // clamp pitch to avoid out of bounds
         pitch = Math.max(minPitch, Math.min(maxPitch, pitch));
         Microbot.getClient().setCameraPitchTarget(pitch);
     }
@@ -286,9 +290,61 @@ public class Rs2Camera {
     // West = 512
 
     public static void setYaw(int yaw) {
-        if ( yaw >= 0 && yaw < 2048 ) {
+        if (yaw < 0 || yaw >= 2048) return;
+        smoothTo(yaw, false);
+    }
+
+    public static void setYawInstant(int yaw) {
+        if (yaw >= 0 && yaw < 2048) {
             Microbot.getClient().setCameraYawTarget(yaw);
         }
+    }
+
+    static final int SMOOTH_MIN_DURATION_MS = 220;
+    static final int SMOOTH_MAX_DURATION_MS = 780;
+    static final int SMOOTH_STEPS = 10;
+
+    // Short rotation hops (<3 units) are below the noise floor of the internal camera speed
+    // and would be invisible anyway, so skip smoothing for those — avoids a 200ms stall on no-ops.
+    private static void smoothTo(int target, boolean isPitch) {
+        int start = isPitch ? Microbot.getClient().getCameraPitch() : Microbot.getClient().getCameraYaw();
+        int clampedTarget;
+        if (isPitch) {
+            int minPitch = 128, maxPitch = 383;
+            clampedTarget = Math.max(minPitch, Math.min(maxPitch, target));
+        } else {
+            clampedTarget = Math.max(0, Math.min(2047, target));
+        }
+        int delta = shortestDelta(clampedTarget - start, isPitch);
+        if (Math.abs(delta) < 3 || Microbot.getClient().isClientThread()) {
+            if (isPitch) Microbot.getClient().setCameraPitchTarget(clampedTarget);
+            else Microbot.getClient().setCameraYawTarget(clampedTarget);
+            return;
+        }
+        int totalMs = Rs2Random.logNormalBounded(SMOOTH_MIN_DURATION_MS, SMOOTH_MAX_DURATION_MS);
+        int stepMs = Math.max(1, totalMs / SMOOTH_STEPS);
+        for (int i = 1; i <= SMOOTH_STEPS; i++) {
+            double t = i / (double) SMOOTH_STEPS;
+            double eased = easeInOut(t);
+            int next = start + (int) Math.round(delta * eased);
+            if (!isPitch) {
+                next = ((next % 2048) + 2048) % 2048;
+                Microbot.getClient().setCameraYawTarget(next);
+            } else {
+                Microbot.getClient().setCameraPitchTarget(next);
+            }
+            if (i < SMOOTH_STEPS) Global.sleep(stepMs);
+        }
+    }
+
+    private static int shortestDelta(int rawDelta, boolean isPitch) {
+        if (isPitch) return rawDelta;
+        int d = ((rawDelta % 2048) + 2048) % 2048;
+        return d > 1024 ? d - 2048 : d;
+    }
+
+    private static double easeInOut(double t) {
+        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
     }
 
     /**

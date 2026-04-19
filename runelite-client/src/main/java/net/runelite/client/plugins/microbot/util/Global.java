@@ -2,6 +2,7 @@ package net.runelite.client.plugins.microbot.util;
 
 import lombok.SneakyThrows;
 import net.runelite.client.plugins.microbot.Microbot;
+import net.runelite.client.plugins.microbot.util.antiban.SessionFatigue;
 import net.runelite.client.plugins.microbot.util.math.Rs2Random;
 
 import java.util.concurrent.*;
@@ -54,6 +55,18 @@ public class Global {
         sleep(randomSleep);
     }
 
+    public static void sleepFatigued(int ms) {
+        sleep(SessionFatigue.applyTo(ms));
+    }
+
+    public static void sleepFatigued(int start, int end) {
+        sleep(SessionFatigue.applyTo(Rs2Random.between(start, end)));
+    }
+
+    public static void sleepGaussianFatigued(int mean, int stddev) {
+        sleep(SessionFatigue.applyTo(Rs2Random.randomGaussian(mean, stddev)));
+    }
+
     private static final int TICK_MS = 600;
     private static final int TICK_JITTER_SIGMA_MS = 80;
 
@@ -70,6 +83,10 @@ public class Global {
 
     public static void sleepTickJitter(int ticks) {
         sleep(nextTickJitterMs(ticks));
+    }
+
+    public static void sleepTickJitterFatigued(int ticks) {
+        sleep(SessionFatigue.applyTo(nextTickJitterMs(ticks)));
     }
 
     @SneakyThrows

@@ -38,6 +38,7 @@ import net.runelite.client.plugins.microbot.configs.SpecialAttackConfigs;
 import net.runelite.client.plugins.microbot.pouch.PouchScript;
 import net.runelite.client.plugins.microbot.util.inventory.Rs2ItemModel;
 import net.runelite.client.plugins.microbot.util.item.Rs2ItemManager;
+import net.runelite.client.plugins.microbot.util.math.Rs2Random;
 import net.runelite.client.plugins.microbot.util.menu.NewMenuEntry;
 import net.runelite.client.plugins.microbot.util.misc.Rs2UiHelper;
 import net.runelite.client.plugins.microbot.util.mouse.Mouse;
@@ -591,7 +592,7 @@ public class Microbot {
         Point endPoint = Rs2UiHelper.getClickingPoint(end, true);
         mouse.drag(startPoint, endPoint);
         if (!Microbot.getClient().isClientThread()) {
-            sleep(50, 80);
+            sleep(Rs2Random.logNormalBounded(50, 80));
         }
     }
 
@@ -604,7 +605,7 @@ public class Microbot {
         }
 
         if (!Microbot.getClient().isClientThread()) {
-            sleep(50, 100);
+            sleep(Rs2Random.logNormalBounded(50, 100));
         }
     }
 
@@ -615,7 +616,7 @@ public class Microbot {
 
 
         if (!Microbot.getClient().isClientThread()) {
-            sleep(50, 80);
+            sleep(Rs2Random.logNormalBounded(50, 80));
         }
     }
 

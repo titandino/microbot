@@ -73,9 +73,9 @@ public class Rs2Keyboard
 		withFocusCanvas(() -> {
 			for (char c : word.toCharArray())
 			{
-				int delay = Rs2Random.between(20, 200);
+				int delay = Rs2Random.logNormalBounded(20, 200);
 				dispatchKeyEvent(KeyEvent.KEY_TYPED, KeyEvent.VK_UNDEFINED, c, delay);
-				Global.sleep(100, 200);
+				Global.sleep(Rs2Random.logNormalBounded(100, 200));
 			}
 		});
 	}
@@ -88,7 +88,7 @@ public class Rs2Keyboard
 	public static void keyPress(final char key)
 	{
 		withFocusCanvas(() -> {
-			int delay = Rs2Random.between(20, 200);
+			int delay = Rs2Random.logNormalBounded(20, 200);
 			dispatchKeyEvent(KeyEvent.KEY_TYPED, KeyEvent.VK_UNDEFINED, key, delay);
 		});
 	}
@@ -99,7 +99,7 @@ public class Rs2Keyboard
 	public static void holdShift()
 	{
 		withFocusCanvas(() -> {
-			int delay = Rs2Random.between(20, 200);
+			int delay = Rs2Random.logNormalBounded(20, 200);
 			dispatchKeyEvent(KeyEvent.KEY_PRESSED, KeyEvent.VK_SHIFT, CHAR_UNDEFINED, delay);
 		});
 	}
@@ -110,7 +110,7 @@ public class Rs2Keyboard
 	public static void releaseShift()
 	{
 		withFocusCanvas(() -> {
-			int delay = Rs2Random.between(20, 200);
+			int delay = Rs2Random.logNormalBounded(20, 200);
 			dispatchKeyEvent(KeyEvent.KEY_RELEASED, KeyEvent.VK_SHIFT, CHAR_UNDEFINED, delay);
 		});
 	}
@@ -135,7 +135,7 @@ public class Rs2Keyboard
 	public static void keyRelease(int key)
 	{
 		withFocusCanvas(() -> {
-			int delay = Rs2Random.between(20, 200);
+			int delay = Rs2Random.logNormalBounded(20, 200);
 			dispatchKeyEvent(KeyEvent.KEY_RELEASED, key, CHAR_UNDEFINED, delay);
 		});
 	}
@@ -157,7 +157,7 @@ public class Rs2Keyboard
 
 		withFocusCanvas(() -> {
 			dispatchKeyEvent(KeyEvent.KEY_PRESSED, key, typed, 0);
-			int delay = Rs2Random.between(20, 200);
+			int delay = Rs2Random.logNormalBounded(20, 200);
 			dispatchKeyEvent(KeyEvent.KEY_TYPED, KeyEvent.VK_UNDEFINED, typed, delay);
 			int releaseDelay = Rs2Random.between(20, 200);
 			dispatchKeyEvent(KeyEvent.KEY_RELEASED, key, CHAR_UNDEFINED, releaseDelay);

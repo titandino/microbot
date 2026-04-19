@@ -1,5 +1,7 @@
 package net.runelite.client.plugins.microbot.util.math;
 
+import net.runelite.client.plugins.microbot.util.antiban.SessionFatigue;
+import org.junit.After;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -7,6 +9,11 @@ import java.util.Arrays;
 import static org.junit.Assert.assertTrue;
 
 public class Rs2RandomReactionTimeTest {
+
+	@After
+	public void tearDown() {
+		SessionFatigue.endSession();
+	}
 
 	private static final int SAMPLE_SIZE = 20_000;
 	private static final int MIN_MS = 120;
@@ -55,5 +62,16 @@ public class Rs2RandomReactionTimeTest {
 		int median = samples[SAMPLE_SIZE / 2];
 		assertTrue("sampled median " + median + " should track requested " + target + "ms within 10%",
 				Math.abs(median - target) <= target * 0.10);
+	}
+
+	@Test
+	public void inactiveSessionLeavesReactionTimeMedianIntact() {
+		SessionFatigue.endSession();
+		int[] samples = new int[SAMPLE_SIZE];
+		for (int i = 0; i < SAMPLE_SIZE; i++) samples[i] = Rs2Random.reactionTime(400);
+		Arrays.sort(samples);
+		int median = samples[SAMPLE_SIZE / 2];
+		assertTrue("median " + median + " should track target 400ms within 10% when no session active",
+				Math.abs(median - 400) <= 40);
 	}
 }

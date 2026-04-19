@@ -65,37 +65,41 @@ public class VirtualMouse extends Mouse {
 
     private void dispatchMouse(int id, Point point, int button, int clickCount) {
         int[] s = scaleForDispatch(point.getX(), point.getY());
-        MouseEvent event = new MouseEvent(getCanvas(), id, System.currentTimeMillis(), 0,
+        Canvas canvas = getCanvas();
+        MouseEvent event = new MouseEvent(canvas, id, System.currentTimeMillis(), 0,
                 s[0], s[1], clickCount, false, button);
-        BotEventGuard.begin();
-        try {
-            getCanvas().dispatchEvent(event);
-        } finally {
-            BotEventGuard.end();
-        }
+        dispatchWithoutFocusGrab(canvas, event);
     }
 
     private void dispatchMouseMove(int id, Point point) {
         int[] s = scaleForDispatch(point.getX(), point.getY());
-        MouseEvent event = new MouseEvent(getCanvas(), id, System.currentTimeMillis(), 0,
+        Canvas canvas = getCanvas();
+        MouseEvent event = new MouseEvent(canvas, id, System.currentTimeMillis(), 0,
                 s[0], s[1], 0, false);
-        BotEventGuard.begin();
-        try {
-            getCanvas().dispatchEvent(event);
-        } finally {
-            BotEventGuard.end();
-        }
+        dispatchWithoutFocusGrab(canvas, event);
     }
 
     private void dispatchWheel(Point point, int wheelRotation, int unitsToScroll) {
         int[] s = scaleForDispatch(point.getX(), point.getY());
-        MouseWheelEvent event = new MouseWheelEvent(getCanvas(), MouseEvent.MOUSE_WHEEL,
+        Canvas canvas = getCanvas();
+        MouseWheelEvent event = new MouseWheelEvent(canvas, MouseEvent.MOUSE_WHEEL,
                 System.currentTimeMillis(), 0, s[0], s[1], 0, false, 0, unitsToScroll, wheelRotation);
+        dispatchWithoutFocusGrab(canvas, event);
+    }
+
+    // Jagex's MOUSE_PRESSED listener calls canvas.requestFocus() when the event source is the Canvas,
+    // which yanks OS keyboard focus away from whatever app the user is typing in. Flip focusable off
+    // for the duration of the synthetic dispatch so requestFocus is a no-op; mouse delivery itself is
+    // unaffected by focusable state.
+    private void dispatchWithoutFocusGrab(Canvas canvas, AWTEvent event) {
+        boolean wasFocusable = canvas.isFocusable();
+        if (wasFocusable) canvas.setFocusable(false);
         BotEventGuard.begin();
         try {
-            getCanvas().dispatchEvent(event);
+            canvas.dispatchEvent(event);
         } finally {
             BotEventGuard.end();
+            if (wasFocusable) canvas.setFocusable(true);
         }
     }
 
@@ -224,7 +228,7 @@ public class VirtualMouse extends Mouse {
         move(point);
         scheduledExecutorService.schedule(
                 () -> dispatchWheel(point, 2, 10),
-                Rs2Random.between(40, 100), TimeUnit.MILLISECONDS);
+                Rs2Random.logNormalBounded(40, 100), TimeUnit.MILLISECONDS);
         return this;
     }
 
@@ -232,7 +236,7 @@ public class VirtualMouse extends Mouse {
         move(point);
         scheduledExecutorService.schedule(
                 () -> dispatchWheel(point, -2, -10),
-                Rs2Random.between(40, 100), TimeUnit.MILLISECONDS);
+                Rs2Random.logNormalBounded(40, 100), TimeUnit.MILLISECONDS);
         return this;
     }
 
@@ -287,14 +291,14 @@ public class VirtualMouse extends Mouse {
             Microbot.naturalMouse.moveTo(startPoint.getX(), startPoint.getY());
         else
             move(startPoint);
-        sleep(50, 80);
+        sleep(Rs2Random.logNormalBounded(50, 80));
         pressed(startPoint, MouseEvent.BUTTON1);
-        sleep(80, 120);
+        sleep(Rs2Random.logNormalBounded(80, 120));
         if (endPoint.getX() > 1 && endPoint.getY() > 1 && Microbot.naturalMouse != null)
             Microbot.naturalMouse.moveTo(endPoint.getX(), endPoint.getY());
         else
             move(endPoint);
-        sleep(80, 120);
+        sleep(Rs2Random.logNormalBounded(80, 120));
         released(endPoint, MouseEvent.BUTTON1);
 
         return this;

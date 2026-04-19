@@ -896,6 +896,9 @@ public class BreakHandlerV2Script extends Script {
         BreakHandlerV2State oldState = BreakHandlerV2State.getCurrentState();
         log.info("[BreakHandlerV2] State transition: {} -> {}", oldState, newState);
         BreakHandlerV2State.setState(newState);
+        if (newState == BreakHandlerV2State.LOGGED_OUT) {
+            net.runelite.client.plugins.microbot.util.antiban.SessionFatigue.endSession();
+        }
     }
 
     /**

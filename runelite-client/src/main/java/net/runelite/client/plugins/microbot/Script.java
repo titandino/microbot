@@ -6,6 +6,7 @@ import net.runelite.api.coords.WorldPoint;
 import net.runelite.client.plugins.microbot.shortestpath.ShortestPathPlugin;
 import net.runelite.client.plugins.microbot.util.Global;
 import net.runelite.client.plugins.microbot.agentserver.handler.ScriptHeartbeatRegistry;
+import net.runelite.client.plugins.microbot.util.antiban.SessionFatigue;
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory;
 import net.runelite.client.plugins.microbot.util.player.Rs2Player;
 import net.runelite.client.plugins.microbot.util.walker.Rs2Walker;
@@ -76,6 +77,10 @@ public abstract class Script extends Global implements IScript {
      */
     public boolean run() {
         ScriptHeartbeatRegistry.recordHeartbeat(this.getClass().getName());
+
+        if (Microbot.isLoggedIn() && !SessionFatigue.isActive()) {
+            SessionFatigue.startSession();
+        }
 
         if (Microbot.isLoggedIn() && !Rs2Player.hasCompletedTutorialIsland())
             return true;
