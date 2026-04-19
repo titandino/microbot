@@ -449,9 +449,7 @@ public class Rs2GrandExchange {
 
             Rectangle bounds = child.getBounds() != null && Rs2UiHelper.isRectangleWithinCanvas(child.getBounds()) ? child.getBounds() : Rs2UiHelper.getDefaultRectangle();
             Microbot.doInvoke(menuEntry, bounds);
-            if (!Rs2AntibanSettings.naturalMouse) {
-                sleep(250, 750);
-            }
+            sleep(250, 750);
         }
         return sleepUntil(() -> !isOfferScreenOpen());
     }
@@ -877,9 +875,7 @@ public class Rs2GrandExchange {
                             ? parent.getBounds()
                             : Rs2UiHelper.getDefaultRectangle();
                     Microbot.doInvoke(menuEntry, bounds);
-                    if (!Rs2AntibanSettings.naturalMouse) {
-                        sleep(250, 750);
-                    }
+                    sleep(250, 750);
                 });
 
         sleep(1000);
@@ -1976,9 +1972,7 @@ public class Rs2GrandExchange {
                         // Store the cancelled offer details
                         cancelledOfferDetails.add(details);
 
-                        if (!Rs2AntibanSettings.naturalMouse) {
-                            sleep(250, 750);
-                        }
+                        sleep(250, 750);
                     }
                 }
             } catch (Exception e) {

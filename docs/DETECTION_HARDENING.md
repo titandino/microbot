@@ -220,7 +220,7 @@ Status against the remediation plan in section 3. Each item links to the commit 
 
 | Item | Finding | Status | Commit |
 |---|---|---|---|
-| P4-a | I1 real mouse trajectory on every `MenuOptionClicked` | ⏳ deferred (high blast radius — dedicated session) | — |
+| P4-a | I1 real mouse trajectory on every `MenuOptionClicked` | ✅ ungated motion in `VirtualMouse.click` / `drag` (was gated off by `Rs2AntibanSettings.naturalMouse=false` default); removed the same-pixel early-return in `Rs2UiHelper.getClickingPoint` so back-to-back clicks on the same rect always re-randomise; unconditionalised the post-click compensating sleeps in `Rs2Inventory` (4 sites) and `Rs2GrandExchange` (3 sites) so they survive the default flip; flipped `Rs2AntibanSettings.naturalMouse` default to `true`. The flag now only toggles click-point anchoring strategy (mouse-pos vs last-click) and a few hover-gate methods in `Rs2Npc` / `Rs2Bank` / `Rs2Inventory` / `Rs2GameObject` / `Rs2Tile`, which now work by default | `feat(mouse): ungate natural-mouse trajectory from Rs2AntibanSettings gate`; `fix(ui): always randomise click point — drop same-pixel early-return in Rs2UiHelper.getClickingPoint`; `refactor(inventory,ge): unconditionalise post-click settle sleeps, flip naturalMouse default on` |
 | P4-b | T3/I6/I8 log-normal reaction-time primitive | ✅ primitive shipped (callers TODO) | `feat(random): log-normal reaction-time primitive` |
 | P4-c | I2 randomise click-point force | ✅ | `feat(ui): per-session randomized click-point force` |
 | P4-d | I5 smooth camera rotation | ⏳ deferred | — |
@@ -258,6 +258,8 @@ Status against the remediation plan in section 3. Each item links to the commit 
 - `Rs2WalkerStaminaTest` — range, determinism, case-insensitivity, install-seed scatter, bimodality, null-fallback.
 - `Rs2RandomReactionTimeTest` — bounds, ~260 ms median, right-skew, target-median tracking.
 - `Rs2UiHelperClickForceTest` — range, session stability, explicit non-equality with legacy 0.78.
+- `VirtualMouseUngatedMotionTest` — bytecode scan asserts `VirtualMouse.class` has no `GETSTATIC` of `Rs2AntibanSettings.naturalMouse`; reflective check that the flag defaults to `true`.
+- `Rs2UiHelperClickPointJitterTest` — asserts `Rs2Random.randomPointEx` still produces variance with an in-rect anchor, and bytecode scan asserts `Rs2UiHelper.getClickingPoint` no longer calls `isMouseWithinRectangle` (i.e. the same-pixel early-return is gone).
 - `AutoLoginBackoffTest` — early-retry bounds, monotonic escalation, cap, user floor.
 - `UnsafeUsageGuardTest` — filesystem scan: no `sun.misc.Unsafe` import anywhere under `plugins/microbot/`.
 - `PlayStyleOrnsteinUhlenbeckTest` — stationarity, mean-reversion, strict positivity, autocorrelation (no fixed period).
@@ -265,11 +267,10 @@ Status against the remediation plan in section 3. Each item links to the commit 
 
 ### Remaining deferred work, in order of recommended priority
 
-1. **P4-a** — real mouse trajectory on every `MenuOptionClicked`. Deprecate the direct-opcode helpers in `Rs2Npc` / `Rs2GameObject` / `Rs2Widget` / `Rs2Equipment` / `Rs2Shop`. Largest behavioural shift; touches many scripts. Recommend a dedicated session with a compatibility shim.
-2. **Migrate callers** to `Rs2Random.reactionTime()` and `SessionFatigue.applyTo(...)`. The primitives are in place but nothing routes through them yet.
-3. **P6-b** — blocking-event listeners for trade requests, random events, moderator messages.
-4. **P3-b / P3-c** — agent-server UNIX-socket mode and stronger endpoint gating.
-5. **P4-d** — camera smoothing.
-6. **P5-d wiring** — introduce fatigue-adjusted sleep helpers alongside `sleep`/`sleepGaussian`.
-7. **P6-d** — opt-in chat trickle.
-8. **P7-b** — move runtime ASM (`Rs2Reflection`) to build-time code generation.
+1. **Migrate callers** to `Rs2Random.reactionTime()` and `SessionFatigue.applyTo(...)`. The primitives are in place but nothing routes through them yet.
+2. **P6-b** — blocking-event listeners for trade requests, random events, moderator messages.
+3. **P3-b / P3-c** — agent-server UNIX-socket mode and stronger endpoint gating.
+4. **P4-d** — camera smoothing.
+5. **P5-d wiring** — introduce fatigue-adjusted sleep helpers alongside `sleep`/`sleepGaussian`.
+6. **P6-d** — opt-in chat trickle.
+7. **P7-b** — move runtime ASM (`Rs2Reflection`) to build-time code generation.
