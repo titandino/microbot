@@ -510,6 +510,28 @@ public class Rs2Random {
         return value;
     }
 
+    private static final double REACTION_TIME_LOG_MEAN = 5.56;
+    private static final double REACTION_TIME_LOG_SIGMA = 0.30;
+    private static final int REACTION_TIME_MIN_MS = 120;
+    private static final int REACTION_TIME_MAX_MS = 2_200;
+
+    public static int reactionTime() {
+        return reactionTime(REACTION_TIME_LOG_MEAN, REACTION_TIME_LOG_SIGMA);
+    }
+
+    public static int reactionTime(double logMean, double logSigma) {
+        double g = ThreadLocalRandom.current().nextGaussian();
+        double sample = Math.exp(logMean + logSigma * g);
+        if (sample < REACTION_TIME_MIN_MS) return REACTION_TIME_MIN_MS;
+        if (sample > REACTION_TIME_MAX_MS) return REACTION_TIME_MAX_MS;
+        return (int) sample;
+    }
+
+    public static int reactionTime(int targetMedianMs) {
+        if (targetMedianMs <= 0) return REACTION_TIME_MIN_MS;
+        return reactionTime(Math.log(targetMedianMs), REACTION_TIME_LOG_SIGMA);
+    }
+
     enum EWaitDir {
         wdLeft, wdMean, wdRight
     }
