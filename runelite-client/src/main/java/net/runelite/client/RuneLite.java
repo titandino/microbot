@@ -312,7 +312,7 @@ public class RuneLite
 				System.exit(1);
 			}
 
-			ClientUI.proxyMessage = " - Proxy enabled (detected IP " + ip + ")";
+			ClientUI.proxyMessage = "Proxy enabled (IP " + ip + ")";
 		}
 
 

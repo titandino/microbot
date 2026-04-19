@@ -181,8 +181,7 @@ public class ClientUI
 		Provider<ClientThread> clientThreadProvider,
 		EventBus eventBus,
 		@Named("safeMode") boolean safeMode,
-		@Named("runelite.title") String title,
-		@Named("runelite.build.version") String version
+		@Named("runelite.title") String title
 	)
 	{
 		this.config = config;
@@ -192,7 +191,7 @@ public class ClientUI
 		this.clientThreadProvider = clientThreadProvider;
 		this.eventBus = eventBus;
 		this.safeMode = safeMode;
-		this.title = title + (safeMode ? " (safe mode)" : " " + version) + " " + proxyMessage;
+		this.title = title + (safeMode ? " (safe mode)" : "");
 
 		normalBoundsTimer = new Timer(250, _ev -> setLastNormalBounds());
 		normalBoundsTimer.setRepeats(false);

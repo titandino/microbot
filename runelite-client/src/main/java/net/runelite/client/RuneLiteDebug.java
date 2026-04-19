@@ -227,7 +227,7 @@ public class RuneLiteDebug {
                 System.exit(1);
             }
 
-            ClientUI.proxyMessage = " - Proxy enabled (detected IP " + ip + ")";
+            ClientUI.proxyMessage = "Proxy enabled (IP " + ip + ")";
         }
 
         SplashScreen.stage(0, "Retrieving client", "");

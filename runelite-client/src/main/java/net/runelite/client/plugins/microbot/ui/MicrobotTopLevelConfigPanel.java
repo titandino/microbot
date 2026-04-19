@@ -1,8 +1,11 @@
 package net.runelite.client.plugins.microbot.ui;
 
+import net.runelite.client.RuneLiteProperties;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.config.TopLevelConfigPanel;
+import net.runelite.client.ui.ClientUI;
+import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.components.materialtabs.MaterialTab;
@@ -94,6 +97,7 @@ public class MicrobotTopLevelConfigPanel extends PluginPanel {
         setLayout(new BorderLayout());
         add(tabGroup, BorderLayout.NORTH);
         add(content, BorderLayout.CENTER);
+        add(buildVersionFooter(), BorderLayout.SOUTH);
 
         this.pluginListPanel = pluginListPanel;
 
@@ -106,6 +110,30 @@ public class MicrobotTopLevelConfigPanel extends PluginPanel {
         addTab(microbotPluginHubPanelProvider, hubIcon, "Microbot Hub");
 
         tabGroup.select(pluginListPanelTab);
+    }
+
+    private JPanel buildVersionFooter() {
+        JPanel footer = new JPanel();
+        footer.setLayout(new BoxLayout(footer, BoxLayout.Y_AXIS));
+        footer.setBorder(new EmptyBorder(4, 0, 4, 0));
+
+        String version = RuneLiteProperties.getMicrobotVersion();
+        JLabel versionLabel = new JLabel(version == null || version.isBlank() ? "microbot" : "microbot v" + version, SwingConstants.CENTER);
+        versionLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        versionLabel.setFont(FontManager.getRunescapeSmallFont());
+        versionLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+        footer.add(versionLabel);
+
+        String proxy = ClientUI.proxyMessage;
+        if (proxy != null && !proxy.isBlank()) {
+            JLabel proxyLabel = new JLabel(proxy, SwingConstants.CENTER);
+            proxyLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+            proxyLabel.setFont(FontManager.getRunescapeSmallFont());
+            proxyLabel.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+            footer.add(proxyLabel);
+        }
+
+        return footer;
     }
 
     private MaterialTab addTab(MicrobotPluginPanel panel, ImageIcon icon, String tooltip) {
