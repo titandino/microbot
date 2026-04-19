@@ -7,7 +7,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.PluginInstantiationException;
 import net.runelite.client.plugins.PluginManager;
 import net.runelite.client.plugins.microbot.Microbot;
-import net.runelite.client.plugins.microbot.externalplugins.MicrobotPluginClassLoader;
+import net.runelite.client.plugins.microbot.externalplugins.PluginJarClassLoader;
 
 import javax.swing.*;
 import java.io.IOException;
@@ -67,10 +67,10 @@ public class DynamicScriptManager {
         }
 
         // 2. Load classes
-        MicrobotPluginClassLoader classLoader;
+        PluginJarClassLoader classLoader;
         Class<?> pluginClass;
         try {
-            classLoader = new MicrobotPluginClassLoader(classesDir.toFile(), getClass().getClassLoader());
+            classLoader = new PluginJarClassLoader(classesDir.toFile(), getClass().getClassLoader());
             deployment.setClassLoader(classLoader);
             pluginClass = findPluginClass(classLoader);
         } catch (IOException e) {

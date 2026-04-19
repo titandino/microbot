@@ -12,7 +12,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 
 @Slf4j
-public class MicrobotPluginClassLoader extends URLClassLoader implements ReflectUtil.PrivateLookupableClassLoader {
+public class PluginJarClassLoader extends URLClassLoader implements ReflectUtil.PrivateLookupableClassLoader {
 
     @Getter
     @Setter
@@ -20,7 +20,7 @@ public class MicrobotPluginClassLoader extends URLClassLoader implements Reflect
 
     private final ClassLoader parent;
 
-    public MicrobotPluginClassLoader(File jarFile, ClassLoader parent) throws IOException {
+    public PluginJarClassLoader(File jarFile, ClassLoader parent) throws IOException {
         super(new URL[]{jarFile.toURI().toURL()}, null);
         this.parent = parent;
         ReflectUtil.installLookupHelper(this);

@@ -336,7 +336,7 @@ public class MicrobotPluginManager {
                 log.warn("Plugin hash verification failed for: {}", internalName);
             }
             List<Class<?>> plugins = new ArrayList<>();
-            MicrobotPluginClassLoader classLoader = new MicrobotPluginClassLoader(pluginFile, getClass().getClassLoader());
+            PluginJarClassLoader classLoader = new PluginJarClassLoader(pluginFile, getClass().getClassLoader());
             loaders.put(internalName, classLoader);
             for (ClassPath.ClassInfo classInfo : ClassPath.from(classLoader).getAllClasses()) {
                 try {
@@ -863,7 +863,7 @@ public class MicrobotPluginManager {
 
                 log.info("Loading plugin \"{}\"", pluginName);
                 List<Plugin> newPlugins = null;
-                MicrobotPluginClassLoader classLoader = null;
+                PluginJarClassLoader classLoader = null;
                 try {
                     if (!verifyHash(pluginName)) {
                         log.warn("Plugin hash verification failed for: {}. The installed version may be outdated or from a different source.", pluginName);
@@ -871,7 +871,7 @@ public class MicrobotPluginManager {
                     }
 
                     List<Class<?>> pluginClasses = new ArrayList<>();
-                    classLoader = new MicrobotPluginClassLoader(pluginFile, getClass().getClassLoader());
+                    classLoader = new PluginJarClassLoader(pluginFile, getClass().getClassLoader());
 
                     for (ClassPath.ClassInfo classInfo : ClassPath.from(classLoader).getAllClasses()) {
                         try {
