@@ -184,5 +184,16 @@ public interface MicrobotConfig extends Config
 		return false;
 	}
 
-
+	String keyDisableTelemetry = "disableTelemetry";
+	@ConfigItem(
+		keyName = keyDisableTelemetry,
+		name = "Disable telemetry",
+		description = "Stop outbound calls to microbot.cloud (update check, random-fact splash, session ping). " +
+				"Equivalent to launching with -Dmicrobot.disableTelemetry=true.",
+		position = 6,
+		section = generalSection
+	)
+	default boolean disableTelemetry() {
+		return false;
+	}
 }

@@ -47,6 +47,9 @@ public class RandomFactClient {
      * @param callback
      */
     public static void getRandomFactAsync(Consumer<String> callback) {
+        if (Microbot.isTelemetryDisabled()) {
+            return;
+        }
         CompletableFuture.supplyAsync(() -> {
             try {
                 return getRandomFact();
@@ -55,7 +58,6 @@ public class RandomFactClient {
             }
             return null;
         }).thenAccept(fact -> {
-            // Ensure UI update happens on EDT
             SwingUtilities.invokeLater(() -> callback.accept(fact));
         }).exceptionally(throwable -> {
             log.error("Async fact fetching failed", throwable);

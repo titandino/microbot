@@ -1,12 +1,12 @@
 package net.runelite.client.plugins.microbot;
 
+import com.google.inject.Inject;
+import com.google.inject.name.Named;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.RuneLiteProperties;
 import net.runelite.client.plugins.microbot.util.misc.Rs2UiHelper;
-import net.runelite.client.ui.ClientUI;
 
 import javax.inject.Singleton;
-import javax.swing.*;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -25,7 +25,13 @@ public class MicrobotVersionChecker
 	private final AtomicBoolean scheduled = new AtomicBoolean(false);
 	private volatile ScheduledFuture<?> future;
 	private final String REMOTE_VERSION_URL = "https://microbot.cloud/api/version/client";
-	private static final String NEW_CLIENT_MARKER = "(NEW CLIENT AVAILABLE)";
+
+	private final boolean disableTelemetry;
+
+	@Inject
+	public MicrobotVersionChecker(@Named("disableTelemetry") boolean disableTelemetry) {
+		this.disableTelemetry = disableTelemetry;
+	}
 
 	private final ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(r -> {
 		Thread t = new Thread(r, MicrobotVersionChecker.class.getSimpleName());
@@ -38,7 +44,6 @@ public class MicrobotVersionChecker
 	{
 		if (newVersionAvailable.get())
 		{
-			appendToTitle();
 			return;
 		}
 
@@ -51,7 +56,7 @@ public class MicrobotVersionChecker
 			if (remote != null && !remote.isEmpty() && Rs2UiHelper.compareVersions(local, remote) < 0)
 			{
 				newVersionAvailable.set(true);
-				notifyNewVersionAvailable(remote, local);
+				log.info("New Microbot client version available: {} (current: {})", remote, local);
 			}
 			else
 			{
@@ -88,98 +93,18 @@ public class MicrobotVersionChecker
 		}
 	}
 
-	/**
-	 * Notify that a new version is available by appending to the title and logging it.
-	 * @param remoteVersion
-	 * @param localVersion
-	 */
-	private void notifyNewVersionAvailable(String remoteVersion, String localVersion) {
-		appendToTitle(remoteVersion, localVersion);
-		log.info("New Microbot client version available: {} (current: {})", remoteVersion, localVersion);
-	}
-
-	/**
-	 * Append the new client marker to the title if not already present and
-	 * if the remote version is newer than the local version.
-	 * @param remoteVersion
-	 * @param localVersion
-	 */
-	private void appendToTitle(String remoteVersion, String localVersion) {
-		if (!isLocalVersionLower(localVersion, remoteVersion)) {
-			return;
-		}
-
-		SwingUtilities.invokeLater(() -> {
-			try {
-				var frame = ClientUI.getFrame();
-				if (frame == null) {
-					return;
-				}
-				String oldTitle = String.valueOf(frame.getTitle());
-				if (!oldTitle.contains(NEW_CLIENT_MARKER)) {
-					frame.setTitle(oldTitle + " " + NEW_CLIENT_MARKER);
-				}
-			}
-			catch (Exception e) {
-				log.warn("Failed to update client title", e);
-			}
-		});
-	}
-
-	/**
-	 * Append the new client marker to the title if not already present.
-	 */
-	private void appendToTitle() {
-		SwingUtilities.invokeLater(() -> {
-			try {
-				var frame = ClientUI.getFrame();
-				if (frame == null) {
-					return;
-				}
-				String oldTitle = String.valueOf(frame.getTitle());
-				if (!oldTitle.contains(NEW_CLIENT_MARKER)) {
-					frame.setTitle(oldTitle + " " + NEW_CLIENT_MARKER);
-				}
-			}
-			catch (Exception e) {
-				log.warn("Failed to update client title", e);
-			}
-		});
-	}
-
-	/**
-	 * Check if the local version is lower than the remote version.
-	 * @param localVersion
-	 * @param remoteVersion
-	 * @return
-	 */
-	private boolean isLocalVersionLower(String localVersion, String remoteVersion) {
-		String[] local = localVersion.split("\\.");
-		String[] remote = remoteVersion.split("\\.");
-
-		int length = Math.min(local.length, remote.length);
-		for (int i = 0; i < length; i++) {
-			int localPart = Integer.parseInt(local[i]);
-			int remotePart = Integer.parseInt(remote[i]);
-			if (localPart != remotePart) {
-				return localPart < remotePart;
-			}
-		}
-		return local.length < remote.length;
-	}
-
-	/**
-	 * Start checking for updates every 10 minutes.
-	 */
 	public void checkForUpdate()
 	{
 		if (Microbot.isDebug()) {
-			return; // skip check for update when we are developing
+			return;
+		}
+		if (disableTelemetry || Microbot.isTelemetryDisabled()) {
+			return;
 		}
 
 		if (scheduled.compareAndSet(false, true))
 		{
-			future = scheduledExecutorService.scheduleWithFixedDelay(this::runVersionCheck, 0, 10, TimeUnit.MINUTES);
+			future = scheduledExecutorService.schedule(this::runVersionCheck, 0, TimeUnit.SECONDS);
 		}
 	}
 
