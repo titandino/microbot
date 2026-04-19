@@ -395,7 +395,7 @@ public class PathfinderConfig {
                 .forEach(e -> log.info("[refreshTransports]   {} : count={}, usable={}, time={}ms",
                         e.getKey(), e.getValue()[0], e.getValue()[1], e.getValue()[2] / 1000));
 
-        log.info("[MoA] refreshTransports: seen={} kept={} (useSeasonalTransports={}, VarbitID.LEAGUE_TYPE={})",
+        log.debug("[MoA] refreshTransports: seen={} kept={} (useSeasonalTransports={}, VarbitID.LEAGUE_TYPE={})",
                 moaSeen, moaKept, useSeasonalTransports,
                 Microbot.getVarbitValue(10032));
     }

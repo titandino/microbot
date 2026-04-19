@@ -155,7 +155,7 @@ public class CollisionMap {
         }
 
         if (moaSeenHere > 0) {
-            log.info("[MoA] getNeighbors @ ({},{},{}): seen={} added={} visited={} ignored={} (distanceBeforeUsingTeleport={}, cost={})",
+            log.debug("[MoA] getNeighbors @ ({},{},{}): seen={} added={} visited={} ignored={} (distanceBeforeUsingTeleport={}, cost={})",
                     x, y, z, moaSeenHere, moaAddedHere, moaVisited, moaIgnored,
                     config.getDistanceBeforeUsingTeleport(),
                     config.getDistanceBeforeUsingTeleport() + 4);

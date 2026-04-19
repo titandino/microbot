@@ -2258,7 +2258,7 @@ public class Rs2Walker {
         if (displayInfo == null) return false;
 
         if (!displayInfo.toLowerCase().contains("map of alacrity")) {
-            log.info("[MoA] not Map of Alacrity, skipping");
+            log.debug("[MoA] not Map of Alacrity, skipping");
             return false;
         }
 
@@ -2271,7 +2271,7 @@ public class Rs2Walker {
 
         Rs2ItemModel relic = Rs2Inventory.get(MAP_OF_ALACRITY_ITEM_ID);
         if (relic == null) {
-            log.info("[MoA] item {} not in inventory — abort", MAP_OF_ALACRITY_ITEM_ID);
+            log.debug("[MoA] item {} not in inventory — abort", MAP_OF_ALACRITY_ITEM_ID);
             return false;
         }
 
@@ -2284,7 +2284,7 @@ public class Rs2Walker {
         }
         String region = rest.substring(0, dashIdx).trim();
         String shortName = rest.substring(dashIdx + 3).trim();
-        log.info("[MoA] region='{}' shortName='{}'", region, shortName);
+        log.debug("[MoA] region='{}' shortName='{}'", region, shortName);
 
         String action = relic.getAction("Read");
         if (action == null) action = relic.getActionFromList(Arrays.asList("Read", "Open", "Teleport", "Invoke"));
@@ -2323,7 +2323,7 @@ public class Rs2Walker {
             blacklistedMoaDestinations.add(packedDest);
             return false;
         }
-        log.info("[MoA] clicking region '{}'", region);
+        log.debug("[MoA] clicking region '{}'", region);
         if (!Rs2Widget.clickWidget(regionMatch)) {
             log.warn("[MoA] region click returned false");
             return false;
@@ -2357,7 +2357,7 @@ public class Rs2Walker {
 
         log.info("[MoA] clicking destination '{}' (text='{}')", shortName, destText);
         boolean clicked = Rs2Widget.clickWidget(destMatch);
-        log.info("[MoA] destination clickWidget returned {} — teleporting", clicked);
+        log.debug("[MoA] destination clickWidget returned {} — teleporting", clicked);
         return clicked;
     }
 
@@ -2370,7 +2370,7 @@ public class Rs2Walker {
                 Widget[] dyn = listRoot.getDynamicChildren();
                 Widget[] stc = listRoot.getStaticChildren();
                 Widget[] nst = listRoot.getNestedChildren();
-                log.info("[MoA] widget dump: listRoot id={} text='{}' name='{}' dyn={} static={} nested={}",
+                log.debug("[MoA] widget dump: listRoot id={} text='{}' name='{}' dyn={} static={} nested={}",
                         listRoot.getId(),
                         listRoot.getText(),
                         listRoot.getName(),
@@ -2382,7 +2382,7 @@ public class Rs2Walker {
                 for (int i = 0; i < toDump.length; i++) {
                     Widget c = toDump[i];
                     if (c == null) continue;
-                    log.info("[MoA]   child[{}] id={} hidden={} text='{}' name='{}' actions={}",
+                    log.debug("[MoA]   child[{}] id={} hidden={} text='{}' name='{}' actions={}",
                             i, c.getId(), c.isHidden(), c.getText(), c.getName(),
                             Arrays.toString(c.getActions()));
                 }
