@@ -81,6 +81,9 @@ public class DynamicScriptManager {
         try {
             Plugin plugin = instantiateAndStart(pluginClass);
             deployment.setPlugin(plugin);
+        } catch (DeploymentException e) {
+            closeQuietly(classLoader);
+            throw e;
         } catch (Exception e) {
             closeQuietly(classLoader);
             throw new DeploymentException("Failed to start plugin: " + e.getMessage());
@@ -171,8 +174,28 @@ public class DynamicScriptManager {
     }
 
     @SuppressWarnings("unchecked")
-    private Plugin instantiateAndStart(Class<?> clazz) throws PluginInstantiationException {
+    private Plugin instantiateAndStart(Class<?> clazz) throws PluginInstantiationException, DeploymentException {
         Class<Plugin> pluginClass = (Class<Plugin>) clazz;
+
+        PluginDescriptor desc = pluginClass.getAnnotation(PluginDescriptor.class);
+        String className = pluginClass.getName();
+        String descName = desc != null ? desc.name() : null;
+        for (Plugin existing : Microbot.getPluginManager().getPlugins()) {
+            Class<?> existingClass = existing.getClass();
+            if (existingClass.getName().equals(className)) {
+                throw new DeploymentException("Plugin class '" + className
+                        + "' is already loaded natively (e.g. via pluginsToDebug or the core plugin registry) "
+                        + "and cannot be hot-swapped by the dynamic loader. Remove the native registration first.");
+            }
+            if (descName != null) {
+                PluginDescriptor existingDesc = existingClass.getAnnotation(PluginDescriptor.class);
+                if (existingDesc != null && descName.equals(existingDesc.name())) {
+                    throw new DeploymentException("A plugin named '" + descName
+                            + "' is already registered (class " + existingClass.getName()
+                            + "). Rename the @PluginDescriptor.name or unregister the existing plugin first.");
+                }
+            }
+        }
 
         Plugin plugin;
         try {

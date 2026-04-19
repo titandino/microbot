@@ -176,36 +176,44 @@ public abstract class AbstractEntityQueryable<
 
     @Override
     public E nearestReachable(int maxDistance) {
-        var player = new Rs2PlayerModel();
-        WorldPoint playerLoc = player.getWorldLocation();
-        WorldView worldView = player.getWorldView();
-        if (playerLoc == null || worldView == null) {
-            return null;
-        }
+        try {
+            var player = new Rs2PlayerModel();
+            WorldPoint playerLoc = player.getWorldLocation();
+            WorldView worldView = player.getWorldView();
+            if (playerLoc == null || worldView == null) {
+                return null;
+            }
 
-        return source
-                .filter(IEntity::isReachable)
-                .map(entity -> {
-                    WorldPoint loc = entity.getWorldLocation();
-                    int distance = (loc != null) ? loc.distanceTo(playerLoc) : Integer.MAX_VALUE;
-                    return new EntityDistance<>(entity, distance);
-                })
-                .filter(pair -> pair.distance <= maxDistance)
-                .min(Comparator.comparingInt(pair -> pair.distance))
-                .map(pair -> pair.entity)
-                .orElse(null);
+            return source
+                    .filter(IEntity::isReachable)
+                    .map(entity -> {
+                        WorldPoint loc = entity.getWorldLocation();
+                        int distance = (loc != null) ? loc.distanceTo(playerLoc) : Integer.MAX_VALUE;
+                        return new EntityDistance<>(entity, distance);
+                    })
+                    .filter(pair -> pair.distance <= maxDistance)
+                    .min(Comparator.comparingInt(pair -> pair.distance))
+                    .map(pair -> pair.entity)
+                    .orElse(null);
+        } catch (RuntimeException e) {
+            return returnNullIfInterrupted(e);
+        }
     }
 
     @Override
     public E nearest(int maxDistance) {
-        var player = new Rs2PlayerModel();
-        WorldPoint playerLoc = player.getWorldLocation();
-        WorldView worldView = player.getWorldView();
-        if (playerLoc == null || worldView == null) {
-            return null;
-        }
+        try {
+            var player = new Rs2PlayerModel();
+            WorldPoint playerLoc = player.getWorldLocation();
+            WorldView worldView = player.getWorldView();
+            if (playerLoc == null || worldView == null) {
+                return null;
+            }
 
-        return nearest(playerLoc, maxDistance);
+            return nearest(playerLoc, maxDistance);
+        } catch (RuntimeException e) {
+            return returnNullIfInterrupted(e);
+        }
     }
 
     @Override
@@ -214,16 +222,27 @@ public abstract class AbstractEntityQueryable<
             return null;
         }
 
-        return source
-                .map(entity -> {
-                    WorldPoint loc = entity.getWorldLocation();
-                    int distance = (loc != null) ? loc.distanceTo(anchor) : Integer.MAX_VALUE;
-                    return new EntityDistance<>(entity, distance);
-                })
-                .filter(pair -> pair.distance <= maxDistance)
-                .min(Comparator.comparingInt(pair -> pair.distance))
-                .map(pair -> pair.entity)
-                .orElse(null);
+        try {
+            return source
+                    .map(entity -> {
+                        WorldPoint loc = entity.getWorldLocation();
+                        int distance = (loc != null) ? loc.distanceTo(anchor) : Integer.MAX_VALUE;
+                        return new EntityDistance<>(entity, distance);
+                    })
+                    .filter(pair -> pair.distance <= maxDistance)
+                    .min(Comparator.comparingInt(pair -> pair.distance))
+                    .map(pair -> pair.entity)
+                    .orElse(null);
+        } catch (RuntimeException e) {
+            return returnNullIfInterrupted(e);
+        }
+    }
+
+    private E returnNullIfInterrupted(RuntimeException e) {
+        if (Thread.currentThread().isInterrupted() || e.getCause() instanceof InterruptedException) {
+            return null;
+        }
+        throw e;
     }
 
     @Override
