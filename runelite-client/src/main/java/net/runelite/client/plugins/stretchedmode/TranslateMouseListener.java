@@ -88,11 +88,6 @@ public class TranslateMouseListener implements MouseListener
 
 	private MouseEvent translateEvent(MouseEvent e)
 	{
-        // Check if the event source is "Microbot"
-        if ("Microbot".equals(e.getSource().toString())) {
-            // Ignore the event by returning null or the original event (decide based on your needs)
-            return e;  // or return e; if you want to pass the event unchanged
-        }
 		Dimension stretchedDimensions = client.getStretchedDimensions();
 		Dimension realDimensions = client.getRealDimensions();
 
