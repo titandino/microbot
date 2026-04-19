@@ -179,7 +179,9 @@ public class Rs2WalkerUnitTest {
     }
 
     @Test
-    public void findFurthest_stopsAtChebyshevLimit() {
+    public void findFurthest_stopsAtEuclideanLimitCardinal() {
+        // On a cardinal axis, Euclidean distance equals |dx|, so the scan reaches
+        // the full reach value (14) — diagonals are bounded tighter.
         WorldPoint player = new WorldPoint(3200, 3200, 0);
         List<WorldPoint> path = Arrays.asList(
                 new WorldPoint(3205, 3200, 0),  // 0: 5 away
@@ -195,23 +197,23 @@ public class Rs2WalkerUnitTest {
     }
 
     @Test
-    public void findFurthest_includesDiagonalGainOverCardinal() {
-        // Proves the actual #21 claim: on a diagonal the scan extends further in
-        // cardinal terms than a naive first-past-threshold click would.
+    public void findFurthest_boundedByEuclideanCircleOnDiagonal() {
+        // The reach parameter is a Euclidean radius because the minimap's clickable
+        // area is a circle. On a diagonal each step adds sqrt(2) to Euclidean
+        // distance, so with reach=14 the furthest reachable diagonal tile is at
+        // Chebyshev 9 (Euclidean sqrt(162)≈12.73 ≤ 14); the tile at Chebyshev 10
+        // is Euclidean sqrt(200)≈14.14 and must be rejected.
         WorldPoint player = new WorldPoint(3200, 3200, 0);
-        // 14 diagonal steps cover 14 cardinal in X AND 14 in Y — Chebyshev distance 14.
         List<WorldPoint> diagonalPath = Arrays.asList(
                 new WorldPoint(3201, 3201, 0),
                 new WorldPoint(3205, 3205, 0),
-                new WorldPoint(3210, 3210, 0),
-                new WorldPoint(3214, 3214, 0),  // 14 Chebyshev, still in reach
-                new WorldPoint(3215, 3215, 0)); // 15 Chebyshev, out of reach
+                new WorldPoint(3209, 3209, 0),  // Chebyshev 9, Euclidean ~12.73 — in
+                new WorldPoint(3210, 3210, 0)); // Chebyshev 10, Euclidean ~14.14 — out
 
         int idx = Rs2Walker.findFurthestClickableIndex(diagonalPath, 0, player, wp -> false, 14);
 
-        WorldPoint picked = diagonalPath.get(idx);
-        assertEquals("diagonal scan should reach the 14-Chebyshev tile", 3, idx);
-        assertEquals("scanned Chebyshev must hit the cap", 14, picked.distanceTo2D(player));
+        assertEquals("scan must stop at the last diagonal tile inside the Euclidean circle",
+                2, idx);
     }
 
     @Test
