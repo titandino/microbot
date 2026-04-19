@@ -44,6 +44,21 @@ public class Rs2UiHelper {
         return main.contains(sub);
     }
 
+    private static final double CLICK_FORCE_MIN = 0.55;
+    private static final double CLICK_FORCE_MAX = 0.95;
+    private static volatile double sessionClickForce = 0.0;
+
+    static double getSessionClickForce() {
+        double cached = sessionClickForce;
+        if (cached != 0.0) return cached;
+        synchronized (Rs2UiHelper.class) {
+            if (sessionClickForce != 0.0) return sessionClickForce;
+            sessionClickForce = CLICK_FORCE_MIN + java.util.concurrent.ThreadLocalRandom.current().nextDouble()
+                    * (CLICK_FORCE_MAX - CLICK_FORCE_MIN);
+            return sessionClickForce;
+        }
+    }
+
     public static Point getClickingPoint(Rectangle rectangle, boolean randomize) {
         if (rectangle == null) return new Point(1, 1);
         if (rectangle.getX() == 1 && rectangle.getY() == 1) return new Point(1, 1);
@@ -51,13 +66,13 @@ public class Rs2UiHelper {
 
         if (!randomize) return new Point((int) rectangle.getCenterX(), (int) rectangle.getCenterY());
 
-        //check if mouse is already within the rectangle and return current position
+        double force = getSessionClickForce();
         if (Rs2AntibanSettings.naturalMouse) {
             java.awt.Point mousePos = Microbot.getMouse().getMousePosition();
             if (isMouseWithinRectangle(rectangle)) return new Point(mousePos.x, mousePos.y);
-            else return Rs2Random.randomPointEx(new Point(mousePos.x, mousePos.y), rectangle, 0.78);
+            else return Rs2Random.randomPointEx(new Point(mousePos.x, mousePos.y), rectangle, force);
         } else
-            return Rs2Random.randomPointEx(Microbot.getMouse().getLastClick(), rectangle, 0.78);
+            return Rs2Random.randomPointEx(Microbot.getMouse().getLastClick(), rectangle, force);
     }
 
     //check if mouse is already within the rectangle
