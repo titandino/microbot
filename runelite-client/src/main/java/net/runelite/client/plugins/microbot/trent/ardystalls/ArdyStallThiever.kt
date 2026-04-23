@@ -7,6 +7,7 @@ import net.runelite.api.Client
 import net.runelite.api.coords.WorldPoint
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
+import net.runelite.client.plugins.microbot.api.tileobject.Rs2TileObjectQueryable
 import net.runelite.client.plugins.microbot.trent.api.State
 import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
 import net.runelite.client.plugins.microbot.trent.api.bankAt
@@ -14,7 +15,6 @@ import net.runelite.client.plugins.microbot.util.Global.sleep
 import net.runelite.client.plugins.microbot.util.Global.sleepUntil
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
 import net.runelite.client.plugins.microbot.util.combat.Rs2Combat
-import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
 import net.runelite.client.plugins.microbot.util.player.Rs2Player
 import net.runelite.client.plugins.microbot.util.walker.Rs2Walker
@@ -89,9 +89,12 @@ private class Root : State() {
                 Rs2Walker.walkFastCanvas(THIEVING_TILE)
             return
         }
-        val stall = Rs2GameObject.findObject(11730, WorldPoint(2667, 3310, 0))
+        val stall = Rs2TileObjectQueryable()
+            .withId(11730)
+            .where { it.worldLocation == WorldPoint(2667, 3310, 0) }
+            .first()
         stall?.let {
-            if (Rs2GameObject.interact(it, "steal-from")) {
+            if (it.click("steal-from")) {
                 Rs2Player.waitForAnimation()
                 sleep(600, 850)
             }

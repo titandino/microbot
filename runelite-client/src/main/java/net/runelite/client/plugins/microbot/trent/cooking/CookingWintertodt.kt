@@ -6,13 +6,12 @@ import kotlinx.coroutines.launch
 import net.runelite.api.Client
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
-import net.runelite.client.plugins.microbot.Microbot
+import net.runelite.client.plugins.microbot.api.tileobject.Rs2TileObjectQueryable
 import net.runelite.client.plugins.microbot.trent.api.State
 import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
 import net.runelite.client.plugins.microbot.trent.api.sleepUntil
 import net.runelite.client.plugins.microbot.util.Global.sleepUntil
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
-import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
 import net.runelite.client.plugins.microbot.util.math.Rs2Random
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget
@@ -67,7 +66,7 @@ private class Root : State() {
     override fun loop(client: Client, script: StateMachineScript) {
         if (!Rs2Inventory.contains(RAW_ITEM)) {
             if (!Rs2Bank.isOpen()) {
-                if (Rs2GameObject.interact(21301, "bank"))
+                if (Rs2TileObjectQueryable().interact(21301, "bank"))
                     sleepUntil(timeout = 10000) { Rs2Bank.isOpen() }
             } else {
                 Rs2Bank.depositAll()

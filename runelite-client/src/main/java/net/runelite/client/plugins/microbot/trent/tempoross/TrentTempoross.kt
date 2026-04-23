@@ -3,12 +3,8 @@ package net.runelite.client.plugins.microbot.trent.tempoross
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import net.runelite.api.AnimationID.LOOKING_INTO
 import net.runelite.api.ChatMessageType
 import net.runelite.api.Client
-import net.runelite.api.ItemID
-import net.runelite.api.ObjectID.*
-import net.runelite.api.coords.WorldPoint
 import net.runelite.api.events.AnimationChanged
 import net.runelite.api.events.ChatMessage
 import net.runelite.client.eventbus.Subscribe
@@ -17,16 +13,6 @@ import net.runelite.client.plugins.PluginDescriptor
 import net.runelite.client.plugins.microbot.trent.api.State
 import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
 import net.runelite.client.plugins.microbot.trent.api.percentageTextToInt
-import net.runelite.client.plugins.microbot.trent.api.sleepUntil
-import net.runelite.client.plugins.microbot.util.Global.sleep
-import net.runelite.client.plugins.microbot.util.Global.sleepUntil
-import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
-import net.runelite.client.plugins.microbot.util.equipment.Rs2Equipment
-import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
-import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
-import net.runelite.client.plugins.microbot.util.player.Rs2Player
-import net.runelite.client.plugins.microbot.util.walker.Rs2Walker
-import net.runelite.client.plugins.microbot.util.widget.Rs2Widget
 import javax.inject.Inject
 
 @PluginDescriptor(

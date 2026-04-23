@@ -7,13 +7,13 @@ import net.runelite.api.Client
 import net.runelite.api.coords.WorldPoint
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
+import net.runelite.client.plugins.microbot.api.tileobject.Rs2TileObjectQueryable
 import net.runelite.client.plugins.microbot.trent.api.State
 import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
 import net.runelite.client.plugins.microbot.trent.api.bankAt
 import net.runelite.client.plugins.microbot.trent.api.sleepUntil
 import net.runelite.client.plugins.microbot.util.Global
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
-import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
 import net.runelite.client.plugins.microbot.util.math.Rs2Random
 import net.runelite.client.plugins.microbot.util.player.Rs2Player
@@ -72,11 +72,17 @@ private class Root : State() {
             }
             return
         }
-        val rock = Rs2GameObject.findObjectById(30985)
+        val rock = Rs2TileObjectQueryable().withId(30985).nearest()
         rock?.let {
-            if (Rs2GameObject.interact(it, "mine")) {
+            if (it.click("mine")) {
                 Rs2Player.waitForAnimation()
-                sleepUntil(timeout = Rs2Random.between(78592, 221592)) { !Rs2Player.isAnimating() || Rs2GameObject.findObject(rock.id, rock.worldLocation) == null }
+                sleepUntil(timeout = Rs2Random.between(78592, 221592)) {
+                    !Rs2Player.isAnimating()
+                        || Rs2TileObjectQueryable()
+                            .withId(rock.id)
+                            .where { o -> o.worldLocation == rock.worldLocation }
+                            .first() == null
+                }
             }
         }
     }

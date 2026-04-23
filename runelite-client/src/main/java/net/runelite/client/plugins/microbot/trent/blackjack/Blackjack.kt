@@ -4,20 +4,20 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import net.runelite.api.Client
-import net.runelite.api.NPC
 import net.runelite.api.Skill
 import net.runelite.api.events.HitsplatApplied
 import net.runelite.client.eventbus.Subscribe
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
 import net.runelite.client.plugins.microbot.Microbot
+import net.runelite.client.plugins.microbot.api.npc.Rs2NpcQueryable
+import net.runelite.client.plugins.microbot.api.npc.models.Rs2NpcModel
 import net.runelite.client.plugins.microbot.trent.api.State
 import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
 import net.runelite.client.plugins.microbot.trent.api.sleepUntil
 import net.runelite.client.plugins.microbot.util.Global.sleep
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
 import net.runelite.client.plugins.microbot.util.math.Rs2Random
-import net.runelite.client.plugins.microbot.util.npc.Rs2Npc
 import net.runelite.client.plugins.microbot.util.walker.Rs2Walker
 import javax.inject.Inject
 
@@ -102,7 +102,7 @@ private var END_TIME = 0L
 private var PREVIOUS_ACTION_TIME = 0L
 private var STATE = "BLACKJACK"
 
-private var BANDIT: NPC? = null
+private var BANDIT: Rs2NpcModel? = null
 
 private class Root : State() {
     override fun checkNext(client: Client): State? {
@@ -115,7 +115,7 @@ private class Root : State() {
             return
         }
         if (BANDIT == null || !Rs2Walker.canReach(BANDIT!!.worldLocation))
-            BANDIT = Rs2Npc.getNpc(BANDIT_ID) ?: return
+            BANDIT = Rs2NpcQueryable().withId(BANDIT_ID).nearest() ?: return
 
         START_TIME = System.currentTimeMillis()
 
@@ -146,7 +146,7 @@ private class Root : State() {
                     XP_DROP_START_TIME = System.currentTimeMillis()
                     KNOCKOUT_XP_DROP = client.getSkillExperience(Skill.THIEVING)
                     if (System.currentTimeMillis() > (PREVIOUS_ACTION_TIME + Rs2Random.between(500, 700)) || !KNOCKOUT) {
-                        Rs2Npc.interact(BANDIT!!, "Knock-Out")
+                        BANDIT!!.click("Knock-Out")
                     }
                     PREVIOUS_ACTION_TIME = System.currentTimeMillis()
                     KNOCKOUT = true
@@ -173,7 +173,7 @@ private class Root : State() {
                             sleep(time)
                     }
                     if (BANDIT!!.getAnimation() == 838 || BANDIT!!.overheadText == "Zzzzzz" ) {
-                        Rs2Npc.interact(BANDIT!!, "Pickpocket")
+                        BANDIT!!.click("Pickpocket")
                         KNOCKOUT = false
                         println("wait xp drop")
                         sleepUntil(timeout = 1000) { XP_DROP < client.getSkillExperience(Skill.THIEVING) }
@@ -198,7 +198,7 @@ private class Root : State() {
     }
 }
 
-fun handlePlayerHit(client: Client, npc: NPC) {
+fun handlePlayerHit(client: Client, npc: Rs2NpcModel) {
     if (PLAYER_HIT >= 1) {
         var j = 0
         val i = Rs2Random.between(2, 3)
@@ -208,7 +208,7 @@ fun handlePlayerHit(client: Client, npc: NPC) {
                 sleep(60, ((HIT_REACT_START_TIME + HIT_REACT_TIME) - System.currentTimeMillis()).toInt())
             }
             while (j < i) {
-                Rs2Npc.interact(npc, "Pickpocket")
+                npc.click("Pickpocket")
                 sleep(c, (c * 1.3).toInt())
                 c = (c * 1.4).toInt()
                 ++j

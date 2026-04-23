@@ -10,10 +10,10 @@ import net.runelite.api.kit.KitType
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
 import net.runelite.client.plugins.microbot.Microbot
+import net.runelite.client.plugins.microbot.api.tileobject.Rs2TileObjectQueryable
 import net.runelite.client.plugins.microbot.trent.api.State
 import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
 import net.runelite.client.plugins.microbot.util.Global
-import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
 import net.runelite.client.plugins.microbot.util.player.Rs2Player
 import net.runelite.client.plugins.microbot.util.walker.Rs2Walker
@@ -80,7 +80,7 @@ class WaitInLobby : State() {
 
     override fun loop(client: Client, script: StateMachineScript) {
         if (!client.localPlayer.worldLocation.isInArea2D(LOBBY_WAITING)) {
-            Rs2GameObject.interact(41199)
+            Rs2TileObjectQueryable().withId(41199).interact()
             Global.sleepUntil { client.localPlayer.worldLocation.isInArea2D(LOBBY_WAITING) }
         }
     }
@@ -108,14 +108,18 @@ class GameLoop : State() {
         }
         if (WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()).isInArea2D(BLUE_RESPAWN, WEST_RESPAWN, EAST_RESPAWN, RED_RESPAWN)) {
             if (!Rs2Inventory.hasItem(25203)) {
-                Rs2GameObject.interact("Potion of power table", "Take-10")
+                Rs2TileObjectQueryable()
+                    .withName("Potion of power table")
+                    .interact("Take-10")
                 Global.sleepUntil { Rs2Inventory.hasItem(25203) }
             }
-            Rs2GameObject.interact(intArrayOf(40457, 40455, 40453, 40454), "Pass")
+            Rs2TileObjectQueryable()
+                .withIds(40457, 40455, 40453, 40454)
+                .interact("Pass")
             Global.sleepUntil { !WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()).isInArea2D(BLUE_RESPAWN, WEST_RESPAWN, EAST_RESPAWN, RED_RESPAWN) }
             return
         }
-        val enemies = client.players
+        val enemies = client.topLevelWorldView.players()
             .filter { it.team != 0 && it.playerComposition.getEquipmentId(KitType.CAPE) != client.localPlayer.playerComposition.getEquipmentId(KitType.CAPE) }
             .sortedBy { it.getLocalLocation().distanceTo(client.localPlayer.localLocation) }
 
@@ -125,9 +129,10 @@ class GameLoop : State() {
             Global.sleepUntil({ !Rs2Player.isInteracting() }, 25000)
             return
         }
-        var tiles = WorldPoint.toLocalInstance(client, WorldPoint(2286, 2931, 0))
+        val wv = client.topLevelWorldView
+        var tiles = WorldPoint.toLocalInstance(wv, WorldPoint(2286, 2931, 0))
         if (tiles.isEmpty())
-            tiles = WorldPoint.toLocalInstance(client, WorldPoint(2126, 2891, 0))
+            tiles = WorldPoint.toLocalInstance(wv, WorldPoint(2126, 2891, 0))
         if (tiles.isNotEmpty() && !WorldPoint.fromLocalInstance(client, client.getLocalPlayer().getLocalLocation()).isInArea2D(WorldArea(WorldPoint(2286, 2931, 0), 3, 3), WorldArea(WorldPoint(2126, 2891, 0), 3, 3))) {
             Rs2Walker.walkTo(tiles.first())
             Global.sleep(2500, 3500)
