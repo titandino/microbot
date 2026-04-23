@@ -7,13 +7,13 @@ import net.runelite.api.Client
 import net.runelite.api.coords.WorldPoint
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
+import net.runelite.client.plugins.microbot.api.tileobject.Rs2TileObjectQueryable
 import net.runelite.client.plugins.microbot.trent.api.State
 import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
 import net.runelite.client.plugins.microbot.trent.api.bankAt
 import net.runelite.client.plugins.microbot.trent.api.sleepUntil
 import net.runelite.client.plugins.microbot.util.Global
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
-import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
 import net.runelite.client.plugins.microbot.util.math.Rs2Random
 import net.runelite.client.plugins.microbot.util.player.Rs2Player
@@ -72,11 +72,17 @@ private class Root : State() {
             }
             return
         }
-        val tree = Rs2GameObject.get("Yew tree", true)
+        val tree = Rs2TileObjectQueryable().withName("Yew tree").nearest()
         tree?.let {
-            if (Rs2GameObject.interact(it, "chop down")) {
+            if (it.click("chop down")) {
                 Rs2Player.waitForAnimation()
-                sleepUntil(timeout = Rs2Random.between(78592, 221592)) { !Rs2Player.isAnimating() || Rs2GameObject.findObject(tree.id, tree.worldLocation) == null }
+                sleepUntil(timeout = Rs2Random.between(78592, 221592)) {
+                    !Rs2Player.isAnimating()
+                        || Rs2TileObjectQueryable()
+                            .withId(tree.id)
+                            .where { o -> o.worldLocation == tree.worldLocation }
+                            .first() == null
+                }
             }
         }
     }

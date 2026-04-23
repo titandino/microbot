@@ -8,13 +8,13 @@ import net.runelite.api.coords.WorldPoint
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
 import net.runelite.client.plugins.microbot.Microbot
+import net.runelite.client.plugins.microbot.api.tileitem.Rs2TileItemQueryable
 import net.runelite.client.plugins.microbot.trent.api.State
 import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
 import net.runelite.client.plugins.microbot.trent.api.bankAt
 import net.runelite.client.plugins.microbot.util.Global.sleep
 import net.runelite.client.plugins.microbot.util.Global.sleepUntil
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
-import net.runelite.client.plugins.microbot.util.grounditem.Rs2GroundItem
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
 import net.runelite.client.plugins.microbot.util.player.Rs2Player
 import net.runelite.client.plugins.microbot.util.walker.Rs2Walker
@@ -85,13 +85,16 @@ private class Root : State() {
                 Rs2Player.waitForWalking()
             return
         }
-        val planks = Rs2GroundItem.getAll(8).filter { it.item?.name == "Plank" }
+        val planks = Rs2TileItemQueryable()
+            .withName("Plank")
+            .within(8)
+            .toList()
         if (planks.isEmpty()) {
             hop()
             return
         }
         planks.forEach {
-            if (Rs2GroundItem.interact(it, "take")) {
+            if (it.click("take")) {
                 Rs2Player.waitForWalking()
                 sleep(600, 816)
             }

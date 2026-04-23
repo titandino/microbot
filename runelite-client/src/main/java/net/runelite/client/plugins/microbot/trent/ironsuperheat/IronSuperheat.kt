@@ -4,10 +4,11 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import net.runelite.api.Client
-import net.runelite.api.ItemID
 import net.runelite.api.coords.WorldPoint
+import net.runelite.api.gameval.ItemID
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
+import net.runelite.client.plugins.microbot.api.tileobject.Rs2TileObjectQueryable
 import net.runelite.client.plugins.microbot.trent.api.State
 import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
 import net.runelite.client.plugins.microbot.trent.api.bankAt
@@ -15,7 +16,6 @@ import net.runelite.client.plugins.microbot.trent.api.sleepUntil
 import net.runelite.client.plugins.microbot.util.Global
 import net.runelite.client.plugins.microbot.util.Global.sleep
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
-import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
 import net.runelite.client.plugins.microbot.util.magic.Rs2Magic
 import net.runelite.client.plugins.microbot.util.math.Rs2Random
@@ -130,15 +130,24 @@ private class Root : State() {
     }
 
     fun mineRock(vararg rockIds: Int) {
-        val rock = Rs2GameObject.getGameObjects({ o -> rockIds.contains(o.id) }, rockPoint, rockRadius).firstOrNull()
+        val rock = Rs2TileObjectQueryable()
+            .where { rockIds.contains(it.id) }
+            .within(rockPoint, rockRadius)
+            .nearest()
         if (rock == null) {
             if (Rs2Walker.walkTo(rockPoint))
                 sleep(2500, 5520)
             return
         }
-        if (Rs2GameObject.interact(rock, "mine")) {
+        if (rock.click("mine")) {
             Rs2Player.waitForAnimation(Rs2Random.between(15338, 22932))
-            sleepUntil(timeout = Rs2Random.between(6632, 12662)) { !Rs2Player.isAnimating() || Rs2GameObject.findObject(rock.id, rock.worldLocation) == null }
+            sleepUntil(timeout = Rs2Random.between(6632, 12662)) {
+                !Rs2Player.isAnimating()
+                    || Rs2TileObjectQueryable()
+                        .withId(rock.id)
+                        .where { it.worldLocation == rock.worldLocation }
+                        .first() == null
+            }
         }
     }
 }

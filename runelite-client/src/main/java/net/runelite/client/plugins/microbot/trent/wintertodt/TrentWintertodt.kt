@@ -3,23 +3,28 @@ package net.runelite.client.plugins.microbot.trent.wintertodt
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import net.runelite.api.AnimationID.LOOKING_INTO
 import net.runelite.api.ChatMessageType
 import net.runelite.api.Client
-import net.runelite.api.ItemID
-import net.runelite.api.ObjectID.*
 import net.runelite.api.coords.WorldPoint
 import net.runelite.api.events.AnimationChanged
 import net.runelite.api.events.ChatMessage
+import net.runelite.api.gameval.AnimationID.HUMAN_PICKUPTABLE
+import net.runelite.api.gameval.ItemID
+import net.runelite.api.gameval.ObjectID.WINT_BANKCHEST
+import net.runelite.api.gameval.ObjectID.WINT_BRAZIER
+import net.runelite.api.gameval.ObjectID.WINT_BRAZIER_BROKEN
+import net.runelite.api.gameval.ObjectID.WINT_BRAZIER_LIT
+import net.runelite.api.gameval.ObjectID.WINT_DOOR
+import net.runelite.api.gameval.ObjectID.WINT_ROOTS
 import net.runelite.client.eventbus.Subscribe
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
+import net.runelite.client.plugins.microbot.api.tileobject.Rs2TileObjectQueryable
 import net.runelite.client.plugins.microbot.trent.api.*
 import net.runelite.client.plugins.microbot.util.Global.sleep
 import net.runelite.client.plugins.microbot.util.Global.sleepUntil
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
 import net.runelite.client.plugins.microbot.util.equipment.Rs2Equipment
-import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
 import net.runelite.client.plugins.microbot.util.player.Rs2Player
 import net.runelite.client.plugins.microbot.util.walker.Rs2Walker
@@ -109,12 +114,12 @@ private class Ingame : State() {
 
     override fun loop(client: Client, script: StateMachineScript) {
         if (Rs2Inventory.contains("supply crate")) {
-            val door = Rs2GameObject.findObject(29322, WorldPoint(1630, 3965, 0))
+            val door = findTileObject(WINT_DOOR, WorldPoint(1630, 3965, 0))
             if (door == null && Rs2Walker.walkTo(WorldPoint(1630, 3965, 0))) {
                 sleep(1260, 5920)
                 return
             }
-            if (Rs2GameObject.interact(door, "enter"))
+            if (door != null && door.click("enter"))
                 sleepUntil(timeout = 10000) { client.localPlayer.worldLocation.regionID == 6461 }
             else
                 Rs2Walker.walkTo(WorldPoint(1630, 3965, 0))
@@ -125,33 +130,37 @@ private class Ingame : State() {
             return
         }
         //Dodge them damages lmao
-        var dangerLoc = client.projectiles.find { it.id == 501 && WorldPoint.fromLocalInstance(client, it.target).distanceTo(Rs2Player.getWorldLocation()) <= 1 }?.target
-        if (dangerLoc != null)
-            dangerLoc = client.graphicsObjects.find { it.id == 502 && WorldPoint.fromLocalInstance(client, it.location).distanceTo(Rs2Player.getWorldLocation()) <= 1 }?.location
+        val wv = client.topLevelWorldView
+        val projectileNearby = client.projectiles.any {
+            it.id == 501 && it.targetPoint.distanceTo(Rs2Player.getWorldLocation()) <= 1
+        }
+        val dangerLoc = if (projectileNearby) {
+            wv.graphicsObjects.find { it.id == 502 && WorldPoint.fromLocalInstance(client, it.location).distanceTo(Rs2Player.getWorldLocation()) <= 1 }?.location
+        } else null
         if (dangerLoc != null) {
             dodgeDangerAtPoint(WorldPoint.fromLocalInstance(client, dangerLoc))
             Rs2Player.waitForWalking(8000)
             return
         }
         if (!isWintertodtAlive() || getWintertodtHealth() <= 0) {
-            if (Rs2GameObject.findObjectByIdAndDistance(BRAZIER_29312, 2) == null && Rs2Walker.walkTo(WorldPoint(1621, 3998, 0)))
+            if (nearestObject(WINT_BRAZIER, 2) == null && Rs2Walker.walkTo(WorldPoint(1621, 3998, 0)))
                 Rs2Player.waitForWalking()
             return
         }
-        val unlitBrazier = Rs2GameObject.findObjectByIdAndDistance(BRAZIER_29312, 5)
-        if (unlitBrazier != null && Rs2GameObject.interact(unlitBrazier, "light")) {
-            sleepUntil { Rs2GameObject.findObjectByIdAndDistance(BRAZIER_29312, 5) == null }
+        val unlitBrazier = nearestObject(WINT_BRAZIER, 5)
+        if (unlitBrazier != null && unlitBrazier.click("light")) {
+            sleepUntil { nearestObject(WINT_BRAZIER, 5) == null }
             return
         }
-        val brokenBrazier = Rs2GameObject.findObjectByIdAndDistance(BRAZIER_29313, 5)
-        if (brokenBrazier != null && Rs2GameObject.interact(brokenBrazier, "fix")) {
-            sleepUntil { Rs2GameObject.findObjectByIdAndDistance(BRAZIER_29313, 5) == null }
+        val brokenBrazier = nearestObject(WINT_BRAZIER_BROKEN, 5)
+        if (brokenBrazier != null && brokenBrazier.click("fix")) {
+            sleepUntil { nearestObject(WINT_BRAZIER_BROKEN, 5) == null }
             return
         }
-        val litBrazier = Rs2GameObject.findObjectByIdAndDistance(BURNING_BRAZIER_29314, 10)
+        val litBrazier = nearestObject(WINT_BRAZIER_LIT, 10)
         when (task) {
             "chop" -> {
-                if (getWintertodtHealth() <= 15 && (Rs2Inventory.hasItemAmount(ItemID.BRUMA_ROOT, 3) || Rs2Inventory.hasItemAmount(ItemID.BRUMA_KINDLING, 3))) {
+                if (getWintertodtHealth() <= 15 && (Rs2Inventory.hasItemAmount(ItemID.WINT_BRUMA_ROOT, 3) || Rs2Inventory.hasItemAmount(ItemID.WINT_BRUMA_KINDLING, 3))) {
                     task = "burn"
                     interrupted = true
                 }
@@ -162,14 +171,14 @@ private class Ingame : State() {
             }
 
             "fletch" -> {
-                if (!Rs2Inventory.contains(ItemID.BRUMA_ROOT) || getWintertodtHealth() <= 15) {
+                if (!Rs2Inventory.contains(ItemID.WINT_BRUMA_ROOT) || getWintertodtHealth() <= 15) {
                     task = "burn"
                     interrupted = true
                 }
             }
 
             "burn" -> {
-                if (!Rs2Inventory.contains(ItemID.BRUMA_ROOT) && !Rs2Inventory.contains(ItemID.BRUMA_KINDLING)) {
+                if (!Rs2Inventory.contains(ItemID.WINT_BRUMA_ROOT) && !Rs2Inventory.contains(ItemID.WINT_BRUMA_KINDLING)) {
                     task = "chop"
                     interrupted = true
                 }
@@ -181,7 +190,7 @@ private class Ingame : State() {
             "chop" -> {
                 if (moveTo(1619, 3989))
                     return
-                if (Rs2GameObject.interact(BRUMA_ROOTS, "chop")) {
+                if (Rs2TileObjectQueryable().withId(WINT_ROOTS).interact("chop")) {
                     interrupted = false
                     lastAction = System.currentTimeMillis()
                     Rs2Player.waitForAnimation(2500)
@@ -190,7 +199,7 @@ private class Ingame : State() {
 
             "fletch" -> {
                 fletching = false
-                if (Rs2Inventory.use(ItemID.KNIFE) && Rs2Inventory.use(ItemID.BRUMA_ROOT)) {
+                if (Rs2Inventory.use(ItemID.KNIFE) && Rs2Inventory.use(ItemID.WINT_BRUMA_ROOT)) {
                     interrupted = false
                     lastAction = System.currentTimeMillis()
                     sleepUntil(timeout = 4000) { fletching }
@@ -200,7 +209,7 @@ private class Ingame : State() {
             "burn" -> {
                 if (moveTo(1619, 3998))
                     return
-                if (litBrazier != null && Rs2GameObject.interact(litBrazier, "feed")) {
+                if (litBrazier != null && litBrazier.click("feed")) {
                     interrupted = false
                     lastAction = System.currentTimeMillis()
                     Rs2Player.waitForAnimation(2500)
@@ -212,7 +221,7 @@ private class Ingame : State() {
     override fun eventReceived(client: Client, eventObject: Any) {
         val animChange = eventObject as? AnimationChanged
         if (animChange != null) {
-            if (animChange.actor == client.localPlayer && animChange.actor.animation == LOOKING_INTO)
+            if (animChange.actor == client.localPlayer && animChange.actor.animation == HUMAN_PICKUPTABLE)
                 lastAction = System.currentTimeMillis()
             return
         }
@@ -266,40 +275,40 @@ private class PrepareForGame : State() {
 
     override fun loop(client: Client, script: StateMachineScript) {
         val itemsToTake = mutableListOf(axe, "knife", "hammer")
-        if (!Rs2Equipment.isWearing(ItemID.BRUMA_TORCH))
+        if (!Rs2Equipment.isWearing(ItemID.WINT_TORCH))
             itemsToTake.add("tinderbox")
         if (Rs2Player.eatAt(70)) {
             sleep(346, 642)
             return
         }
         if (Rs2Inventory.contains("supply crate") || !Rs2Inventory.containsAll(*itemsToTake.toTypedArray()) || !Rs2Inventory.hasItemAmount(FOOD, FOOD_AMOUNT, false, true)) {
-            val chest = Rs2GameObject.findObject(29321, WorldPoint(1641, 3944, 0))
+            val chest = findTileObject(WINT_BANKCHEST, WorldPoint(1641, 3944, 0))
             if (chest == null && Rs2Walker.walkTo(WorldPoint(1641, 3944, 0))) {
                 sleep(1260, 5920)
                 return
             }
             if (!Rs2Bank.isOpen()) {
-                if (Rs2GameObject.interact(chest, "bank"))
+                if (chest != null && chest.click("bank"))
                     sleepUntil(timeout = 10000) { Rs2Bank.isOpen() }
                 else
                     Rs2Walker.walkTo(WorldPoint(1641, 3944, 0))
             } else if (Rs2Bank.isOpen()) {
                 Rs2Bank.depositAll()
                 itemsToTake.forEach { Rs2Bank.withdrawOne(it, true) }
-                if (FOOD.lowercase() == "cake" && Rs2Bank.hasItem(ItemID.SLICE_OF_CAKE))
-                    Rs2Bank.withdrawOne(ItemID.SLICE_OF_CAKE)
-                if (FOOD.lowercase() == "cake" && Rs2Bank.hasItem(ItemID._23_CAKE))
-                    Rs2Bank.withdrawOne(ItemID._23_CAKE)
+                if (FOOD.lowercase() == "cake" && Rs2Bank.hasItem(ItemID.CAKE_SLICE))
+                    Rs2Bank.withdrawOne(ItemID.CAKE_SLICE)
+                if (FOOD.lowercase() == "cake" && Rs2Bank.hasItem(ItemID.PARTIAL_CAKE))
+                    Rs2Bank.withdrawOne(ItemID.PARTIAL_CAKE)
                 Rs2Bank.withdrawX(FOOD, FOOD_AMOUNT, true)
                 sleepUntil { !Rs2Inventory.contains("supply crate") && Rs2Inventory.containsAll(*itemsToTake.toTypedArray()) && Rs2Inventory.hasItemAmount(FOOD, FOOD_AMOUNT, false, true) }
             }
         } else {
-            val door = Rs2GameObject.findObject(29322, WorldPoint(1630, 3965, 0))
+            val door = findTileObject(WINT_DOOR, WorldPoint(1630, 3965, 0))
             if (door == null && Rs2Walker.walkTo(WorldPoint(1630, 3965, 0))) {
                 sleep(1260, 5920)
                 return
             }
-            if (Rs2GameObject.interact(door, "enter"))
+            if (door != null && door.click("enter"))
                 sleepUntil(timeout = 10000) { client.localPlayer.worldLocation.regionID == 6462 }
             else
                 Rs2Walker.walkTo(WorldPoint(1630, 3965, 0))

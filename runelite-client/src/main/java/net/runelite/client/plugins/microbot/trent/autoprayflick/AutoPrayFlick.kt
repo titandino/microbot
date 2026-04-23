@@ -6,13 +6,11 @@ import kotlinx.coroutines.launch
 import net.runelite.api.Client
 import net.runelite.api.Prayer
 import net.runelite.api.events.GameTick
-import net.runelite.api.events.VarbitChanged
-import net.runelite.api.widgets.ComponentID.MINIMAP_QUICK_PRAYER_ORB
+import net.runelite.api.gameval.InterfaceID.Orbs.PRAYERBUTTON
 import net.runelite.client.eventbus.Subscribe
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
-import net.runelite.client.plugins.microbot.trent.api.State
-import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
+import net.runelite.client.plugins.microbot.Microbot
 import net.runelite.client.plugins.microbot.util.Global.sleep
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget
 import java.security.SecureRandom
@@ -45,19 +43,19 @@ class AutoPrayFlick : Plugin() {
     @OptIn(DelicateCoroutinesApi::class)
     @Subscribe
     fun onGameTick(gameTick: GameTick) {
-        Rs2Widget.getWidget(MINIMAP_QUICK_PRAYER_ORB) ?: return
-        if (!Prayer.entries.any { client.isPrayerActive(it) } && !firstFlick) {
+        Rs2Widget.getWidget(PRAYERBUTTON) ?: return
+        if (!Prayer.entries.any { Microbot.getVarbitValue(it.varbit) == 1 } && !firstFlick) {
             GlobalScope.launch {
                 sleep(randomDelay(1, 9))
-                Rs2Widget.clickWidget(MINIMAP_QUICK_PRAYER_ORB)
+                Rs2Widget.clickWidget(PRAYERBUTTON)
             }
             return
         }
         GlobalScope.launch {
             sleep(randomDelay(1, 9))
-            Rs2Widget.clickWidget(MINIMAP_QUICK_PRAYER_ORB)
+            Rs2Widget.clickWidget(PRAYERBUTTON)
             sleep(randomDelay(93, 117))
-            Rs2Widget.clickWidget(MINIMAP_QUICK_PRAYER_ORB)
+            Rs2Widget.clickWidget(PRAYERBUTTON)
         }
         if (firstFlick)
             firstFlick = false

@@ -4,20 +4,14 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import net.runelite.api.Client
-import net.runelite.api.NPC
-import net.runelite.api.coords.WorldPoint
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
-import net.runelite.client.plugins.microbot.Microbot
+import net.runelite.client.plugins.microbot.api.npc.Rs2NpcQueryable
+import net.runelite.client.plugins.microbot.api.npc.models.Rs2NpcModel
 import net.runelite.client.plugins.microbot.trent.api.State
 import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
-import net.runelite.client.plugins.microbot.trent.api.bankAt
-import net.runelite.client.plugins.microbot.util.Global
 import net.runelite.client.plugins.microbot.util.Global.sleep
-import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
-import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
 import net.runelite.client.plugins.microbot.util.math.Rs2Random.between as random
-import net.runelite.client.plugins.microbot.util.npc.Rs2Npc
 import net.runelite.client.plugins.microbot.util.player.Rs2Player
 import net.runelite.client.plugins.microbot.util.walker.Rs2Walker
 import javax.inject.Inject
@@ -61,7 +55,7 @@ class ButterflyerScript : StateMachineScript() {
 }
 
 val butterflies = setOf("Snowy knight", "Sapphire glacialis", "Sunlight Moth", "Moonlight moth")
-var lastInteracted: NPC? = null
+var lastInteracted: Rs2NpcModel? = null
 
 private class Root : State() {
     override fun checkNext(client: Client): State? {
@@ -69,23 +63,17 @@ private class Root : State() {
     }
 
     override fun loop(client: Client, script: StateMachineScript) {
-        val npc = Rs2Npc.getNpcs().filter {
-            butterflies.contains(it.name)
-        }.filter {
-            Rs2Walker.canReach(it.worldLocation, -2, -2)
-        }.findFirst()
-        //if (npc.isEmpty && !Rs2Walker.walkTo(WorldPoint(1436, 3241, 0), 5)) {
-        //    Rs2Player.waitForWalking()
-        //    return
-        //}
-        if (npc.isEmpty) return
+        val npc = Rs2NpcQueryable()
+            .where { butterflies.contains(it.name) }
+            .where { Rs2Walker.canReach(it.worldLocation, -2, -2) }
+            .first() ?: return
         if (lastInteracted != null && Rs2Player.isInteracting()) {
             val distCurr = lastInteracted?.getLocalLocation()?.distanceTo(Rs2Player.getLocalLocation()) ?: 0
-            val distNew = npc.get().getLocalLocation().distanceTo(Rs2Player.getLocalLocation())
-            if (lastInteracted == npc.get() || distNew >= distCurr) return
+            val distNew = npc.getLocalLocation().distanceTo(Rs2Player.getLocalLocation())
+            if (lastInteracted == npc || distNew >= distCurr) return
         }
-        if (Rs2Npc.interact(npc.get(), "pickpocket")) {
-            lastInteracted = npc.get()
+        if (npc.click("pickpocket")) {
+            lastInteracted = npc
             sleep(453, 722)
             if (random(0, 263) == 0)
                 sleep(5332, 10692)

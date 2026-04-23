@@ -7,17 +7,14 @@ import net.runelite.api.Client
 import net.runelite.api.coords.WorldPoint
 import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
+import net.runelite.client.plugins.microbot.api.npc.Rs2NpcQueryable
 import net.runelite.client.plugins.microbot.trent.api.State
 import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
 import net.runelite.client.plugins.microbot.trent.api.bankAt
-import net.runelite.client.plugins.microbot.trent.api.sleepUntil
 import net.runelite.client.plugins.microbot.util.Global
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
-import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
-import net.runelite.client.plugins.microbot.util.math.Rs2Random
 import net.runelite.client.plugins.microbot.util.math.Rs2Random.between as random
-import net.runelite.client.plugins.microbot.util.npc.Rs2Npc
 import net.runelite.client.plugins.microbot.util.player.Rs2Player
 import net.runelite.client.plugins.microbot.util.walker.Rs2Walker
 import net.runelite.client.plugins.microbot.util.widget.Rs2Widget
@@ -76,7 +73,7 @@ private class Root : State() {
             }
             return
         } else {
-            val sawmillMan = Rs2Npc.getNpc(3101)
+            val sawmillMan = Rs2NpcQueryable().withId(3101).nearest()
             if (sawmillMan == null || sawmillMan.worldLocation.distanceTo(Rs2Player.getWorldLocation()) > 10) {
                 Rs2Walker.walkTo(WorldPoint(1626, 3500, 0), 7)
                 Global.sleep(random(622, 952))
@@ -88,7 +85,7 @@ private class Root : State() {
                 Rs2Widget.clickWidget(buyButton)
                 Global.sleepUntil { !Rs2Inventory.contains(1521) }
                 Global.sleep(random(323, 522))
-            } else if (Rs2Npc.interact(sawmillMan, "Buy-plank"))
+            } else if (sawmillMan.click("Buy-plank"))
                 Global.sleepUntil({ Rs2Widget.getWidget(17694735) != null }, 10000)
         }
     }
