@@ -18,6 +18,7 @@ import net.runelite.client.plugins.microbot.util.bank.Rs2Bank
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory
 import net.runelite.client.plugins.microbot.util.math.Rs2Random.between as random
 import net.runelite.client.plugins.microbot.util.player.Rs2Player
+import net.runelite.client.plugins.microbot.util.reachable.Rs2Reachable
 import net.runelite.client.plugins.microbot.util.walker.Rs2Walker
 import javax.inject.Inject
 
@@ -174,8 +175,6 @@ private class Root : State() {
             true // Non-Leagues path always re-clicks; this value is effectively ignored below.
         }
 
-        val myLoc = Rs2Player.getWorldLocation()
-        val wv = client.topLevelWorldView
         val exact = TARGET == Target.HERO
         val npc = Rs2NpcQueryable()
             .where { n ->
@@ -185,8 +184,11 @@ private class Root : State() {
                     else name.lowercase().contains(TARGET.targetName.lowercase())
                 if (!matches) return@where false
                 val npcLoc = n.worldLocation ?: return@where false
-                if (npcLoc == myLoc) true
-                else wv != null && npcLoc.toWorldArea().hasLineOfSightTo(wv, myLoc)
+                // Reachability (pathfinding) instead of LOS. Pickpocket auto-walks to the
+                // target — we don't need direct line of sight, just a walkable path. LOS
+                // breaks constantly when elves wander behind corners/pillars in Prifddinas
+                // and was capping effective range to ~5 tiles regardless of scanRadius.
+                Rs2Reachable.isReachable(npcLoc)
             }
             .within(TARGET.scanRadius)
             .first()

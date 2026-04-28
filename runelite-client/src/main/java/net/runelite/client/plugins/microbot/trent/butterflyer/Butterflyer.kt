@@ -13,7 +13,8 @@ import net.runelite.client.plugins.microbot.trent.api.StateMachineScript
 import net.runelite.client.plugins.microbot.util.Global.sleep
 import net.runelite.client.plugins.microbot.util.math.Rs2Random.between as random
 import net.runelite.client.plugins.microbot.util.player.Rs2Player
-import net.runelite.client.plugins.microbot.util.walker.Rs2Walker
+import net.runelite.client.plugins.microbot.util.reachable.Rs2Reachable
+import net.runelite.client.plugins.microbot.shortestpath.WorldPointUtil
 import javax.inject.Inject
 
 @PluginDescriptor(
@@ -54,7 +55,7 @@ class ButterflyerScript : StateMachineScript() {
     }
 }
 
-val butterflies = setOf("Snowy knight", "Sapphire glacialis", "Sunlight Moth", "Moonlight moth")
+val butterflies = setOf("Ruby harvest", "Black warlock", "Snowy knight", "Sapphire glacialis", "Sunlight Moth", "Moonlight moth")
 var lastInteracted: Rs2NpcModel? = null
 
 private class Root : State() {
@@ -63,16 +64,26 @@ private class Root : State() {
     }
 
     override fun loop(client: Client, script: StateMachineScript) {
-        val npc = Rs2NpcQueryable()
+        val playerLoc = Rs2Player.getLocalLocation() ?: return
+        val playerWp = Rs2Player.getWorldLocation() ?: return
+        val candidates = Rs2NpcQueryable()
             .where { butterflies.contains(it.name) }
-            .where { Rs2Walker.canReach(it.worldLocation, -2, -2) }
-            .first() ?: return
+            .toList()
+            .filter { (it.worldLocation?.distanceTo(playerWp) ?: Int.MAX_VALUE) <= 12 }
+            .sortedBy { it.worldLocation?.distanceTo(playerWp) ?: Int.MAX_VALUE }
+
+        val reachable = Rs2Reachable.getReachableTiles(playerWp)
+        val npc = candidates.firstOrNull { c ->
+            val wl = c.worldLocation ?: return@firstOrNull false
+            reachable.contains(WorldPointUtil.packWorldPoint(wl.x, wl.y, wl.plane))
+        } ?: return
+
         if (lastInteracted != null && Rs2Player.isInteracting()) {
-            val distCurr = lastInteracted?.getLocalLocation()?.distanceTo(Rs2Player.getLocalLocation()) ?: 0
-            val distNew = npc.getLocalLocation().distanceTo(Rs2Player.getLocalLocation())
-            if (lastInteracted == npc || distNew >= distCurr) return
+            val distCurr = lastInteracted?.localLocation?.distanceTo(playerLoc) ?: 0
+            val distNew = npc.localLocation.distanceTo(playerLoc)
+            if (lastInteracted?.index == npc.index || distNew >= distCurr) return
         }
-        if (npc.click("pickpocket")) {
+        if (npc.click("catch")) {
             lastInteracted = npc
             sleep(453, 722)
             if (random(0, 263) == 0)
