@@ -11,6 +11,7 @@ import net.runelite.api.events.ProjectileMoved
 import net.runelite.api.gameval.AnimationID
 import net.runelite.api.gameval.NpcID
 import net.runelite.api.gameval.SpotanimID
+import net.runelite.client.callback.ClientThread
 import net.runelite.client.config.Config
 import net.runelite.client.config.ConfigGroup
 import net.runelite.client.config.ConfigItem
@@ -20,11 +21,10 @@ import net.runelite.client.plugins.Plugin
 import net.runelite.client.plugins.PluginDescriptor
 import net.runelite.client.plugins.microbot.Microbot
 import net.runelite.client.plugins.microbot.Script
-import net.runelite.client.plugins.microbot.api.npc.Rs2NpcQueryable
 import net.runelite.client.plugins.microbot.util.menu.NewMenuEntry
 import net.runelite.client.plugins.microbot.util.prayer.Rs2Prayer
 import net.runelite.client.plugins.microbot.util.prayer.Rs2PrayerEnum
-import java.awt.Rectangle
+import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -84,20 +84,29 @@ import javax.inject.Inject
  * - Per-NPC [attackCooldowns] still guards against phantom re-schedules from
  *   lingering animations inside one attack cycle.
  *
- * ## Cursorless invocation
+ * ## Cursorless invocation (current: direct `client.menuAction`)
  *
- * [invokePrayerMenuEntry] calls `Microbot.doInvoke(entry, Rectangle(1, 1))`:
- *   - `Rs2UiHelper.getClickingPoint` short-circuits on the `(0, 0)`-origin
- *     1x1 rect and returns `Point(1, 1)`.
- *   - `VirtualMouse.click` gates natural-mouse on `point.x > 1 && y > 1` —
- *     false — so `naturalMouse.moveTo(...)` is skipped. OS cursor never moves.
- *   - `MicrobotPlugin.onMenuEntryAdded` (priority 999) intercepts the
- *     synthetic MOUSE_CLICKED event, nukes the real menu entries, and
- *     replaces them with the forced entry from `Microbot.targetMenu`.
+ * [invokePrayerMenuEntryForceInstrumented] hops onto the client thread via
+ * the injected `ClientThread.invoke(Runnable { ... })` and dispatches
+ * `client.menuAction(p0, p1, MenuAction.CC_OP, identifier, -1, "Activate", "")`
+ * directly. This is the same 7-arg signature stock RuneLite plugins use
+ * (e.g. `QuestBankTabInterface.java:230`, `Rs2Reflection.java:60`, and the
+ * commented-out reference call in `Rs2Prayer.java:98`).
  *
- * `client.menuAction` direct-dispatch was tried (2026-04-24) and proven to
- * silently fail when the prayer widget isn't in a clickable state. Do NOT
- * swap to it.
+ * Switching from `Microbot.doInvoke(entry, Rectangle(1, 1))` to this path was
+ * required because `Microbot.doInvoke` posts a synthetic AWT `MouseEvent` to
+ * the canvas, which `Microbot.click` (Microbot.java:599-610) burns 50-100ms
+ * inside `Rs2Random.logNormalBounded(50, 100)` per non-client-thread call,
+ * AND the AWT event then competes for the EDT — backing up by 10+ events
+ * under prayer-drain bursts. The freeze evidence (anim-handler stalled 10s
+ * between two `Microbot.log` calls in the SAME handler) was the tipping
+ * point. Direct `client.menuAction` skips AWT entirely.
+ *
+ * The `client.menuAction` path was previously rejected for the
+ * **quick-prayer ORB** (a different widget) per
+ * `reference_quick_prayer_orb_invocation.md`. Individual protection prayers
+ * use `MenuAction.CC_OP` on the prayer-tab widget, which is the standard
+ * pattern stock plugins use successfully.
  */
 @ConfigGroup("pvmPrayFlick")
 interface PvmPrayFlickConfig : Config {
@@ -144,6 +153,20 @@ interface PvmPrayFlickConfig : Config {
 )
 class PvmPrayFlick : Plugin() {
 
+    /**
+     * SLF4J logger for verbose Client-thread diagnostics. **Critical**: never
+     * call `Microbot.log(...)` from a `@Subscribe` handler that runs on the
+     * Client thread — `GameChatAppender.append` routes every event through
+     * `clientThread.invoke(...)` which executes synchronously when called from
+     * the Client thread itself. With sustained log spam (3-5 lines per anim
+     * event in burst conditions) the chat-message render queue backs up and
+     * blocks the Client thread for 10+ seconds, which is fatal under Hunllef
+     * prayer-drain. SLF4J `DEBUG` events are filtered out of the chat appender
+     * (unless the user explicitly enables debug-level chat logging), so
+     * `log.debug(...)` is safe from Client-thread @Subscribe handlers.
+     */
+    private val log = LoggerFactory.getLogger(PvmPrayFlick::class.java)
+
     @Inject
     private lateinit var config: PvmPrayFlickConfig
 
@@ -155,6 +178,17 @@ class PvmPrayFlick : Plugin() {
     @Inject
     private lateinit var client: Client
 
+    /**
+     * Guice-injected [ClientThread] marshal helper. Used by the script to hop
+     * dispatches onto the client thread via `clientThread.invoke(Runnable {...})`
+     * so we can call `client.menuAction(...)` directly — bypassing
+     * `Microbot.doInvoke` (which posts a synthetic AWT MouseEvent that competes
+     * with EDT congestion + spends 50-100ms in `Microbot.click`'s logNormal
+     * sleep on every off-client-thread call). Same pattern as AutoPrayFlick.kt.
+     */
+    @Inject
+    private lateinit var clientThread: ClientThread
+
     @Provides
     fun provideConfig(configManager: ConfigManager): PvmPrayFlickConfig =
         configManager.getConfig(PvmPrayFlickConfig::class.java)
@@ -165,6 +199,7 @@ class PvmPrayFlick : Plugin() {
         script.conservePoints = config.conservePrayerPoints()
         script.debugLogging = config.debugLogging()
         script.client = client
+        script.clientThread = clientThread
         script.startScript()
         Microbot.log(
             "[PvmPrayFlick] plugin started (conservePrayerPoints=${script.conservePoints}, " +
@@ -198,6 +233,14 @@ class PvmPrayFlick : Plugin() {
      */
     @Subscribe
     fun onAnimationChanged(event: AnimationChanged) {
+        // CRITICAL: this handler runs on the Client thread. NEVER call
+        // `Microbot.log(...)` here — it routes through `GameChatAppender` →
+        // `clientThread.invoke(...)` which is **synchronous** when invoked from
+        // the Client thread itself. Sustained spam (3-5 lines per anim event)
+        // backs up the chat-message render queue and blocks the Client thread
+        // for 10+ seconds — observed in the field as the Hunllef "freeze". All
+        // verbose diagnostics use `log.debug(...)` which is filtered out of
+        // chat by default.
         val actor = event.actor
         if (actor !is NPC) return
         val anim = actor.animation
@@ -208,22 +251,23 @@ class PvmPrayFlick : Plugin() {
         // Diagnostic: log every event involving a boss-watchlist NPC, even if
         // matching fails downstream. ALL_BOSS_IDS is the union of every
         // BossConfig.npcIds entry — cheap O(1) Int set lookup.
-        val onWatchlist = id in ALL_BOSS_IDS
-        if (debug && onWatchlist) {
-            Microbot.log(
-                "[PvmPrayFlick] anim-event: name='$name' id=$id anim=$anim tick=${client.tickCount}"
+        if (debug && id in ALL_BOSS_IDS) {
+            log.debug(
+                "[PvmPrayFlick] anim-event: name='{}' id={} anim={} tick={}",
+                name, id, anim, client.tickCount,
             )
         }
 
         val config = matchBoss(actor)
         if (config == null) {
-            // If a Hunllef-anim id (8754/8755) fires but the matcher returned
-            // null, the operator needs to see it — that's the smoking-gun for
-            // a constants mismatch.
-            if (debug && (anim == 8754 || anim == 8755)) {
-                Microbot.log(
-                    "[PvmPrayFlick] HUNLLEF-ANIM-NOMATCH: anim=$anim id=$id name='$name' " +
-                        "(boss matcher rejected — npcId not in any BossConfig.npcIds and name didn't substring any keyword)"
+            // If a Hunllef-anim id (8754/8755/11869/11870) fires but the
+            // matcher returned null, surface it at debug — that's the
+            // smoking-gun for a constants mismatch.
+            if (debug && anim in HUNLLEF_TRANSITION_ANIMS) {
+                log.debug(
+                    "[PvmPrayFlick] HUNLLEF-ANIM-NOMATCH: anim={} id={} name='{}' " +
+                        "(boss matcher rejected — npcId not in any BossConfig.npcIds and name didn't substring any keyword)",
+                    anim, id, name,
                 )
             }
             return
@@ -234,13 +278,24 @@ class PvmPrayFlick : Plugin() {
             // We matched the boss but this animation isn't a *transition* attack
             // animation. For Hunllef this is expected: in-stance attacks fire
             // animation 8419 / -1 and are detected via ProjectileMoved instead
-            // of AnimationChanged. The renamed log makes that explicit so the
-            // operator doesn't think we're discarding damaging anims.
+            // of AnimationChanged. Spawn anim 8753 and SPECIAL anim 8418 are
+            // also non-style and intentionally skipped. Anything OUTSIDE the
+            // documented sentinel set on a Hunllef gets logged at debug so we
+            // can pin down Echo-specific anims we haven't mapped yet.
             if (debug && config.nameKeyword == "hunllef") {
-                Microbot.log(
-                    "[PvmPrayFlick] hunllef-anim-only-info: anim=$anim id=$id (matched boss but " +
-                        "anim is not a stance-transition; in-stance attacks handled via projectile path)"
-                )
+                if (anim in HUNLLEF_NONATTACK_ANIMS) {
+                    log.debug(
+                        "[PvmPrayFlick] hunllef-anim-only-info: anim={} id={} (matched boss but " +
+                            "anim is documented non-style — in-stance attacks handled via projectile path)",
+                        anim, id,
+                    )
+                } else {
+                    log.debug(
+                        "[PvmPrayFlick] hunllef-anim-UNMAPPED: anim={} id={} name='{}' " +
+                            "(matched Hunllef but anim has no prayer mapping; capture id and add to attacks/projectiles)",
+                        anim, id, name,
+                    )
+                }
             }
             return
         }
@@ -248,8 +303,9 @@ class PvmPrayFlick : Plugin() {
         val nowTick = client.tickCount
 
         if (debug) {
-            Microbot.log(
-                "[PvmPrayFlick] match boss='${config.nameKeyword}' id=$id anim=$anim → $prayer @ tick=$nowTick"
+            log.debug(
+                "[PvmPrayFlick] match boss='{}' id={} anim={} -> {} @ tick={}",
+                config.nameKeyword, id, anim, prayer, nowTick,
             )
         }
 
@@ -257,9 +313,9 @@ class PvmPrayFlick : Plugin() {
         // attack cycle, ignore re-fires from lingering animation events.
         if (script.isWithinCooldown(actor.index, nowTick, config.cooldownTicks)) {
             if (debug) {
-                Microbot.log(
-                    "[PvmPrayFlick] cooldown-skip boss='${config.nameKeyword}' npcIndex=${actor.index} " +
-                        "tick=$nowTick within ${config.cooldownTicks}t of last schedule"
+                log.debug(
+                    "[PvmPrayFlick] cooldown-skip boss='{}' npcIndex={} tick={} within {}t of last schedule",
+                    config.nameKeyword, actor.index, nowTick, config.cooldownTicks,
                 )
             }
             return
@@ -274,14 +330,15 @@ class PvmPrayFlick : Plugin() {
         // knockoffs; for the reactive path there's nothing to dispatch when
         // we'd be toggling a prayer that's already active. Reading from the
         // varbit cache here is free — we're on the client thread.
-        if (Rs2Prayer.isPrayerActive(prayer)) {
+        val isActive = Rs2Prayer.isPrayerActive(prayer)
+        if (isActive) {
             // Stamp the cooldown anyway so phantom re-fires from lingering
             // animations get dropped.
             script.stampAttackCooldown(actor.index, nowTick)
             if (debug) {
-                Microbot.log(
-                    "[PvmPrayFlick] schedule-skip prayer=$prayer already-active for " +
-                        "boss='${config.nameKeyword}' anim=$anim tick=$nowTick"
+                log.debug(
+                    "[PvmPrayFlick] schedule-skip prayer={} already-active for boss='{}' anim={} tick={}",
+                    prayer, config.nameKeyword, anim, nowTick,
                 )
             }
         } else {
@@ -305,9 +362,9 @@ class PvmPrayFlick : Plugin() {
         }
 
         if (debug) {
-            Microbot.log(
-                "[PvmPrayFlick] scheduled boss='${config.nameKeyword}' anim=$anim tick=$nowTick " +
-                    "fireAtTick=$fireAtTick prayer=$prayer"
+            log.debug(
+                "[PvmPrayFlick] scheduled boss='{}' anim={} tick={} fireAtTick={} prayer={}",
+                config.nameKeyword, anim, nowTick, fireAtTick, prayer,
             )
         }
     }
@@ -374,7 +431,9 @@ class PvmPrayFlick : Plugin() {
                 break
             }
         }
-        if (matched == null || prayer == null) return
+        if (matched == null || prayer == null) {
+            return
+        }
 
         val nowTick = client.tickCount
         val projKey = System.identityHashCode(projectile)
@@ -382,12 +441,14 @@ class PvmPrayFlick : Plugin() {
 
         // Throttle the verbose `proj-event` log: only print on the first tick
         // we see a given projectile object. Subsequent ticks during its flight
-        // are silent.
+        // are silent. CRITICAL: this handler is on the Client thread — debug
+        // logs go through SLF4J only; never `Microbot.log` (chat appender
+        // blocks the Client thread).
         if (debug && firstSighting) {
             val targetName = projectile.targetActor?.name ?: "<none>"
-            Microbot.log(
-                "[PvmPrayFlick] proj-event: id=$projId cycles=${projectile.remainingCycles} " +
-                    "interacting='$targetName' tick=$nowTick"
+            log.debug(
+                "[PvmPrayFlick] proj-event: id={} cycles={} interacting='{}' tick={}",
+                projId, projectile.remainingCycles, targetName, nowTick,
             )
         }
 
@@ -398,9 +459,9 @@ class PvmPrayFlick : Plugin() {
         val fireAtTick = nowTick + ticksUntilDamage - 1
 
         if (debug) {
-            Microbot.log(
-                "[PvmPrayFlick] match boss='${matched.nameKeyword}' projectile id=$projId → $prayer " +
-                    "@ tick=$nowTick fireAtTick=$fireAtTick (ticksUntilDamage=$ticksUntilDamage)"
+            log.debug(
+                "[PvmPrayFlick] match boss='{}' projectile id={} -> {} @ tick={} fireAtTick={} (ticksUntilDamage={})",
+                matched.nameKeyword, projId, prayer, nowTick, fireAtTick, ticksUntilDamage,
             )
         }
 
@@ -415,9 +476,9 @@ class PvmPrayFlick : Plugin() {
         // maintenance loop catches drain knockoffs.
         if (Rs2Prayer.isPrayerActive(prayer)) {
             if (debug) {
-                Microbot.log(
-                    "[PvmPrayFlick] schedule-skip prayer=$prayer already-active for " +
-                        "boss='${matched.nameKeyword}' projectile=$projId tick=$nowTick"
+                log.debug(
+                    "[PvmPrayFlick] schedule-skip prayer={} already-active for boss='{}' projectile={} tick={}",
+                    prayer, matched.nameKeyword, projId, nowTick,
                 )
             }
             return
@@ -431,9 +492,9 @@ class PvmPrayFlick : Plugin() {
         )
 
         if (debug) {
-            Microbot.log(
-                "[PvmPrayFlick] scheduled boss='${matched.nameKeyword}' projectile=$projId tick=$nowTick " +
-                    "fireAtTick=$fireAtTick prayer=$prayer"
+            log.debug(
+                "[PvmPrayFlick] scheduled boss='{}' projectile={} tick={} fireAtTick={} prayer={}",
+                matched.nameKeyword, projId, nowTick, fireAtTick, prayer,
             )
         }
     }
@@ -513,6 +574,40 @@ private data class BossConfig(
  * subscriber even when subsequent matching/dispatch fails.
  */
 private val ALL_BOSS_IDS: Set<Int> by lazy { BOSSES.flatMap { it.npcIds }.toSet() }
+
+/**
+ * Transition-attack animation ids for Hunllef. 8754/8755 are the original
+ * (Crystalline + Corrupted) magic/range stance transitions. 11869/11870 are
+ * the LOWPRIO variants observed on Echo-tier Hunllef encounters (gameval
+ * `HUNLLEF_ATTACK_TRANSITION_{MAGIC,RANGED}_LOWPRIO`). Both pairs are
+ * authoritative style-transition signals — first-tick-of-stance flicks key on
+ * them.
+ */
+private val HUNLLEF_TRANSITION_ANIMS: Set<Int> = setOf(
+    AnimationID.HUNLLEF_ATTACK_TRANSITION_MAGIC,           // 8754
+    AnimationID.HUNLLEF_ATTACK_TRANSITION_RANGED,          // 8755
+    AnimationID.HUNLLEF_ATTACK_TRANSITION_MAGIC_LOWPRIO,   // 11869 (Echo)
+    AnimationID.HUNLLEF_ATTACK_TRANSITION_RANGED_LOWPRIO,  // 11870 (Echo)
+)
+
+/**
+ * Hunllef animations that are documented NON-style — emitted as part of the
+ * fight but never indicate the next protect-prayer style:
+ *  - 8753 HUNLLEF_SPAWN
+ *  - 8418 HUNLLEF_ATTACK_SPECIAL (tornado / prayer-drain wave; no style damage)
+ *  - 8419 HUNLLEF_ATTACK_RANGED  (in-stance ranged loop — covered by projectile path)
+ *  - 8420 HUNLLEF_ATTACK_MELEE   (in-stance melee loop — covered by projectile path)
+ *
+ * Logged at info level so the operator sees they were *deliberately* skipped,
+ * not silently dropped. Anything else hitting a matched Hunllef gets the louder
+ * `hunllef-anim-UNMAPPED` line so unknown Echo anims surface immediately.
+ */
+private val HUNLLEF_NONATTACK_ANIMS: Set<Int> = setOf(
+    AnimationID.HUNLLEF_SPAWN,            // 8753
+    AnimationID.HUNLLEF_ATTACK_SPECIAL,   // 8418
+    AnimationID.HUNLLEF_ATTACK_RANGED,    // 8419
+    AnimationID.HUNLLEF_ATTACK_MELEE,     // 8420
+)
 
 private val BOSSES: List<BossConfig> = listOf(
     // General Graardor. Damage lands on the animation tick (attackDelayTicks=0)
@@ -643,6 +738,13 @@ private val BOSSES: List<BossConfig> = listOf(
         attacks = mapOf(
             AnimationID.HUNLLEF_ATTACK_TRANSITION_MAGIC to Rs2PrayerEnum.PROTECT_MAGIC,
             AnimationID.HUNLLEF_ATTACK_TRANSITION_RANGED to Rs2PrayerEnum.PROTECT_RANGE,
+            // Echo Hunllef (id=9035 = CRYSTAL_HUNLLEF_MELEE_HM, but reuses HM
+            // ids while emitting the LOWPRIO transition variants). 11869/11870
+            // are the gameval-named `HUNLLEF_ATTACK_TRANSITION_{MAGIC,RANGED}_LOWPRIO`
+            // anims observed in the field — confirmed authoritative style
+            // signals via gameval/AnimationID.java (no separate Echo NPC line).
+            AnimationID.HUNLLEF_ATTACK_TRANSITION_MAGIC_LOWPRIO to Rs2PrayerEnum.PROTECT_MAGIC,
+            AnimationID.HUNLLEF_ATTACK_TRANSITION_RANGED_LOWPRIO to Rs2PrayerEnum.PROTECT_RANGE,
         ),
         projectiles = mapOf(
             SpotanimID.CRYSTAL_DRAGON_MAGIC_TRAVEL to Rs2PrayerEnum.PROTECT_MAGIC,
@@ -729,11 +831,30 @@ private const val PENDING_DRAIN_CAP_PER_TICK: Int = 2
 private class PvmPrayFlickScript : Script() {
 
     /**
+     * SLF4J logger for `setExpectedPrayer` / `clearExpectedPrayer` — those are
+     * the only methods on this script that get called from a Client-thread
+     * `@Subscribe` handler (the plugin's `onAnimationChanged` and
+     * `onNpcDespawned`). All OTHER `Microbot.log` calls in this script run on
+     * the dedicated `pvmprayflick-dispatch` thread, where the chat appender's
+     * `clientThread.invoke(...)` queues asynchronously and is fine.
+     */
+    private val log = LoggerFactory.getLogger(PvmPrayFlickScript::class.java)
+
+    /**
      * RuneLite [Client] reference, injected by the plugin. We only read
      * [Client.getTickCount] — a simple int accessor safe from the poll
      * thread.
      */
     lateinit var client: Client
+
+    /**
+     * [ClientThread] marshal helper, injected by the plugin. Used by
+     * [invokePrayerMenuEntryForceInstrumented] to dispatch
+     * `client.menuAction(...)` on the client thread directly — see that
+     * method's KDoc for the rationale (Microbot.doInvoke's AWT path was
+     * burning 50-100ms per dispatch and contributed to the 10s freeze).
+     */
+    lateinit var clientThread: ClientThread
 
     /**
      * Per-NPC cooldown keyed by scene index. Value is the [Client.getTickCount]
@@ -954,7 +1075,10 @@ private class PvmPrayFlickScript : Script() {
         val prior = expectedPrayer
         expectedPrayer = prayer
         if (prior != prayer) {
-            Microbot.log("[PvmPrayFlick] stance set: $anim → $prayer")
+            // Called from the Client-thread `@Subscribe onAnimationChanged`
+            // handler — must not call `Microbot.log` (would route through
+            // chat appender and block the Client thread). SLF4J debug only.
+            log.debug("[PvmPrayFlick] stance set: {} -> {}", anim, prayer)
         }
     }
 
@@ -968,7 +1092,10 @@ private class PvmPrayFlickScript : Script() {
         if (expectedPrayer != null) {
             expectedPrayer = null
             lastMaintainDispatchMs = 0L
-            Microbot.log("[PvmPrayFlick] stance cleared ($reason)")
+            // Called from the Client-thread `@Subscribe onNpcDespawned`
+            // handler — must not call `Microbot.log` (would route through
+            // chat appender and block the Client thread). SLF4J debug only.
+            log.debug("[PvmPrayFlick] stance cleared ({})", reason)
         }
     }
 
@@ -1139,25 +1266,22 @@ private class PvmPrayFlickScript : Script() {
                     lastMaintainDispatchMs = 0L
                 }
             }
-            // Self-clearing safety net: if the maintain-flagged boss is no
-            // longer in the scene at all (player teleported out / region
-            // change / despawn event missed), drop the latch. Cheaper than
-            // running this on every poll — gate on the cache having SOME
-            // matchable boss-id-set member loaded.
-            if (!anyMaintainBossPresent()) {
-                clearExpectedPrayer("no maintain-flagged boss in scene")
-            }
+            // Self-clearing latch is owned exclusively by the @Subscribe
+            // NpcDespawned handler — no per-poll scene scan. If the player
+            // teleports out without a clean despawn the latch will stay set
+            // until the next stance-transition anim or until shutdown clears
+            // it; harmless because the maintenance branch is a no-op when the
+            // prayer is already up (or the player isn't taking damage).
         }
 
         // 3. Conservation path. Only runs when enabled AND nothing is queued
-        // AND no maintenance latch is active AND no matched boss in the scene
-        // is currently mid-attack-animation. The maintenance check is new —
-        // without it, conservation would race the maintenance loop and
-        // deactivate the prayer we just put up.
+        // AND no maintenance latch is active. We deliberately removed the
+        // "no boss mid-attack" scene scan — trusting the latch + pending
+        // toggles is enough, and the scan was the dominant client-thread
+        // cost in the 10ms poll loop.
         if (conservePoints &&
             pendingToggles.isEmpty() &&
-            expectedPrayer == null &&
-            !anyMatchedBossAttacking()
+            expectedPrayer == null
         ) {
             val active = currentActivePrayer
             if (active != null && isPrayerActiveCached(active)) {
@@ -1171,55 +1295,6 @@ private class PvmPrayFlickScript : Script() {
                 currentActivePrayer = null
             }
         }
-    }
-
-    /**
-     * True iff at least one NPC in the scene matches a maintain-flagged
-     * BossConfig. Used by the poll-loop fallback clear path so the latch
-     * doesn't survive a region change that didn't fire `NpcDespawned` cleanly
-     * (e.g., player teleported out before the despawn event was queued).
-     *
-     * Iterates the NPC cache via [Rs2NpcQueryable] — same pattern as the
-     * conservation path. Cheap; the scene is small and the comparison is an
-     * `id in Set<Int>` lookup.
-     */
-    private fun anyMaintainBossPresent(): Boolean {
-        val npcs = Rs2NpcQueryable().toList()
-        for (npc in npcs) {
-            val cfg = matchBossById(npc.getId(), npc.getName()) ?: continue
-            if (cfg.maintainPrayer) return true
-        }
-        return false
-    }
-
-    /**
-     * Polled check: is any matched boss in the scene currently showing an
-     * attack animation? Only called from the conservation path — the main
-     * flicker work doesn't poll the scene at all (it's event-driven).
-     */
-    private fun anyMatchedBossAttacking(): Boolean {
-        val npcs = Rs2NpcQueryable().toList()
-        for (npc in npcs) {
-            val cfg = matchBossById(npc.getId(), npc.getName()) ?: continue
-            val anim = npc.getAnimation()
-            if (anim > 0 && cfg.attacks.containsKey(anim)) return true
-        }
-        return false
-    }
-
-    /**
-     * Mirror of the plugin-side matcher, used only by the conservation path.
-     * Duplicated (rather than shared) because the plugin-side version works
-     * on a raw [NPC] (client-thread) and this one on a `Rs2NpcModel`-shaped
-     * `(id, name)` pair — sharing would require a wrapper interface for no
-     * real gain.
-     */
-    private fun matchBossById(id: Int, name: String?): BossConfig? {
-        for (cfg in BOSSES) {
-            if (id in cfg.npcIds) return cfg
-            if (name != null && name.contains(cfg.nameKeyword, ignoreCase = true)) return cfg
-        }
-        return null
     }
 
     /**
@@ -1252,6 +1327,19 @@ private class PvmPrayFlickScript : Script() {
      */
     private fun invokePrayerMenuEntryForceInstrumented(prayer: Rs2PrayerEnum, source: String) {
         val tStart = System.nanoTime()
+        // Direct `client.menuAction` dispatch via the client thread — the same
+        // 7-arg signature stock RuneLite plugins use (see e.g.
+        // QuestBankTabInterface.java:230 and Rs2Reflection.java:60). This
+        // bypasses the AWT MouseEvent hop that `Microbot.doInvoke` /
+        // `Microbot.click` use, which spends 50-100ms per call inside
+        // `Rs2Random.logNormalBounded(50, 100)` from non-client threads
+        // (Microbot.java:599-610) and competes with EDT congestion.
+        //
+        // We still build a NewMenuEntry locally for parity / readability with
+        // the rest of the plugin's menu-entry contract, but only its three
+        // numeric fields are dispatched (param0=-1, param1=widgetId,
+        // identifier=1). Option "Activate" with an empty target matches the
+        // commented-out reference call in Rs2Prayer.java:98.
         val menuEntry = NewMenuEntry()
             .param0(-1)
             .param1(prayer.index)
@@ -1260,18 +1348,43 @@ private class PvmPrayFlickScript : Script() {
             .itemId(-1)
             .option("Activate")
         val tBuilt = System.nanoTime()
-        // Rectangle(1, 1) deterministically routes through the (0,0)-origin
-        // short-circuit in Rs2UiHelper.getClickingPoint so VirtualMouse.click
-        // skips natural-mouse movement. OS cursor never moves.
-        Microbot.doInvoke(menuEntry, Rectangle(1, 1))
+
+        val p0 = menuEntry.param0
+        val p1 = menuEntry.param1
+        val id = menuEntry.identifier
+        val localClient = client
+        // `Runnable { ... }` explicit wrapping avoids Kotlin SAM-conversion
+        // ambiguity between the three-way `ClientThread.invoke` overload
+        // (Runnable / BooleanSupplier / Supplier<T>); same pattern as
+        // AutoPrayFlick.kt:458.
+        clientThread.invoke(Runnable {
+            try {
+                localClient.menuAction(
+                    /* p0         */ p0,
+                    /* p1         */ p1,
+                    /* action     */ MenuAction.CC_OP,
+                    /* identifier */ id,
+                    /* itemId     */ -1,
+                    /* option     */ "Activate",
+                    /* target     */ "",
+                )
+            } catch (e: Exception) {
+                // We're on the Client thread inside this Runnable — must not
+                // call `Microbot.log` here (chat appender would re-enter the
+                // Client thread synchronously). SLF4J only.
+                log.warn("[PvmPrayFlick] menuAction failed src={}: {}", source, e.message)
+            }
+        })
         val tInvoked = System.nanoTime()
         invalidatePrayerActiveCache(prayer)
         val tEnd = System.nanoTime()
 
         if (debugLogging) {
             // Convert to micros for a tighter readout — most healthy paths
-            // are sub-100 us. Any step > 5_000 us (5 ms) is suspicious; > 50
-            // ms means the EDT was actively contended at dispatch time.
+            // are sub-100 us. With direct `client.menuAction` dispatch the
+            // `invokeUs` step should drop to sub-ms (it's now just a queue
+            // submission, not an AWT MouseEvent post + 50-100ms sleep). Any
+            // step > 5_000 us (5 ms) is suspicious.
             val buildUs = (tBuilt - tStart) / 1_000
             val invokeUs = (tInvoked - tBuilt) / 1_000
             val invalidateUs = (tEnd - tInvoked) / 1_000
